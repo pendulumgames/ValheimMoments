@@ -6,21 +6,22 @@ Save the moments worth sharing: boss victories, rare drops, unfortunate deaths,
 and anything you catch with a hotkey. Valheim Moments turns recent gameplay into
 animated WebP clips and can send them to Discord.
 
-**Windows x64 beta.** Manual capture, deaths, boss summaries and loot highlights have
-been tested in game. Host and joining-player F10 clips have reached Discord in a live
-co-op test, with the smaller WebP-only encoder's clips confirmed visually.
-Dedicated-server testing remains pending.
+**Windows x64 beta - 0.11.1.** Manual capture, deaths, boss summaries, Epic Loot,
+ordinary loot and natural acquisitions have passed user testing. Host and joining-player
+F10 clips have reached Discord, and the WebP clips were confirmed visually.
 
-Version 0.11.0 adds first-acquisition highlights for tracked natural chest loot,
-world pickables and breakable drops. Install **0.11.0 on the host and every recording
-client**: older versions have a different settings schema. The new loot paths and
-host settings UI/sync have automated coverage and still need live validation.
+This release fixes boss **Kill Credit** to include every player Valheim credited for
+the fight. **Recorded by** identifies the clip's recorder; **Final Blow** identifies
+the finishing player when known. Install **0.11.1 on the host and every recording
+client** for the complete metadata. The new roster has automated coverage; its final
+live co-op check remains pending. Dedicated hosting, detailed loot edge cases,
+settings UI/sync and sustained performance checks remain documented test items.
 
 ## Features
 
 * **F10** captures recent gameplay. **F9** pauses/resumes recording.
 * Automatic player-death clips, including the recorded cause when available.
-* Boss clips with first-kill rules, kill credit, final-blow attribution and loot.
+* Boss clips with first-kill rules, all credited players, final-blow attribution and loot.
 * Optional Epic Loot rarity, modifiers, sockets and unidentified-item display.
 * Ordinary-enemy loot plus tracked natural chest/world pickups, using a shared minimum rarity.
 * Independent boss and ordinary-loot display options, with Markdown headings and bullets.
@@ -144,6 +145,14 @@ lists all settings, defaults, templates and host/client ownership.
 (`KillCredit`, `FinalBlow`, or `Both`). First kill means the character's first recorded
 kill in Valheim's saved statistics, not its first uploaded clip.
 
+Kill Credit follows Valheim's credited-attacker records; simply being nearby does
+not add someone. Names are sorted, and the list is bounded for Discord. If complete
+metadata is missing, the confirmed recording character is shown with "full list
+unavailable" rather than claiming that player was the only contributor. The
+{credit} placeholder (and {player} in Both/KillCredit mode) uses this list. First-kill
+history still belongs to the recording character. Ordinary-kill loot messages retain
+their individual credited character; natural pickup messages use Collected by.
+
 `TrackPeriodicDamage = true` lets the boss owner track Spirit/fire/poison effects for
 final-blow attribution. A tick from one known player can supply their name; mixed or
 unknown sources stay unavailable. The creature owner follows the host's synced option.
@@ -175,6 +184,20 @@ Configuration Manager edits apply in game, with buffer changes waiting for activ
 * Periodic damage can leave final-blow attribution unavailable. No guessed player is shown.
 * Discord may reject files according to its current limits; failed uploads retain footage.
 * Linux/macOS/Steam Deck recording are not supported by this Windows package.
+
+## Future Roadmap
+
+These are future ideas, not features included in this release. Prioritize game-provided
+events and saved progression data so new content needs as little mod maintenance as
+possible. Host configuration should control categories, filters, first-time rules and
+cooldowns; avoid needing a new build just to add an enemy or achievement identifier.
+Game API changes can still require compatibility updates.
+
+* First biome and notable location/trader discoveries, detected from game discovery events.
+* Selected achievement unlocks, driven by the game's achievement definitions rather than a hardcoded list.
+* Miniboss/special encounter clips: investigate game progression markers and configurable identifiers. No universal miniboss flag has been verified, so automatic coverage of every future enemy is not promised.
+* Optional raid start/completion highlights, with per-event controls and cooldowns.
+* Group overlapping progression events to avoid duplicate posts for the same moment.
 
 ## Credits
 

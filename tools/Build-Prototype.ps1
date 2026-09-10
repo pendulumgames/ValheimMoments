@@ -22,6 +22,10 @@ try {
         Copy-Item -Destination $encoder
     Copy-Item -LiteralPath third-party/webp -Destination (Join-Path $plugin 'Licenses') -Recurse
     Copy-Item -LiteralPath docs/RELAY-TEST.md -Destination (Join-Path $stage 'READ-ME-FIRST.md')
+    Copy-Item -LiteralPath docs/NATURAL-LOOT-TEST.md -Destination (Join-Path $stage 'NATURAL-LOOT-TEST.md')
+    Copy-Item -LiteralPath docs/CONFIGURATION.md -Destination (Join-Path $stage 'CONFIGURATION.md')
+    Copy-Item -LiteralPath release/CHANGELOG.md -Destination (Join-Path $stage 'CHANGELOG.md')
+    Copy-Item -LiteralPath LICENSE -Destination (Join-Path $stage 'LICENSE')
     Copy-Item -LiteralPath docs/PROTOTYPE-TEST.md -Destination (Join-Path $stage 'CAPTURE-TEST.md')
     Copy-Item -LiteralPath docs/DEPENDENCIES.md -Destination $plugin
     & (Join-Path $PSScriptRoot 'Test-Encoder.ps1') -EncoderPath (Join-Path $encoder 'ValheimMoments.Encoder.exe')
@@ -30,7 +34,7 @@ try {
         '{0}  {1}' -f (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash, $file.FullName.Substring($stage.Length + 1)
     }
     $hashes | Set-Content -LiteralPath (Join-Path $stage 'SHA256SUMS.txt')
-    $zip = Join-Path $workspace 'artifacts/ValheimMoments-0.11.0-test.zip'
+    $zip = Join-Path $workspace 'artifacts/ValheimMoments-0.11.1-test.zip'
     Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
     $stage | Set-Content -LiteralPath (Join-Path $workspace 'artifacts/latest-package-path.txt')
     Write-Output "Package: $zip"

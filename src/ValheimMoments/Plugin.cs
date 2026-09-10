@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.11.0")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.11.1")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -263,6 +263,14 @@ namespace ValheimMoments
                     worldHarmony?.UnpatchSelf(); WorldLootDetector.Clear();
                     Logger.LogWarning("[Loot] Natural pickup observer unavailable: " + error.GetType().Name);
                 }
+                try
+                {
+                    attributionHarmony = new Harmony("local.valheimmoments.boss.attribution");
+                    BossAttribution.OnDiagnostic = reason => Logger.LogInfo("[Boss] Final-blow source: " + reason);
+                    BossAttribution.Install(attributionHarmony);
+                    Logger.LogInfo("[Boss] Kill-credit roster and final-blow attribution installed.");
+                }
+                catch (Exception error) { Logger.LogWarning("[Boss] Final-blow attribution unavailable: " + error.GetType().Name); }
                 if (Application.isBatchMode || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
                 {
                     Logger.LogInfo("[Relay] Host delivery ready; graphics capture disabled on this headless server.");
@@ -294,14 +302,6 @@ namespace ValheimMoments
                     Logger.LogInfo("[Boss] Local kill-credit detector installed.");
                 }
                 catch (Exception error) { Logger.LogWarning("[Boss] Detector unavailable: " + error.GetType().Name + ". Other captures remain available."); }
-                try
-                {
-                    attributionHarmony = new Harmony("local.valheimmoments.boss.attribution");
-                    BossAttribution.OnDiagnostic = reason => Logger.LogInfo("[Boss] Final-blow source: " + reason);
-                    BossAttribution.Install(attributionHarmony);
-                    Logger.LogInfo("[Boss] Final-blow attribution installed.");
-                }
-                catch (Exception error) { Logger.LogWarning("[Boss] Final-blow attribution unavailable: " + error.GetType().Name); }
                 // Observe status effects; the current host policy controls attribution.
                 {
                     try
@@ -705,13 +705,13 @@ namespace ValheimMoments
                 string count = kill.Loot != null && kill.Loot.Observed ? kill.Loot.Items.Count.ToString() : "unknown";
                 if (highlight && kill.Acquired) return EventMessages.FoundLoot(Value(pickupMessage), kill.EnemyKey, kill.PlayerName, loot, count);
                 if (highlight) return EventMessages.Loot(Value(highlightMessage), Localization.instance.Localize(kill.EnemyKey), kill.PlayerName, loot, count);
-                return EventMessages.Boss(Value(bossMessage), Localization.instance.Localize(kill.EnemyKey), kill.PlayerName, Value(bossNameMode), kill.FinalBlowName, loot, count);
+                return EventMessages.Boss(Value(bossMessage), Localization.instance.Localize(kill.EnemyKey), BossAttribution.CreditLabel(kill.CreditNames, kill.PlayerName), Value(bossNameMode), kill.FinalBlowName, loot, count);
             }
             catch
             {
                 Logger.LogWarning("[Loot] Message enrichment failed; sending boss names only.");
                 if (kill.Acquired) return EventMessages.FoundLoot(Value(pickupMessage), kill.EnemyKey, kill.PlayerName, "unavailable");
-                return kill.BossNumber <= 0 ? EventMessages.Loot(Value(highlightMessage), kill.EnemyKey, kill.PlayerName, "unavailable") : EventMessages.Boss(Value(bossMessage), kill.EnemyKey, kill.PlayerName, Value(bossNameMode), kill.FinalBlowName);
+                return kill.BossNumber <= 0 ? EventMessages.Loot(Value(highlightMessage), kill.EnemyKey, kill.PlayerName, "unavailable") : EventMessages.Boss(Value(bossMessage), kill.EnemyKey, BossAttribution.CreditLabel(kill.CreditNames, kill.PlayerName), Value(bossNameMode), kill.FinalBlowName);
             }
         }
         private void OnLocalDeath(Player player, string cause)

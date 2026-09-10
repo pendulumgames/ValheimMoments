@@ -13,13 +13,55 @@ namespace ValheimMoments
     internal static class BossAttribution
     {
         private const string RpcName = "ValheimMoments_BossFinalBlow_v1";
+        private const string CreditRpcName = "ValheimMoments_KillCredits_v1";
         private static readonly FieldInfo LastHit = typeof(Character).GetField("m_lastHit", BindingFlags.Instance | BindingFlags.NonPublic);
-        private sealed class Context { internal string Enemy, Name; }
+        private static readonly FieldInfo NetworkView = AccessTools.Field(typeof(Character), "m_nview");
+        private sealed class Context { internal string Enemy, Name, Credits; }
         [ThreadStatic] private static Context current;
         private static ZRoutedRpc registered;
         private static readonly AttributionInbox inbox = new AttributionInbox();
+        private static readonly AttributionInbox creditInbox = new AttributionInbox(1024);
         private static readonly Stopwatch clock = Stopwatch.StartNew();
         internal static Action<string> OnDiagnostic;
+
+        internal static string ResolveCredits(Character victim)
+        {
+            try
+            {
+                var view = NetworkView?.GetValue(victim) as ZNetView;
+                var zdo = view?.GetZDO();
+                if (zdo == null || ZNet.instance == null) return null;
+                var names = new List<string>();
+                // Exactly the key and connected-player filter used by Character.OnDeath
+                // when it sends vanilla kill credit. Do not substitute nearby players.
+                string prefix = ZDOVars.s_attackers.ToString();
+                foreach (var player in ZNet.instance.GetPlayerList())
+                    if (!string.IsNullOrEmpty(player.m_name) && zdo.GetBool(prefix + player.m_name, false)) names.Add(player.m_name);
+                return FormatCredits(names);
+            }
+            catch { return null; }
+        }
+        internal static string FormatCredits(IEnumerable<string> players)
+        {
+            var names = new List<string>();
+            foreach (string player in players)
+            {
+                string name = (player ?? "").Replace("\r", " ").Replace("\n", " ").Replace("*", "").Replace("`", "").Trim();
+                if (name.Length > 80) name = name.Substring(0, char.IsHighSurrogate(name[79]) ? 79 : 80);
+                if (name.Length != 0 && !names.Contains(name)) names.Add(name);
+            }
+            names.Sort(StringComparer.OrdinalIgnoreCase);
+            string result = "";
+            for (int i = 0; i < names.Count; i++)
+            {
+                if (result.Length + names[i].Length + 2 > 980) return result + " (+" + (names.Count - i) + " more)";
+                result += (result.Length == 0 ? "" : ", ") + names[i];
+            }
+            return result.Length == 0 ? null : result;
+        }
+
+        internal static string CreditLabel(string credits, string local)
+        { return string.IsNullOrWhiteSpace(credits) ? (string.IsNullOrWhiteSpace(local) ? "A player" : local) + " (full list unavailable)" : credits; }
 
         internal static string Resolve(HitData hit, out string reason)
         {
@@ -60,8 +102,9 @@ namespace ValheimMoments
             {
                 if (router == null || ReferenceEquals(registered, router)) return;
                 router.Register<string, string>(RpcName, Receive);
+                router.Register<string, string>(CreditRpcName, (sender, enemy, names) => creditInbox.Add(sender, enemy, names, clock.Elapsed.TotalSeconds));
                 registered = router;
-                inbox.Clear();
+                inbox.Clear(); creditInbox.Clear();
             }
             catch { } // A missing channel yields unavailable attribution, not lost gameplay.
         }
@@ -82,7 +125,7 @@ namespace ValheimMoments
                 string reason;
                 string name = Resolve(hit, out reason);
                 current = new Context { Enemy = __instance.m_name,
-                    Name = name };
+                    Name = name, Credits = ResolveCredits(__instance) };
                 try { OnDiagnostic?.Invoke(reason); } catch { }
             }
             catch { }
@@ -98,6 +141,7 @@ namespace ValheimMoments
                 // Sent to exactly the recipient of the immediately following vanilla
                 // credit, over the same ordered routed-RPC connection.
                 ZRoutedRpc.instance.InvokeRoutedRPC(playerPeerID, RpcName, new object[] { enemyName, current.Name ?? "" });
+                ZRoutedRpc.instance.InvokeRoutedRPC(playerPeerID, CreditRpcName, new object[] { enemyName, current.Credits ?? "" });
             }
             catch { }
         }
@@ -110,7 +154,13 @@ namespace ValheimMoments
             return name;
         }
 
-        internal static void Clear() { current = null; inbox.Clear(); OnDiagnostic = null; }
+        internal static string TakeCredits(long sender, string enemy)
+        {
+            if (sender == 0 && current != null && current.Enemy == enemy) return current.Credits;
+            return creditInbox.Take(sender, enemy, clock.Elapsed.TotalSeconds);
+        }
+
+        internal static void Clear() { current = null; inbox.Clear(); creditInbox.Clear(); OnDiagnostic = null; }
     }
 
     // Bounded, short-lived and sender-scoped: never reuse another participant's
@@ -119,9 +169,11 @@ namespace ValheimMoments
     {
         private sealed class Entry { internal long Sender; internal string Enemy, Name; internal double Time; }
         private readonly List<Entry> entries = new List<Entry>();
+        private readonly int maximumName;
+        internal AttributionInbox(int maximumName = 256) { this.maximumName = maximumName; }
         internal void Add(long sender, string enemy, string name, double now)
         {
-            if (string.IsNullOrEmpty(enemy) || enemy.Length > 256 || name == null || name.Length > 256) return;
+            if (string.IsNullOrEmpty(enemy) || enemy.Length > 256 || name == null || name.Length > maximumName) return;
             entries.RemoveAll(e => now - e.Time > 5 || (e.Sender == sender && e.Enemy == enemy));
             if (entries.Count >= 64) entries.RemoveAt(0);
             entries.Add(new Entry { Sender = sender, Enemy = enemy, Name = name, Time = now });

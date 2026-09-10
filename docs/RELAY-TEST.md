@@ -6,7 +6,7 @@ to qualify during testing; the shipped default is Legendary.
 
 ## Host setup
 
-For 0.11.0, install the matching build on host and recording clients. Older hosts do
+For 0.11.1, install the matching build on host and recording clients. Older hosts do
 not provide policy snapshots; newer clients wait rather than use their own event rules.
 
 Configure Discord.Enabled, WebhookURL and Username on the host. Optional Good Loot,
@@ -54,6 +54,18 @@ Then verify delivery:
    cannot be recalled by cancelling its request.
 
 No webhook is needed on the joining client. Do not share the host's secret config.
+
+## Final boss-credit check - 0.11.1
+
+1. Both players contribute damage to a boss; keep a third non-attacking player nearby if available.
+2. With PlayerNameMode=Both, each successfully delivered clip should list both credited players, exclude the spectator, identify its own recorder, and show the separate final blow.
+3. Repeat with only one attacker and with a different player landing the final blow.
+4. Confirm personal first-kill/rarity rules still apply per recording character. KillCredit/FinalBlow modes and {credit}/{killer}/{player} templates should keep their documented meaning.
+5. If a roster cannot be obtained, expect the confirmed recorder plus "full list unavailable". Do not interpret that fallback as a complete participant list. Record the version on the boss-owning peer as well as host/clients.
+
+Automated tests cover local-owner and remote-recipient rosters, spectators, missing
+metadata, bounded names, expiration, exception cleanup and unchanged trigger gating.
+The final live roster result has not yet been reported.
 
 ## Dedicated-server test
 

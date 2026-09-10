@@ -7,7 +7,7 @@ namespace ValheimMoments
 {
     internal sealed class BossKill
     {
-        internal string EnemyKey, PlayerName, FinalBlowName;
+        internal string EnemyKey, PlayerName, FinalBlowName, CreditNames;
         internal int BossNumber;
         internal bool FirstKill;
         internal bool Acquired;
@@ -29,6 +29,7 @@ namespace ValheimMoments
             internal int BossNumber;
             internal float Count;
             internal string FinalBlowName;
+            internal string CreditNames;
             internal BossLoot Loot;
         }
 
@@ -66,11 +67,12 @@ namespace ValheimMoments
             {
                 if (bossNumber <= 0 && ObserveOrdinary?.Invoke() != true) return;
                 string finalBlow = bossNumber > 0 ? BossAttribution.Take(sender, enemyName) : null;
+                string credits = bossNumber > 0 ? BossAttribution.TakeCredits(sender, enemyName) : null;
                 BossLoot loot = BossLootDetector.Take(sender, enemyName);
                 var profile = __instance.GetPlayerProfile();
                 float count;
                 if (!TryCount(profile, enemyName, out count)) { ReportError(); return; }
-                __state = new State { Profile = profile, EnemyKey = enemyName, BossNumber = bossNumber, Count = count, FinalBlowName = finalBlow, Loot = loot };
+                __state = new State { Profile = profile, EnemyKey = enemyName, BossNumber = bossNumber, Count = count, FinalBlowName = finalBlow, CreditNames = credits, Loot = loot };
             }
             catch { ReportError(); }
         }
@@ -85,7 +87,7 @@ namespace ValheimMoments
                 if (after <= __state.Count) return; // Original skipped / no credit applied.
                 var callback = __state.BossNumber > 0 ? OnKill : OnLootKill;
                 callback?.Invoke(new BossKill { EnemyKey = __state.EnemyKey, BossNumber = __state.BossNumber,
-                    PlayerName = __state.Profile.GetName(), FirstKill = __state.Count == 0, FinalBlowName = __state.FinalBlowName, Loot = __state.Loot });
+                    PlayerName = __state.Profile.GetName(), FirstKill = __state.Count == 0, FinalBlowName = __state.FinalBlowName, CreditNames = __state.CreditNames, Loot = __state.Loot });
             }
             catch { ReportError(); }
         }

@@ -8,6 +8,8 @@ using ValheimMoments;
 public class Character : UnityEngine.Component
 {
     public string m_name;
+    private ZNetView m_nview;
+    public void SetCreditView(ZNetView view) { m_nview = view; }
     public bool Boss, Owner = true;
     public bool IsBoss() { return Boss; }
     public bool IsOwner() { return Owner; }

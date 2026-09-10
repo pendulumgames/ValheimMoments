@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.1 - complete boss kill credit
+
+* Boss Kill Credit now lists all players in Valheim's credited-attacker records, instead of only the recording character. Nearby spectators are excluded.
+* Recorded by, Final Blow and personal first-kill history remain independent. Missing roster metadata is explicitly marked unavailable rather than implying solo credit.
+* Send the bounded roster alongside vanilla credit; attribution hooks also initialize on headless hosts.
+* Updated player/source documentation and multiplayer acceptance checks. Added a Future Roadmap favoring game-driven progression events and host configuration over hardcoded content lists.
+* Natural-loot testing was reported successful on 0.11.0. The new roster fix has automated coverage; final live co-op confirmation remains pending.
+* Update the host and all recording clients to 0.11.1 for complete attribution metadata.
+
 ## 0.11.0 - natural loot acquisitions
 
 * Added host-controlled natural chest and world pickup highlights, sharing loot rarity/display/routing settings.

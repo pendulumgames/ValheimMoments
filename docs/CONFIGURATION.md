@@ -1,6 +1,6 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.11.0. Launch once to generate
+Applies to Valheim Moments 0.11.1. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
 Restart after editing the file. Configuration Manager edits apply in game; buffer
 changes wait for active GPU/encoder work. Defaults describe a new installation; upgrades preserve
@@ -16,7 +16,7 @@ while connected. Private Discord settings are hidden from joining players' UI.
 
 Host event rules apply in memory without replacing clients' saved settings. Returning
 to single-player restores their own preferences and editing access. Host and clients
-need matching 0.11.0 versions: client capture waits for host settings and
+need matching 0.11.1 versions: client capture waits for host settings and
 pauses if updates stop for ten seconds. No webhook URL or Discord Username is synced.
 
 ## Capture
@@ -141,7 +141,11 @@ this mod was installed. It is not per world or per successful upload. FirstKillO
 takes precedence over every repeat-kill rarity outcome.
 
 In Both mode, {player} means kill credit; in FinalBlow mode it means final blow.
-Credit identifies the recording character whom Valheim credited. Final blow is the
+Credit lists the connected players whose attacker records Valheim checks when awarding
+that boss kill. Spectators are excluded. Names are sorted and bounded; a missing
+owner snapshot falls back to the confirmed recording character with "full list
+unavailable". {credit} and {player} in Both/KillCredit mode use that roster. Personal
+first-kill history and Recorded by stay tied to the recording character. Final blow is the
 last-hit player when resolvable, otherwise “unavailable”; it does not mean highest
 damage. TrackPeriodicDamage can resolve Spirit/fire/poison ticks from one known player.
 Mixed or unknown effect sources remain unavailable. Fire/Spirit additions combine;

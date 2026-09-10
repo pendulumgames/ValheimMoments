@@ -5,15 +5,16 @@
 Animated gameplay highlights for Valheim: manual captures, player deaths, boss kills
 and great loot, with optional Epic Loot details and host-controlled Discord delivery.
 
-**Windows x64 beta — version 0.11.0.** Manual capture, deaths, boss summaries and loot
-highlights have been tested in game. The WebP-only encoder and host/joining-player
-F10 Discord delivery have passed a live co-op check. Natural chest/world acquisitions are new in 0.11.0 and await live validation.
-Dedicated-server checks and live host-settings validation remain pending.
+**Windows x64 beta - version 0.11.1.** Manual capture, deaths, boss/loot clips,
+Epic Loot details, natural-loot acquisitions and host/client F10 delivery have passed
+user testing. This release fixes boss Kill Credit to list every player Valheim
+credited, independently of Recorded by and Final Blow. The new roster has automated
+coverage; a live multi-player roster check remains to be confirmed.
 
-This is the public source repository for the Pendulum Thunderstore package, provided
-for review and development. See [player instructions and settings](release/README.md).
-The initial Thunderstore listing is under moderation review; this repository does not
-imply approval or availability in the mod manager.
+See [player instructions and settings](release/README.md). The build produces a
+Thunderstore-ready archive; generating it does not publish or approve a listing.
+Dedicated hosting, detailed natural-loot edge cases, host-settings UI/sync and sustained
+performance testing remain on the documented acceptance checklists.
 
 ## Build from source
 
@@ -31,7 +32,7 @@ the helper requires .NET Framework 4.8. No game or BepInEx assemblies are includ
 ```
 
 The first command restores pinned NuGet packages and builds/tests a local package.
-The second validates and creates `artifacts/Valheim_Moments-0.11.0.zip`, including
+The second validates and creates `artifacts/Valheim_Moments-0.11.1.zip`, including
 manifest, README, changelog, icon, plugin, encoder and license notices. It does not
 publish anything. Do not reupload changed contents under an already published version.
 
@@ -116,6 +117,20 @@ explicit `-PreviousPluginDirectory` and `-PreviousConfigPath` arguments for this
 The generated config can contain Discord webhook secrets: **do not commit or share it**.
 Local paths, configs, footage, logs, game assemblies, build outputs and internal
 working notes are excluded from Git. The icon and source code are included.
+
+## Future Roadmap
+
+These are future ideas, not features included in this release. Prioritize game-provided
+events and saved progression data so new content needs as little mod maintenance as
+possible. Host configuration should control categories, filters, first-time rules and
+cooldowns; avoid needing a new build just to add an enemy or achievement identifier.
+Game API changes can still require compatibility updates.
+
+* First biome and notable location/trader discoveries, detected from game discovery events.
+* Selected achievement unlocks, driven by the game's achievement definitions rather than a hardcoded list.
+* Miniboss/special encounter clips: investigate game progression markers and configurable identifiers. No universal miniboss flag has been verified, so automatic coverage of every future enemy is not promised.
+* Optional raid start/completion highlights, with per-event controls and cooldowns.
+* Group overlapping progression events to avoid duplicate posts for the same moment.
 
 ## License and attribution
 

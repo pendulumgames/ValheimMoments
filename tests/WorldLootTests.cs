@@ -20,7 +20,9 @@ namespace UnityEngine
         public T GetComponentInParent<T>() where T : class { return GetComponent<T>(); }
     }
 }
-public class ZNetView : Component { public bool Owner = true, Valid = true; public bool IsOwner() { return Owner; } public bool IsValid() { return Valid; } }
+public class ZNetView : Component { public bool Owner = true, Valid = true; public bool IsOwner() { return Owner; } public bool IsValid() { return Valid; } public ZDO Data = new ZDO(); public ZDO GetZDO() { return Data; } }
+public class ZDO { public readonly HashSet<string> Flags = new HashSet<string>(); public bool GetBool(string key, bool fallback) { return Flags.Contains(key) || fallback; } }
+public static class ZDOVars { public static int s_attackers = 1234; }
 public class Piece : Component { public bool Built; public bool IsPlacedByPlayer() { return Built; } }
 public class TombStone : Component { }
 public class Plant : Component { }

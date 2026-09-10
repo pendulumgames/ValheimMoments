@@ -1,6 +1,6 @@
 # Integration and validation notes
 
-This describes 0.11.0, not a guarantee of compatibility with future versions.
+This describes 0.11.1, not a guarantee of compatibility with future versions.
 Observers do not intentionally change damage, kill credit, rolls or saved statistics.
 
 ## Harmony patch inventory
@@ -9,8 +9,8 @@ Observers do not intentionally change damage, kill credit, rolls or saved statis
 | --- | --- | --- |
 | Player.OnDeath() | PlayerDeathDetector prefix/postfix | Snapshot local alive state/cause; emit only after the original makes that local player dead. |
 | Game.RPC_RegisterKill(long, string, int, int, int, bool) | BossKillDetector prefix/postfix | Compare profile kill counts before/after actual credit. Boss number selects boss or ordinary-loot rules. |
-| Character.OnDeath() | BossAttribution prefix/finalizer | Scope owner-observed last-hit attribution around vanilla credit; restore nested context even on exceptions. |
-| Game.RegisterKill(long, string, int, KillModifiers, int, bool) | BossAttribution prefix | Send final-blow metadata to the same credited recipient before vanilla credit. |
+| Character.OnDeath() | BossAttribution prefix/finalizer | Snapshot owner-observed final blow and the same credited-player attacker flags vanilla checks; restore nested context on exceptions. |
+| Game.RegisterKill(long, string, int, KillModifiers, int, bool) | BossAttribution prefix | Send separate final-blow and credit-roster metadata to the same recipient before vanilla credit. |
 | ZRoutedRpc constructors | BossAttribution postfix | Register attribution channel for each router. |
 | Character.OnDeath() | BossLootDetector prefix/finalizer | Scope owner-observed loot, publish its revision, restore context. |
 | CharacterDrop.GenerateDropList() | BossLootDetector last-priority postfix | Read the returned roll for the exact character; never reroll it. |
@@ -42,6 +42,25 @@ Patches are optional through TrackPeriodicDamage and removed if installation fai
 The existing boss-owner metadata channel shares the resolved final blow with credited
 players. The read-only [inspection script](../tools/Inspect-PeriodicDamage.ps1) exposes
 the installed IL used to verify these paths.
+
+## Boss credit roster
+
+The owner reads `Character.m_nview.GetZDO()` and the connected player list, testing
+`ZDOVars.s_attackers.ToString() + player.m_name` with GetBool, exactly as the inspected
+Character.OnDeath credit loop does. It does not infer contribution from distance or
+invent its own damage threshold. This also inherits vanilla's name-based attacker
+identity semantics. Disconnected players absent from the game's credit loop are not
+added. The roster is sorted/deduplicated, names sanitized and limited to 80 characters,
+with a 1,024-character payload limit and an explicit count if names are omitted.
+
+A separate KillCredits_v1 routed channel precedes vanilla credit on the same connection.
+The bounded inbox is sender/enemy scoped, consumed once, and expires after five seconds.
+Only an actual increment in the recipient's profile kill statistic triggers a clip.
+The local owner reads the scoped snapshot directly. Missing metadata identifies the
+confirmed local credit but labels the complete list unavailable. First-kill statistics,
+recorder identity and final blow remain independent. Ordinary-loot credit is unchanged.
+Attribution hooks initialize before the headless graphics exit, so dedicated owners can
+supply the roster without allocating capture buffers. Live dedicated acceptance remains.
 
 ## Epic Loot data
 
@@ -170,7 +189,10 @@ captures from being delivered through a new host's settings.
 
 The user confirmed capture, Discord delivery, deaths, boss attribution/loot, Epic Loot
 display, first-kill priority/rarity filtering, ordinary-loot highlights, host/client
-F10 delivery and recorder attribution in game on 2026-09-09.
+F10 delivery and recorder attribution in game on 2026-09-09. The user subsequently
+confirmed the broader natural-loot feature works in 0.11.0, while reporting the
+single-name boss-credit limitation now addressed in 0.11.1. That roster fix has
+automated multi-recipient coverage and awaits its own live confirmation.
 
 An early stationary check reported 240–254 FPS with no noticeable F9 toggle difference.
 Early real clips were around 1.78 MB, with one reported at 4.68 MB. These are observations
