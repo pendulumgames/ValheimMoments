@@ -1,4 +1,4 @@
-# Valheim Moments 0.8.0 — multiplayer clip relay
+# Valheim Moments — multiplayer clip relay
 
 Install the same current version on **both the host and recording clients**. Use a
 separate test profile. Set MinimumRarity=None only if you want any observed loot drop
@@ -19,7 +19,7 @@ The host does not independently verify the depicted event or rarity.
 
 ## First co-op test
 
-1. Host a world with 0.8.0, then have a second player using 0.8.0 join.
+1. Host a world with the current version, then have a second player using that version join.
 2. Wait five seconds on the joining client and press F10 there.
 3. Expect the client's footage in the **host's** default Discord channel, under the
    **host's** Username, with the joining player's Recorded by line. The client log
@@ -36,6 +36,38 @@ The host does not independently verify the depicted event or rarity.
 No webhook is needed on the joining client. Do not share the host's secret config.
 
 ## Dedicated-server test
+
+Before dedicated hosting, complete the automatic co-op checks below on the already
+working listen host.
+
+### Automatic co-op checks
+
+1. Use 0.9.1 on both players, in a test world/character where losing equipment or
+   skills will not disrupt normal play. Keep the host's event switches enabled.
+2. Once in-world, the host can press F9 to pause its own recording while leaving
+   incoming relay delivery enabled. This isolates the joining player's perspective.
+3. Have the joining player experience a normal in-game death, without pressing F10.
+   Expect their death clip, cause when available, and Recorded by name in the host's
+   default channel, or PlayerDeathWebhookURL if its override is enabled.
+4. After delivery finishes, test a credited ordinary kill with Epic Loot enabled on
+   the recording player and creature owner. For easy testing, set the recording
+   player's Loot Capture.MinimumRarity to None while closed, then relaunch. Expect
+   an automatic clip only if an actual item drops, with Generated loot and their
+   Recorded by name. Restore their preferred rarity afterward.
+5. Test a credited boss kill separately. FirstKillOnly and the recording player's
+   boss rarity settings still apply. Expect boss loot and the selected credit/final
+   blow lines. Periodic damage may still show final blow unavailable.
+6. If separate channels are available, configure one host override locally while
+   closed, relaunch, and repeat its event. The event should use that channel and
+   the host's bot name; F10 should still use the default channel. Do not send the
+   webhook or host config to the joining player.
+7. Press F9 on the host again to resume its own recording if it was paused.
+
+Wait for each upload before the next event: the relay has no queue. Report which
+event was tested, whether a local clip was created, and where the post appeared.
+No configured webhook URL is needed in the report.
+
+### Headless hosting
 
 The relay starts before graphics/encoder checks. A headless server should log that
 host delivery is ready and graphics capture is disabled. Install the plugin and its
@@ -67,7 +99,7 @@ a live dedicated-server check; no dedicated server is available in this workspac
   while busy; there is no encounter-wide deduplication or queued alternate view.
 
 Live co-op F10 delivery for both the host and a joining player passed on 2026-09-09,
-and the clips looked correct. Version 0.9.1 adds Recorded by to host/solo posts too;
-verify the host's F10 post shows their recording character beneath the title.
+and the clips looked correct. Version 0.9.1's host/solo Recorded by change also passed
+the user's live check.
 Dedicated-server behavior, automatic co-op events and broader Steam/PlayFab coverage
 still need live testing.

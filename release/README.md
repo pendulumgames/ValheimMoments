@@ -97,6 +97,9 @@ Client event captions/rarity decisions are not independently verified by the hos
 
 ## Boss and loot settings
 
+The [complete configuration reference](https://github.com/PendulumGames/ValheimMoments/blob/main/docs/CONFIGURATION.md)
+lists all settings, defaults, templates and host/client ownership.
+
 `[Boss Kill]` includes `FirstKillOnly`, `FirstKillBypassesRarity`,
 `OnlyCaptureIfLootMeetsRarity`, `MinimumLootRarity`, and `PlayerNameMode`
 (`KillCredit`, `FinalBlow`, or `Both`). First kill means the character's first recorded

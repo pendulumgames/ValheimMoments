@@ -26,5 +26,7 @@ docs/*
 !docs/DEPENDENCIES.md
 !docs/PROTOTYPE-TEST.md
 !docs/RELAY-TEST.md
+!docs/CONFIGURATION.md
+!docs/INTEGRATIONS.md
 third-party/*
 !third-party/webp/

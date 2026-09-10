@@ -85,6 +85,9 @@ updates or runtime executable downloads are performed.
 ## Configuration and privacy
 
 The plugin GUID is `local.valheimmoments`; the config is `local.valheimmoments.cfg`.
+See the [complete configuration reference](docs/CONFIGURATION.md) for defaults,
+limits and host/client ownership, and [integration notes](docs/INTEGRATIONS.md) for
+every Harmony patch, the capture pipeline, validation evidence and remaining tests.
 Version 0.9.0 renames the technical identity. Before upgrading an older install, close
 Valheim and migrate its config to the new filename, preserve its Clips folder, and
 remove the previous plugin from the active profile. The development installer supports
