@@ -61,7 +61,7 @@ namespace ValheimMoments
                 .Replace("{item_count}", loot == null ? "" : itemCount);
             if (credit && !pattern.Contains("{credit}") && !pattern.Contains("{player}")) message += "\nKill credit: " + creditName;
             if (killer && !pattern.Contains("{killer}") && !(mode == BossNameMode.FinalBlow && pattern.Contains("{player}"))) message += "\nFinal blow: " + killerName;
-            if (loot != null && !pattern.Contains("{loot}")) message += "\n\n" + loot;
+            if (loot != null && !pattern.Contains("{loot}")) message += "\n" + loot;
             if (message.Length <= 2000) return message;
             return message.Substring(0, char.IsHighSurrogate(message[1999]) ? 1999 : 2000);
         }

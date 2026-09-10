@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.5 — compact posts and successful-upload cleanup
+
+* Removed the extra blank line before automatically appended generated loot.
+* SaveLocalCopy now defaults to false: successful uploads delete the local clip.
+  Joining clients also delete after the host confirms successful Discord delivery.
+* Existing installs keep their setting; use SaveLocalCopy=false to enable cleanup.
+  Failed/skipped uploads and older saved files remain local. No session-wide purge.
+
 ## 0.9.4 — loot formatting
 
 * Avoid repeating rarity words already at the beginning of item names, including

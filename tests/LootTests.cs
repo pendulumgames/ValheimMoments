@@ -97,7 +97,7 @@ internal static class LootTests
         Check(pending.Revision == 2, "Out-of-order older revision ignored");
         token = Guid.NewGuid().ToString("N"); inbox.Announce(42, "boss", token, 4);
         Check(inbox.Take(42, "boss", 10) == null, "Stale credit not attached to later kill");
-        Check(EventMessages.Boss("Boss", "", "", loot: "Loot:\nAntler") == "Boss\n\nLoot:\nAntler", "Legacy templates gain loot");
+        Check(EventMessages.Boss("Boss", "", "", loot: "Loot:\nAntler") == "Boss\nLoot:\nAntler", "Appended loot has no extra blank line");
         Check(EventMessages.Boss("{item_count}: {loot}", "", "", loot: "Antler", itemCount: "1") == "1: Antler", "Loot template placeholders");
         Check(EventMessages.Boss("Boss{loot}{item_count}", "", "") == "Boss", "Disabled loot removes placeholders");
         Check(EventMessages.Boss("Boss", "", "", loot: new string('x', 2100)).Length == 2000, "Enriched message respects Discord limit");

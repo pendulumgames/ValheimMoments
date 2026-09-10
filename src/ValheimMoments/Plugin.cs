@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.9.4")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.9.5")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -129,9 +129,9 @@ namespace ValheimMoments
                 timing = Config.Bind("Debug", "LogCaptureTiming", true, "Log aggregate CPU timing, readback latency and frame counts every 10 seconds.");
                 flip = Config.Bind("Capture", "FlipVertically", false, "Enable if the test WebP is upside down on your graphics backend.");
                 discordEnabled = Config.Bind("Discord", "Enabled", false, "Host/single-player only: enable Discord delivery. Remote clients send clips to the host and never use local webhook settings.");
-                relayEnabled = Config.Bind("Discord", "EnableClientRelay", true, "Host: accept clips from connected clients. Client: allow sending clips to the host. Both sides need this version. Host Discord.Enabled and event trigger switches also apply. Client copies are always retained.");
+                relayEnabled = Config.Bind("Discord", "EnableClientRelay", true, "Host: accept clips from connected clients. Client: allow sending clips to the host. Both sides need this version. Host Discord.Enabled and event trigger switches also apply. Successful client uploads follow the recording player's SaveLocalCopy setting.");
                 uploadClips = Config.Bind("Discord", "UploadClips", true, "Upload newly completed clips when Discord is enabled.");
-                saveLocalCopy = Config.Bind("Discord", "SaveLocalCopy", true, "Keep uploaded clips locally. Failed/skipped uploads always retain the clip.");
+                saveLocalCopy = Config.Bind("Discord", "SaveLocalCopy", false, "Keep successfully uploaded clips locally. When false, delete after Discord success or the host's successful relay confirmation. Failed/skipped uploads retain the clip. Applies to this recording player.");
                 webhookUrl = Config.Bind("Discord", "WebhookURL", "", "Secret: enter locally, never share this config. HTTPS Discord webhook; optional thread_id query.");
                 discordUsername = Config.Bind("Discord", "Username", "Valheim Moments", "Host/single-player only: bot display name, 1–80 characters. Remote client values are ignored.");
                 useBossWebhook = Config.Bind("Discord", "UseBossKillWebhook", false, "Host only: route boss clips to BossKillWebhookURL; when off, use WebhookURL.");
@@ -500,7 +500,7 @@ namespace ValheimMoments
             if (session != null && !session.IsServer() && !activeAsHost && ReferenceEquals(activeSession, session))
             {
                 string message = EventMessages.FormatPost(activeBoss == null ? activeMessage : BossMessage(activeBoss));
-                if (!relayEnabled.Value || !relay.Offer(activeSession, file, activeKind, message))
+                if (!relayEnabled.Value || !relay.Offer(activeSession, file, activeKind, message, saveLocalCopy.Value))
                     Logger.LogInfo("[Relay] Clip retained locally: relay disabled, unavailable, busy or clip exceeds 10 MiB.");
                 return;
             }
@@ -566,7 +566,7 @@ namespace ValheimMoments
                     using (var stream = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None, 16384, true))
                         await stream.WriteAsync(clip.Bytes, 0, clip.Bytes.Length, token).ConfigureAwait(false);
                     var result = await DiscordWebhook.UploadAsync(file, options, token).ConfigureAwait(false);
-                    return new UploadResult { Success = result.Success, Message = result.Success ? "Client clip uploaded; client retains original." : "Client clip delivery failed; client retains original." };
+                    return new UploadResult { Success = result.Success, Message = result.Success ? "Client clip uploaded; success confirmation sent." : "Client clip delivery failed; client retains original." };
                 }
                 catch { return new UploadResult { Success = false, Message = "Client clip delivery cancelled or failed; client retains original." }; }
                 finally { try { if (File.Exists(file)) File.Delete(file); } catch { } }

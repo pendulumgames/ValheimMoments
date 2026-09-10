@@ -21,6 +21,9 @@ namespace ValheimMoments
         private RelayBuffer incoming;
         private byte[] outgoing;
         private Task<byte[]> preparation;
+        private Task<string> cleanup;
+        private string outgoingFile;
+        private bool keepOutgoing;
         private string offeredKind, offeredMessage;
         private string outgoingId;
         private int sent, acknowledged;
@@ -34,6 +37,7 @@ namespace ValheimMoments
         {
             if (disposed) return;
             now = time;
+            if (cleanup != null && cleanup.IsCompleted) { log(cleanup.GetAwaiter().GetResult()); cleanup = null; }
             if (now < nextTick) return;
             nextTick = now + 0.05;
             var current = ZNet.instance;
@@ -82,14 +86,15 @@ namespace ValheimMoments
             }
         }
 
-        internal bool Offer(ZNet capturedSession, string file, string kind, string message)
+        internal bool Offer(ZNet capturedSession, string file, string kind, string message, bool saveLocalCopy = true)
         {
-            if (disposed || session == null || !ReferenceEquals(session, capturedSession) || session.IsServer() || outgoing != null || preparation != null || target != null) return false;
+            if (disposed || session == null || !ReferenceEquals(session, capturedSession) || session.IsServer() || outgoing != null || preparation != null || cleanup != null || target != null) return false;
             var peer = session.GetServerPeer();
             if (peer == null || !registered.Contains(peer.m_rpc)) return false;
             try
             {
                 target = peer.m_rpc; outgoingId = Guid.NewGuid().ToString("N");
+                outgoingFile = file; keepOutgoing = saveLocalCopy;
                 offeredKind = kind; offeredMessage = message;
                 sent = acknowledged = 0; awaitingOffer = true; waitingResult = false; outgoingDeadline = now + 10;
                 preparation = Task.Run(() => {
@@ -157,7 +162,26 @@ namespace ValheimMoments
         private void ReceiveClient(string[] p)
         {
             if (outgoing == null || p.Length != 3) return;
-            if (p[0] == "R") { EndOutgoing(p[2] == "1" ? "Host uploaded clip to Discord; local copy retained." : "Host declined or could not deliver clip; local copy retained."); return; }
+            if (p[0] == "R")
+            {
+                if (p[2] == "1")
+                {
+                    // Only a matching host result AFTER the complete transfer can remove our file.
+                    if (!waitingResult || acknowledged != outgoing.Length) return;
+                    if (!keepOutgoing)
+                    {
+                        string file = outgoingFile;
+                        cleanup = Task.Run(() => {
+                            try { File.Delete(file); return "Host uploaded clip to Discord; local copy removed."; }
+                            catch { return "Host uploaded clip to Discord; local copy could not be removed."; }
+                        });
+                        EndOutgoing("Host uploaded clip to Discord; removing local copy.");
+                    }
+                    else EndOutgoing("Host uploaded clip to Discord; local copy retained.");
+                }
+                else if (p[2] == "0") EndOutgoing("Host declined or could not deliver clip; local copy retained.");
+                return;
+            }
             int offset;
             if (p[0] != "A" || !int.TryParse(p[2], out offset) || offset != sent) return;
             acknowledged = offset; awaitingOffer = false;
@@ -169,7 +193,7 @@ namespace ValheimMoments
         internal void StopSending() { if (target != null) EndOutgoing("Client relay disabled; local clip retained."); }
         private void EndOutgoing(string reason)
         {
-            outgoing = null; target = null; outgoingId = null; log(reason);
+            outgoing = null; target = null; outgoingId = null; outgoingFile = null; log(reason);
         }
         private void Reset()
         {

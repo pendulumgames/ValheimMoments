@@ -5,7 +5,7 @@
 Animated gameplay highlights for Valheim: manual captures, player deaths, boss kills
 and great loot, with optional Epic Loot details and host-controlled Discord delivery.
 
-**Windows x64 beta — version 0.9.4.** Manual capture, deaths, boss summaries and loot
+**Windows x64 beta — version 0.9.5.** Manual capture, deaths, boss summaries and loot
 highlights have been tested in game. The WebP-only encoder and host/joining-player
 F10 Discord delivery have passed a live co-op check. Dedicated-server checks remain pending.
 
@@ -30,7 +30,7 @@ the helper requires .NET Framework 4.8. No game or BepInEx assemblies are includ
 ```
 
 The first command restores pinned NuGet packages and builds/tests a local package.
-The second validates and creates `artifacts/Valheim_Moments-0.9.4.zip`, including
+The second validates and creates `artifacts/Valheim_Moments-0.9.5.zip`, including
 manifest, README, changelog, icon, plugin, encoder and license notices. It does not
 publish anything. Do not reupload changed contents under an already published version.
 
@@ -91,7 +91,8 @@ See [capture checks](docs/PROTOTYPE-TEST.md) and [co-op checks](docs/RELAY-TEST.
 - Read-only Harmony observers correlate player deaths, credited kills and generated
   loot. Optional Epic Loot integration reads completed item data without rerolling it.
 - In multiplayer, direct peer RPCs send bounded clip transfers to the host. Webhook
-  URLs and bot name stay host-owned. Clients retain their original files.
+  URLs and bot name stay host-owned. Successful uploads delete local clips by default;
+  each recording player can retain them with SaveLocalCopy=true.
 
 The host accepts client event captions and fixed event types, adds a recorder name
 from the connected peer, and applies its own destination settings. It does not verify

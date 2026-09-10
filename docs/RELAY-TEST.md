@@ -23,7 +23,8 @@ The host does not independently verify the depicted event or rarity.
 2. Wait five seconds on the joining client and press F10 there.
 3. Expect the client's footage in the **host's** default Discord channel, under the
    **host's** Username, with the joining player's Recorded by line. The client log
-   should confirm the host uploaded it. The client keeps the original WebP.
+   should confirm the host uploaded it. With SaveLocalCopy=false the client then
+   deletes its original; with true it keeps the WebP.
 4. Try a client boss/loot/death event after the first upload finishes. It should use
    the corresponding host destination (or host default if the override is off).
 5. Disable Discord.EnableClientRelay on the host, relaunch, and repeat client F10.
@@ -119,8 +120,8 @@ a live dedicated-server check; no dedicated server is available in this workspac
   direct peer RPCs, not client-supplied routed sender IDs.
 - File reads, host temporary-file writes and HTTP run on workers. Each side retains
   at most one relay byte buffer up to 10 MiB. The host deletes its temporary file
-  after delivery/failure; clients always retain originals, even with SaveLocalCopy
-  disabled. A process crash can leave a host RelayTemp file behind.
+  after delivery/failure; clients delete originals after confirmed success when
+  SaveLocalCopy=false. Failures retain originals. A crash can leave a host RelayTemp file.
 - Co-op perspectives are separate submissions. The first accepted transfer wins
   while busy; there is no encounter-wide deduplication or queued alternate view.
 

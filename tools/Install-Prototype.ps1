@@ -73,7 +73,7 @@ Enabled = false
 WebhookURL =
 Username = Valheim Moments
 UploadClips = true
-SaveLocalCopy = true
+SaveLocalCopy = false
 MaxUploadMiB = 10
 '@ | Add-Content -LiteralPath $configPath -Encoding UTF8
     Write-Output 'Added disabled Discord configuration; enter the webhook locally to test.'

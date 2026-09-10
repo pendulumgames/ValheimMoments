@@ -68,7 +68,7 @@ Enabled = true
 WebhookURL = YOUR_DISCORD_WEBHOOK_URL
 Username = Valheim Moments
 UploadClips = true
-SaveLocalCopy = true
+SaveLocalCopy = false
 EnableClientRelay = true
 ```
 
@@ -129,7 +129,9 @@ Unidentified modifiers and sockets stay hidden. Restart after editing configurat
 * Relay clips are limited to 10 MiB, also subject to the host's lower upload limit.
 * Relay transfers are paced and take time before Discord upload. The host accepts one
   incoming transfer/upload at a time. Busy events are declined without automatic retry.
-* Client originals are always retained. Host relay temp files are removed after delivery
+* Successfully uploaded clips are deleted by default, including client originals after
+  host confirmation. Set SaveLocalCopy=true on the recording player to keep them.
+  Failed/skipped clips remain local. Host relay temp files are removed after delivery
   or failure; a process crash can leave a `RelayTemp` file behind.
 * Co-op perspectives are separate submissions, with no encounter-wide deduplication.
 * Long ragdoll delays can put the killing blow outside an ordinary-loot clip's history.

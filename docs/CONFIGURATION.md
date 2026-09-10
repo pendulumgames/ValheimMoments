@@ -1,6 +1,6 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.9.4. Launch once to generate
+Applies to Valheim Moments 0.9.5. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
 Restart after changes. Defaults describe a new installation; upgrades preserve
 existing settings. Never share a config containing webhook URLs.
@@ -52,7 +52,7 @@ EnableClientRelay enabled for client delivery.
 | EnableClientRelay | true | Host accepts client clips; client allows its own clips to be sent. |
 | WebhookURL | empty | Secret default destination, including manual clips. |
 | Username | Valheim Moments | Host-selected bot display name, 1–80 characters. |
-| SaveLocalCopy | true | Keep successful local uploads. Failed/skipped clips and client originals are always retained. |
+| SaveLocalCopy | false | Delete after successful Discord upload or host relay confirmation. Set true to keep clips. Applies locally to each recording player; failed/skipped uploads remain local. |
 | MaxUploadMiB | 10 | Local guard, clamped to 1–100 MiB. Relay limit is 10 MiB or the host's lower limit. Discord may reject a smaller file. |
 | UseBossKillWebhook | false | Enable separate boss destination. |
 | BossKillWebhookURL | empty | Secret boss destination. |
@@ -71,6 +71,10 @@ Every post has **Recorded by:** beneath its title. Host/solo names are captured 
 the event trigger; joining-player names come from the host's connected peer record.
 This line is separate from bot Username, kill credit and final blow. Player Death's
 name override and IncludePlayerName affect only the death message, not Recorded by.
+
+Existing installs retain their configured SaveLocalCopy value: change it to false to
+enable successful-upload cleanup. Session changes do not delete saved files. Previously
+saved clips and failed/skipped uploads are not automatically purged by this option.
 
 ## Triggers
 
