@@ -28,5 +28,6 @@ docs/*
 !docs/RELAY-TEST.md
 !docs/CONFIGURATION.md
 !docs/INTEGRATIONS.md
+!docs/NATURAL-LOOT-TEST.md
 third-party/*
 !third-party/webp/

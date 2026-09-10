@@ -45,6 +45,15 @@ namespace ValheimMoments
             return Boss(pattern.Replace("{enemy}", "{boss}"), string.IsNullOrWhiteSpace(enemy) ? "a creature" : enemy,
                 player, BossNameMode.KillCredit, loot: loot, itemCount: itemCount);
         }
+        internal static string FoundLoot(string template, string source, string player, string loot, string itemCount = "")
+        {
+            string pattern = string.IsNullOrWhiteSpace(template) ? "Great loot from {source}!" : template;
+            string message = pattern.Replace("{source}", source).Replace("{player}", player)
+                .Replace("{loot}", loot ?? "").Replace("{item_count}", itemCount);
+            if (!pattern.Contains("{player}")) message += "\n**Collected by:** " + player;
+            if (loot != null && !pattern.Contains("{loot}")) message += "\n" + loot;
+            return message.Length <= 2000 ? message : message.Substring(0, char.IsHighSurrogate(message[1999]) ? 1999 : 2000);
+        }
         internal static string Boss(string template, string boss, string player, BossNameMode? mode = null, string finalBlow = null, string loot = null, string itemCount = "")
         {
             string pattern = string.IsNullOrWhiteSpace(template) ? "\uD83C\uDFC6 {boss} defeated!" : template;

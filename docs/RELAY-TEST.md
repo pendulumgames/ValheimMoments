@@ -6,7 +6,7 @@ to qualify during testing; the shipped default is Legendary.
 
 ## Host setup
 
-For 0.10.0, install the matching build on host and recording clients. Older hosts do
+For 0.11.0, install the matching build on host and recording clients. Older hosts do
 not provide policy snapshots; newer clients wait rather than use their own event rules.
 
 Configure Discord.Enabled, WebhookURL and Username on the host. Optional Good Loot,
@@ -15,7 +15,7 @@ overrides use the default. `Discord.EnableClientRelay = true` is the new default
 both sides. The host's trigger enable switches apply to incoming event types.
 
 Clients never send a webhook URL or bot name. Their local Discord.Enabled, Username
-and webhook entries do not control relay delivery. In 0.10.0 the host syncs event,
+and webhook entries do not control relay delivery. The host syncs event,
 timing, rarity and formatting rules; clients retain personal performance settings.
 The host uses client-supplied event text and a fixed event
 type, and adds **Recorded by:** using the authenticated connection's player name.

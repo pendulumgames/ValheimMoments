@@ -7,17 +7,17 @@ using UnityEngine;
 
 namespace UnityEngine
 {
-    public class GameObject
+    public partial class GameObject
     {
         public string name;
         public ItemDrop Item;
-        public T GetComponent<T>() where T : class { return Item as T; }
+        public T GetComponent<T>() where T : class { object value; return Item as T ?? (Components.TryGetValue(typeof(T), out value) ? value as T : null); }
     }
 }
-public class ItemDrop
+public partial class ItemDrop : UnityEngine.Component
 {
     public ItemData m_itemData = new ItemData();
-    public class ItemData
+    public partial class ItemData
     {
         public int m_stack = 1;
         public SharedData m_shared = new SharedData();

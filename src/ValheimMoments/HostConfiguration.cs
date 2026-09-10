@@ -149,7 +149,7 @@ namespace ValheimMoments
                 session = current; remote = null; server = null; lastPayload = null;
                 registered.Clear(); nextReply.Clear(); nextRequest = 0;
                 UpdateManager(true); changed?.Invoke();
-                if (session != null && !session.IsServer()) log("Waiting for host settings; host and clients need 0.10.0 or compatible newer versions.");
+                if (session != null && !session.IsServer()) log("Waiting for host settings; host and clients need matching versions (0.11.0 for natural loot settings).");
             }
             UpdateManager(false);
             if (session == null) return;

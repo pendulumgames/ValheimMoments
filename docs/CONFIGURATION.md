@@ -1,6 +1,6 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.10.1. Launch once to generate
+Applies to Valheim Moments 0.11.0. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
 Restart after editing the file. Configuration Manager edits apply in game; buffer
 changes wait for active GPU/encoder work. Defaults describe a new installation; upgrades preserve
@@ -16,7 +16,7 @@ while connected. Private Discord settings are hidden from joining players' UI.
 
 Host event rules apply in memory without replacing clients' saved settings. Returning
 to single-player restores their own preferences and editing access. Host and clients
-need 0.10.0 or compatible newer versions: client capture waits for host settings and
+need matching 0.11.0 versions: client capture waits for host settings and
 pauses if updates stop for ten seconds. No webhook URL or Discord Username is synced.
 
 ## Capture
@@ -101,7 +101,7 @@ saved clips and failed/skipped uploads are not automatically purged by this opti
 | ManualCapture | true | Allow the manual key. |
 | PlayerDeath | true | Allow local death captures; also requires Player Death.Enabled. |
 | BossKill | true | Allow credited boss captures; also requires Boss Kill.Enabled. |
-| LootDrop | true | Allow ordinary-loot captures; also requires Loot Capture.Enabled and the Epic Loot adapter. |
+| LootDrop | true | Allow loot captures; also requires Loot Capture.Enabled. Named rarity thresholds require Epic Loot. |
 
 The host also applies these switches and the corresponding event Enabled setting to
 incoming clips. Recording clients evaluate the host's synced rarity/event rules.
@@ -158,14 +158,27 @@ unavailable Epic Loot cannot satisfy a named rarity threshold.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| Enabled | true | Capture qualifying ordinary-creature drops credited to this player; requires Epic Loot adapter. |
+| Enabled | true | Capture qualifying ordinary kill loot and verified natural acquisitions. None works without Epic Loot. |
+| CaptureChestPickups | true | First acquisition of tracked natural chest loot; host controlled. |
+| CaptureWorldPickups | true | First acquisition of tracked natural pickable/breakable drops; host controlled. |
+| PickupMessage | Great loot from {source}! | Supports {source}, {player}, {loot}, {item_count}; collector and loot append if omitted. |
 | MinimumRarity | Legendary | Minimum observed rarity; None accepts any actual observed item, including vanilla drops. |
 | Message | Great loot from {enemy}! | Supports {enemy}, {player}, {loot}, {item_count}; credit and loot append if omitted. |
 | PostEventSeconds | 4 | Recording time after qualifying loot is observed. |
 | LootWaitSeconds | 12 | Metadata wait after credit, clamped to 0–25 seconds. |
 
-Bosses exclusively use Boss Kill rules. Pickups, crafting and console-spawned items
-are not triggers. A long ragdoll delay can put the kill outside the rolling history;
+Bosses exclusively use Boss Kill rules; their drops do not gain a second pickup trigger.
+Only proven natural chest/world acquisitions qualify; player storage, gravestones,
+player drops, crafted items, older untagged loot and unknown generation paths are excluded.
+Natural generation hooks run on hosts/clients even with capture disabled, including
+headless hosts, and store a small item custom-data marker. Successful transfers consume
+it even when disabled, busy or below threshold. Deposits and mixed stacks lose eligibility.
+The first partial acquisition reports its actual quantity and consumes the whole stack
+opportunity. Failed transfers with no items acquired can be retried. Take all groups
+items for 0.25 seconds (maximum 64 entries per source category). PickupMessage is used
+for acquisitions; Message remains the credited-kill template.
+
+A long ragdoll delay can put the kill outside the rolling history;
 boss capture instead preserves kill footage while waiting for metadata. None still
 requires an actual drop. Display limits never determine eligibility.
 

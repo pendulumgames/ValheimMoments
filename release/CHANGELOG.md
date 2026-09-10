@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.0 - natural loot acquisitions
+
+* Added host-controlled natural chest and world pickup highlights, sharing loot rarity/display/routing settings.
+* Track verified generation, including Epic Loot 0.14.2 deferred chest rolls; trigger on successful acquisition with Collected by attribution.
+* Exclude player storage, gravestones, drops, crafted items, deposits, mixed stacks and unknown provenance. Consume eligibility once, including partial pickups.
+* Group quick acquisitions for Take all summaries. Vanilla ordinary/world loot can qualify with MinimumRarity=None without Epic Loot.
+* Provenance hooks also run on headless hosts; markers persist in ordinary item custom data.
+* Host and recording clients must all update to 0.11.0. New natural-loot behavior has automated coverage; live validation remains pending.
+
 ## 0.10.1 - practical capture minimums
 
 * Minimum capture dimensions are now 480 x 270; defaults remain 640 x 360.

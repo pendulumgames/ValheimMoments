@@ -11,9 +11,10 @@ been tested in game. Host and joining-player F10 clips have reached Discord in a
 co-op test, with the smaller WebP-only encoder's clips confirmed visually.
 Dedicated-server testing remains pending.
 
-Version 0.10.0 adds host-synced event settings and requires host and recording clients
-to use 0.10.0 or compatible newer versions. This update has automated coverage; its
-Configuration Manager UI and live co-op settings sync still need verification.
+Version 0.11.0 adds first-acquisition highlights for tracked natural chest loot,
+world pickables and breakable drops. Install **0.11.0 on the host and every recording
+client**: older versions have a different settings schema. The new loot paths and
+host settings UI/sync have automated coverage and still need live validation.
 
 ## Features
 
@@ -21,10 +22,29 @@ Configuration Manager UI and live co-op settings sync still need verification.
 * Automatic player-death clips, including the recorded cause when available.
 * Boss clips with first-kill rules, kill credit, final-blow attribution and loot.
 * Optional Epic Loot rarity, modifiers, sockets and unidentified-item display.
-* Ordinary-enemy loot highlights with a configurable minimum rarity.
+* Ordinary-enemy loot plus tracked natural chest/world pickups, using a shared minimum rarity.
 * Independent boss and ordinary-loot display options, with Markdown headings and bullets.
 * Host-owned Discord channel routing and bot name. Clients relay footage to the host.
 * Local WebP files remain available when delivery fails.
+
+## Natural treasure highlights
+
+The host can toggle `Loot Capture.CaptureChestPickups` and `CaptureWorldPickups`
+independently; both default on. MinimumRarity still defaults to Legendary. Use None
+for vanilla items or broad testing. Pickup posts identify **Collected by:** and the
+recorder, and use the Good Loot Discord route.
+
+Only loot tagged during a verified natural generation path qualifies, on successful
+acquisition. Opening a chest alone does not record. Player storage, player drops,
+gravestones, crafting and deposits into dungeon chests do not qualify. Older untagged
+contents and unsupported mod sources are skipped. Mixing stacks can remove their
+eligibility; splitting or picking up a leftover stack does not generate repeat clips.
+Quick transfers such as Take all are grouped for 0.25 seconds, with at most 64 entries.
+
+Provenance is small item custom data saved through Valheim's normal world/item save
+paths. It is consumed even if recording is disabled or busy, so old loot cannot be
+replayed later. Mod removal leaves harmless custom data on unclaimed tracked items.
+See the [natural loot test checklist](https://github.com/PendulumGames/ValheimMoments/blob/main/docs/NATURAL-LOOT-TEST.md).
 
 ## Install
 
@@ -132,8 +152,9 @@ live boss-kill test; fire/poison and additional co-op cases retain automated cov
 
 `[Loot Capture] MinimumRarity` defaults to `Legendary`. `None` is useful for testing
 any observed drop. Bosses exclusively use boss rules and do not produce a second
-ordinary-loot event. Ordinary-loot highlights require Epic Loot's optional adapter;
-item pickups, crafting and console-spawned items do not trigger them.
+ordinary-loot or pickup event. Named rarity thresholds require Epic Loot's optional
+adapter; None also supports vanilla loot. Verified natural pickups use the separate
+PickupMessage. Crafting and untracked console-spawned items do not trigger highlights.
 
 Both sections have `MaxLootItemsShown`, `ShowQuantity`, `ShowRarity`, `ShowItemModifiers`,
 `ShowItemSockets`, `ShowUnidentifiedStatus`, and `LootHeader`. Highest rarity sorts first.

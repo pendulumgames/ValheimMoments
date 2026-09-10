@@ -10,6 +10,7 @@ namespace ValheimMoments
         internal string EnemyKey, PlayerName, FinalBlowName;
         internal int BossNumber;
         internal bool FirstKill;
+        internal bool Acquired;
         internal BossLoot Loot;
     }
 

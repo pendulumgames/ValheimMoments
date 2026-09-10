@@ -5,7 +5,7 @@ using ValheimMoments;
 
 // A behavioral stand-in, not evidence of game API compatibility. The production
 // plugin separately compiles against the inspected, real game assembly.
-public class Character
+public class Character : UnityEngine.Component
 {
     public string m_name;
     public bool Boss, Owner = true;
@@ -32,7 +32,7 @@ public class HitData
     public Character Attacker;
     public Character GetAttacker() { return Attacker; }
 }
-public class Player : Character
+public class Player : Humanoid
 {
     public static Player m_localPlayer;
     public bool Dead;
@@ -53,6 +53,7 @@ internal static class DeathTests
         RelayTests.Run();
         PeriodicTests.Run();
         HostSettingsTests.Run();
+        WorldLootTests.Run();
         var harmony = new Harmony("valheimmoments.tests");
         int events = 0;
         int errors = 0;

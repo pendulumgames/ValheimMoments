@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.10.1")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.11.0")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -68,7 +68,10 @@ namespace ValheimMoments
         private ConfigEntry<BossNameMode> bossNameMode;
         private Harmony attributionHarmony;
         private Harmony periodicHarmony;
-        private Harmony lootHarmony;
+        private Harmony lootHarmony, worldHarmony, worldEpicHarmony;
+        private readonly AcquisitionHighlights acquisitions = new AcquisitionHighlights();
+        private ConfigEntry<bool> chestPickups, worldPickups;
+        private ConfigEntry<string> pickupMessage;
         private ConfigEntry<bool> showBossLoot, showLootQuantity;
         private ConfigEntry<int> maxLootItems;
         private ConfigEntry<string> lootHeader;
@@ -93,10 +96,23 @@ namespace ValheimMoments
 
         private void Start()
         {
-            if (!initialized || stopped) return;
+            if (stopped) return;
+            System.Reflection.Assembly epic = null;
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()) if (assembly.GetName().Name == "EpicLoot") { epic = assembly; break; }
             try
             {
-                System.Reflection.Assembly epic = null;
+                worldEpicHarmony = new Harmony("local.valheimmoments.world.epic");
+                WorldLootDetector.InstallEpic(epic, worldEpicHarmony);
+                if (epic != null) Logger.LogInfo("[Loot] Epic Loot delayed chest provenance observer installed.");
+            }
+            catch (Exception error)
+            {
+                worldEpicHarmony?.UnpatchSelf();
+                Logger.LogWarning("[Loot] Delayed chest provenance unavailable: " + error.GetType().Name);
+            }
+            if (!initialized) return;
+            try
+            {
                 foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()) if (assembly.GetName().Name == "EpicLoot") { epic = assembly; break; }
                 epicHarmony = new Harmony("local.valheimmoments.epicloot");
                 epicReady = EpicLootAdapter.Install(epic, epicHarmony);
@@ -165,8 +181,8 @@ namespace ValheimMoments
                 discordUsername = Bind("Discord", "Username", "Valheim Moments", "Host/single-player only: bot display name, 1–80 characters. Remote client values are ignored.");
                 useBossWebhook = Bind("Discord", "UseBossKillWebhook", false, "Host only: route boss clips to BossKillWebhookURL; when off, use WebhookURL.");
                 bossWebhook = Bind("Discord", "BossKillWebhookURL", "", "Host-only secret: optional boss destination. An enabled but invalid override keeps the clip locally; it does not silently change channels.");
-                useLootWebhook = Bind("Discord", "UseGoodLootWebhook", false, "Host only: route ordinary-loot clips to GoodLootWebhookURL; when off, use WebhookURL.");
-                lootWebhook = Bind("Discord", "GoodLootWebhookURL", "", "Host-only secret: optional ordinary-loot destination.");
+                useLootWebhook = Bind("Discord", "UseGoodLootWebhook", false, "Host only: route loot clips to GoodLootWebhookURL; when off, use WebhookURL.");
+                lootWebhook = Bind("Discord", "GoodLootWebhookURL", "", "Host-only secret: optional loot destination.");
                 useDeathWebhook = Bind("Discord", "UsePlayerDeathWebhook", false, "Host only: route death clips to PlayerDeathWebhookURL; when off, use WebhookURL.");
                 deathWebhook = Bind("Discord", "PlayerDeathWebhookURL", "", "Host-only secret: optional player-death destination.");
                 uploadLimitMiB = Bind("Discord", "MaxUploadMiB", 10, "Per-file upload guard. Discord can impose its own limit. Allowed range 1–100.");
@@ -196,8 +212,11 @@ namespace ValheimMoments
                 filterBossLoot = Bind("Boss Kill", "OnlyCaptureIfLootMeetsRarity", false, "Only encode/save/upload a boss clip when at least one observed item meets MinimumLootRarity. Preserve kill footage while awaiting drops. Missing/unknown qualifying data skips the clip at the wait deadline.");
                 minimumBossRarity = Bind("Boss Kill", "MinimumLootRarity", "Legendary", "None accepts all; otherwise an actual Epic Loot rarity name (0.14.2: Magic, Rare, Epic, Legendary, Mythic, Ancient). Used only when OnlyCaptureIfLootMeetsRarity=true. Unknown names or absent Epic Loot fail closed.");
                 firstKillBypassesRarity = Bind("Boss Kill", "FirstKillBypassesRarity", true, "Always keep this character's first recorded kill of each boss regardless of MinimumLootRarity. Repeat kills still use the rarity filter. FirstKillOnly separately excludes all repeat kills.");
-                lootTrigger = Bind("Triggers", "LootDrop", true, "Enable ordinary-creature loot highlights. Loot Capture.Enabled must also be enabled; bosses use Boss Kill rules exclusively.");
-                lootEnabled = Bind("Loot Capture", "Enabled", true, "Capture qualifying Epic Loot drops from ordinary kills credited to this character. Requires the optional Epic Loot adapter. No pickup/crafting triggers.");
+                lootTrigger = Bind("Triggers", "LootDrop", true, "Enable loot highlights. Loot Capture.Enabled must also be enabled; bosses use Boss Kill rules exclusively.");
+                lootEnabled = Bind("Loot Capture", "Enabled", true, "Capture qualifying ordinary kill loot and verified natural chest/world pickups. Epic Loot is optional when MinimumRarity=None. No crafting, player storage or gravestone triggers.");
+                chestPickups = Bind("Loot Capture", "CaptureChestPickups", true, "Host-controlled: capture first acquisition of tracked, naturally generated chest loot. Player chests, deposits, gravestones and untracked older contents are excluded.");
+                worldPickups = Bind("Loot Capture", "CaptureWorldPickups", true, "Host-controlled: capture first acquisition from tracked natural pickables and breakable drops. Player drops, cultivated plants, mixed ground stacks and unknown sources are excluded.");
+                pickupMessage = Bind("Loot Capture", "PickupMessage", "Great loot from {source}!", "Natural pickup message: {source}, {player}, {loot}, {item_count}. Collected by and loot append if omitted.");
                 minimumLootRarity = Bind("Loot Capture", "MinimumRarity", "Legendary", "Minimum observed rarity: Magic, Rare, Epic, Legendary, Mythic, Ancient. None accepts any observed item. Unknown names skip captures.");
                 highlightMessage = Bind("Loot Capture", "Message", "Great loot from {enemy}!", "Placeholders: {enemy}, {player}, {loot}, {item_count}. Loot and kill credit append if omitted. Item display is configured independently in this section.");
                 // Seed new independent entries from the existing display preferences on upgrade.
@@ -209,7 +228,7 @@ namespace ValheimMoments
                 highlightMaxItems = Bind("Loot Capture", "MaxLootItemsShown", Value(maxLootItems), "Maximum displayed entries, 1-20; highest rarity first. Display limits do not affect capture eligibility.");
                 highlightHeader = Bind("Loot Capture", "LootHeader", Value(lootHeader), "Header above generated loot in ordinary-loot posts.");
                 highlightWaitSeconds = Bind("Loot Capture", "LootWaitSeconds", 12.0, "Wait 0-25 seconds after credited kill for drops. Holds metadata only; up to 64 pending kills.");
-                lootPostSetting = Bind("Loot Capture", "PostEventSeconds", 4.0, "Seconds after observing qualifying loot. Uses rolling pre-event footage before the drop; long ragdoll delays may leave the kill outside the clip. Restart after changing.");
+                lootPostSetting = Bind("Loot Capture", "PostEventSeconds", 4.0, "Seconds after observing qualifying drops or acquisitions. Uses rolling pre-event footage; long ragdoll delays may leave the kill outside the clip. Restart after changing.");
                 widthSetting = Bind("Capture", "Width", 640, "Output pixel width, 480-1920. Aspect ratio and memory limits may reduce the effective dimensions.");
                 heightSetting = Bind("Capture", "Height", 360, "Output pixel height, 270-1080. Supported aspect ratios: 1:2 through 3:1.");
                 fpsSetting = Bind("Capture", "FPS", 15, "Capture sampling rate, 1-30. Missed samples are skipped.");
@@ -223,6 +242,27 @@ namespace ValheimMoments
                     ReceiveRelayedClip, message => Logger.LogInfo("[Relay] " + message), hostSettings.PeerHasPolicy);
                 encoderPath = Path.Combine(pluginDirectory, "Encoder", "ValheimMoments.Encoder.exe");
                 outputDirectory = Path.Combine(pluginDirectory, "Clips");
+                try
+                {
+                    worldHarmony = new Harmony("local.valheimmoments.world.loot");
+                    WorldLootDetector.Enabled = kind => initialized && !stopped && !paused && Value(captureEnabled) && hostSettings.Ready &&
+                        !captureSettingsDirty && Value(lootTrigger) && Value(lootEnabled) && (kind == "c" ? Value(chestPickups) : Value(worldPickups));
+                    WorldLootDetector.Read = item => epicReady ? EpicLootAdapter.Read(item, item.m_shared.m_name) :
+                        new LootItem { Id = EpicLootAdapter.Plain(item.m_shared.m_name, 128), Name = EpicLootAdapter.Plain(item.m_shared.m_name), Quantity = item.m_stack };
+                    WorldLootDetector.OnAcquired = (kind, item) => {
+                        SynchronizeCaptureSession();
+                        if (captureSession.HasSession && Player.m_localPlayer != null)
+                            acquisitions.Add(kind, item, Player.m_localPlayer.GetPlayerName(), clock.Elapsed.TotalSeconds);
+                    };
+                    WorldLootDetector.OnError = () => Logger.LogWarning("[Loot] Natural loot provenance unavailable; uncertain acquisition skipped.");
+                    WorldLootDetector.Install(worldHarmony);
+                    Logger.LogInfo("[Loot] Natural chest/world provenance observer installed.");
+                }
+                catch (Exception error)
+                {
+                    worldHarmony?.UnpatchSelf(); WorldLootDetector.Clear();
+                    Logger.LogWarning("[Loot] Natural pickup observer unavailable: " + error.GetType().Name);
+                }
                 if (Application.isBatchMode || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
                 {
                     Logger.LogInfo("[Relay] Host delivery ready; graphics capture disabled on this headless server.");
@@ -245,7 +285,7 @@ namespace ValheimMoments
                 {
                     bossHarmony = new Harmony("local.valheimmoments.boss");
                     BossKillDetector.OnKill = OnBossKill;
-                    BossKillDetector.ObserveOrdinary = () => epicReady && Value(lootTrigger) && Value(lootEnabled);
+                    BossKillDetector.ObserveOrdinary = () => Value(lootTrigger) && Value(lootEnabled);
                     BossKillDetector.OnLootKill = kill => {
                         if (Value(captureEnabled) && !paused) lootHighlights.Add(kill, clock.Elapsed.TotalSeconds, Value(highlightWaitSeconds));
                     };
@@ -318,7 +358,7 @@ namespace ValheimMoments
             // Let GPU requests and an existing encoder finish before replacing storage.
             if (pending.Count != 0 || encoding != null) return false;
             waitingForLoot?.Release(); waitingForLoot = null;
-            pendingBoss = null; lootHighlights.Clear();
+            pendingBoss = null; lootHighlights.Clear(); acquisitions.Clear();
             history?.ClearHistory(); history = null; captureSession = null;
             foreach (var slot in allSlots)
             {
@@ -387,9 +427,12 @@ namespace ValheimMoments
                 DrainReadbacks();
                 if (captureSettingsDirty && hostSettings.Ready && now - captureSettingsChangedAt >= 0.5) ApplyCaptureSettings();
                 bool active = Value(captureEnabled) && !paused && captureSession.HasSession && hostSettings.Ready && !captureSettingsDirty;
-                if (active && epicReady && Value(lootTrigger) && Value(lootEnabled))
+                if (active && Value(lootTrigger) && Value(lootEnabled))
+                {
                     lootHighlights.Poll(now, Value(minimumLootRarity), OnLootHighlight);
-                else lootHighlights.Clear();
+                    acquisitions.Poll(now, Value(minimumLootRarity), kind => kind == "c" ? Value(chestPickups) : Value(worldPickups), OnLootHighlight);
+                }
+                else { lootHighlights.Clear(); acquisitions.Clear(); }
                 if (!active)
                 {
                     if (!historyCleared && pending.Count == 0) { history.ClearHistory(); historyCleared = true; }
@@ -630,7 +673,7 @@ namespace ValheimMoments
             if (!Trigger("loot", "", lootPostSeconds)) return;
             pendingBoss = kill;
             lootDeadline = clock.Elapsed.TotalSeconds + Math.Max(0, Math.Min(25, double.IsNaN(Value(highlightWaitSeconds)) ? 12 : Value(highlightWaitSeconds)));
-            Logger.LogInfo("[Loot] Qualifying ordinary-creature drop captured; minimum=" + Value(minimumLootRarity));
+            Logger.LogInfo("[Loot] Qualifying loot captured; minimum=" + Value(minimumLootRarity));
         }
         private void OnBossKill(BossKill kill)
         {
@@ -660,12 +703,14 @@ namespace ValheimMoments
                 else if (Value(showBossLoot))
                     loot = EventMessages.Heading(Value(lootHeader), 2) + "\n" + (kill.Loot == null ? "unavailable" : kill.Loot.Display(Value(maxLootItems), Value(showLootQuantity), text => Localization.instance.Localize(text), Value(showRarity), Value(showModifiers), Value(showSockets), Value(showUnidentified)));
                 string count = kill.Loot != null && kill.Loot.Observed ? kill.Loot.Items.Count.ToString() : "unknown";
+                if (highlight && kill.Acquired) return EventMessages.FoundLoot(Value(pickupMessage), kill.EnemyKey, kill.PlayerName, loot, count);
                 if (highlight) return EventMessages.Loot(Value(highlightMessage), Localization.instance.Localize(kill.EnemyKey), kill.PlayerName, loot, count);
                 return EventMessages.Boss(Value(bossMessage), Localization.instance.Localize(kill.EnemyKey), kill.PlayerName, Value(bossNameMode), kill.FinalBlowName, loot, count);
             }
             catch
             {
                 Logger.LogWarning("[Loot] Message enrichment failed; sending boss names only.");
+                if (kill.Acquired) return EventMessages.FoundLoot(Value(pickupMessage), kill.EnemyKey, kill.PlayerName, "unavailable");
                 return kill.BossNumber <= 0 ? EventMessages.Loot(Value(highlightMessage), kill.EnemyKey, kill.PlayerName, "unavailable") : EventMessages.Boss(Value(bossMessage), kill.EnemyKey, kill.PlayerName, Value(bossNameMode), kill.FinalBlowName);
             }
         }
@@ -702,7 +747,7 @@ namespace ValheimMoments
             if (!captureSession.Observe(ZNet.instance)) return;
             waitingForLoot?.Release(); waitingForLoot = null;
             pendingBoss = null;
-            lootHighlights.Clear();
+            lootHighlights.Clear(); acquisitions.Clear();
             historyCleared = true;
             consecutiveErrors = 0;
             Logger.LogInfo("[Capture] Session changed; buffered footage and pending capture cleared.");
@@ -717,11 +762,13 @@ namespace ValheimMoments
             PlayerDeathDetector.OnError = null;
             BossKillDetector.OnKill = null;
             BossKillDetector.OnLootKill = null; BossKillDetector.ObserveOrdinary = null;
-            lootHighlights.Clear();
+            lootHighlights.Clear(); acquisitions.Clear();
             BossKillDetector.OnError = null;
             BossAttribution.Clear();
             PeriodicAttribution.Clear();
             try { periodicHarmony?.UnpatchSelf(); } catch { Logger.LogWarning("[Boss] Could not remove periodic attribution patches."); }
+            WorldLootDetector.Clear();
+            try { worldEpicHarmony?.UnpatchSelf(); worldHarmony?.UnpatchSelf(); } catch { Logger.LogWarning("[Loot] Could not remove natural pickup patches."); }
             BossLootDetector.Clear(); pendingBoss = activeBoss = null;
             waitingForLoot?.Release(); waitingForLoot = null;
             try { epicHarmony?.UnpatchSelf(); } catch { Logger.LogWarning("[Loot] Could not remove Epic Loot patches."); }

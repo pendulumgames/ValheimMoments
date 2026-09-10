@@ -1,6 +1,6 @@
 # Integration and validation notes
 
-This describes 0.10.1, not a guarantee of compatibility with future versions.
+This describes 0.11.0, not a guarantee of compatibility with future versions.
 Observers do not intentionally change damage, kill credit, rolls or saved statistics.
 
 ## Harmony patch inventory
@@ -30,7 +30,7 @@ Source: [death](../src/ValheimMoments/PlayerDeathDetector.cs),
 [attribution](../src/ValheimMoments/BossAttribution.cs),
 [loot](../src/ValheimMoments/BossLootDetector.cs),
 [Epic Loot](../src/ValheimMoments/EpicLootAdapter.cs).
-Supplemental metadata alone cannot trigger capture: actual local game credit is
+For kill events, supplemental metadata alone cannot trigger capture: actual local game credit is
 required. These routed channels are distinct from the direct-peer clip relay.
 
 [PeriodicAttribution](../src/ValheimMoments/PeriodicAttribution.cs) uses weak tables
@@ -56,8 +56,50 @@ by object identity across spawn overloads. Snapshot revisions let delayed ragdol
 results update the exact credited kill instead of another enemy.
 
 Without the adapter, manual/death/boss captures and vanilla boss loot remain available.
-Ordinary-loot highlights require it in this version. Unknown rarity cannot satisfy a
+Ordinary and natural-loot highlights also work without it when MinimumRarity=None. Unknown rarity cannot satisfy a
 named threshold. Integration errors are logged without deliberately changing game outcomes.
+
+## Natural loot provenance
+
+[WorldLootDetector](../src/ValheimMoments/WorldLootDetector.cs) tags items only during
+owner-observed natural generation. It does not reroll, change inventory capacity,
+change stacking rules or alter item stats. It writes/removes only its
+`local.valheimmoments.origin.v1` custom-data key, using Valheim's existing item clone,
+inventory save/load and ground-item ZDO serialization. The marker has a source category
+and random identifier. Unknown provenance fails closed; it is not an anti-cheat signature.
+
+| Target | Observer | Purpose |
+| --- | --- | --- |
+| Container.AddDefaultItems | prefix/finalizer | Scope the exact natural container inventory during vanilla generation. |
+| EpicLoot.PendingChestLoot.RollInternal(Container, string, List<LootTable>) | prefix/finalizer | Track 0.14.2 deferred chest rolls, including rolls made when approached/opened. |
+| Container.Load | prefix | Associate the actual inventory with its container before loading. |
+| Inventory.Load overloads | prefix/finalizer | Preserve provenance only for natural containers; player/unknown loads cannot trigger. |
+| Inventory.AddItem overloads accepting ItemData | prefix/finalizer | Mark exact generated items or consume provenance before clones/saves; compare destination quantities for actual successful additions, including partial failures. |
+| Inventory.MoveAll / MoveItemToThis overloads | prefix/finalizer | Verify the source is a natural container holding the item. |
+| Humanoid.Pickup(GameObject, bool, bool) | prefix/finalizer | Verify the exact ground item behind a successful player inventory addition. |
+| Pickable.RPC_Pick / PickableItem.RPC_Pick / DropOnDestroyed.OnDestroyed | prefix/finalizer | Scope verified owner-controlled natural world drops; exclude player pieces, plants, containers and characters. |
+| ItemDrop.OnCreateNew(ItemDrop, bool) | last postfix | Tag/save a newly created ground item inside that scope only. |
+| ItemDrop.OnPlayerDrop | prefix | Remove/save provenance on player drops. |
+| ItemDrop.AutoStackItems | prefix/finalizer | Invalidate/save ground provenance if stack quantity changes or the operation throws. |
+| Container.OnDestroyed | prefix/finalizer | Strip tags before player/gravestone storage spills; preserve proven natural contents. |
+| Character.OnDeath / Ragdoll.SpawnLoot | prefix/finalizer | Suppress world-generation context around nested mob drops to avoid second pickup highlights. |
+
+The read-only [inspection script](../tools/Inspect-WorldLoot.ps1) reports the installed
+signatures and optionally IL, including item custom-data serialization and deferred
+Epic chest generation. All scopes restore on exceptions. Failed zero-add transfers restore the source marker;
+positive partial additions consume it and save ground state even if vanilla returns
+false. Existing natural destination stacks lose provenance when a deposit could merge
+with them. A whole stack opportunity is consumed on its first acquisition, including
+when recording is off or busy; no replays of leftovers or subsequent storage transfers.
+Container associations use weak tables. Nothing scans the scene or allocates capture
+frames for unqualified loot. At most two acquisition batches (chest/world), each capped
+at 64 items, wait 0.25 seconds to group Take all before rarity filtering.
+
+The source owner must run this version to tag generation. Already generated untagged
+contents, arbitrary mod inventory injection, unsupported generation methods and mixed
+stacks are deliberately skipped. Live persistence, co-op and Epic chest acceptance are
+tracked in [natural loot checks](NATURAL-LOOT-TEST.md). Headless hosts install provenance
+hooks even though their graphics capture remains disabled.
 
 ## Capture and encoding
 

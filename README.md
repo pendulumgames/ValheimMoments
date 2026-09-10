@@ -5,9 +5,10 @@
 Animated gameplay highlights for Valheim: manual captures, player deaths, boss kills
 and great loot, with optional Epic Loot details and host-controlled Discord delivery.
 
-**Windows x64 beta — version 0.10.1.** Manual capture, deaths, boss summaries and loot
+**Windows x64 beta — version 0.11.0.** Manual capture, deaths, boss summaries and loot
 highlights have been tested in game. The WebP-only encoder and host/joining-player
-F10 Discord delivery have passed a live co-op check. Dedicated-server checks remain pending.
+F10 Discord delivery have passed a live co-op check. Natural chest/world acquisitions are new in 0.11.0 and await live validation.
+Dedicated-server checks and live host-settings validation remain pending.
 
 This is the public source repository for the Pendulum Thunderstore package, provided
 for review and development. See [player instructions and settings](release/README.md).
@@ -30,7 +31,7 @@ the helper requires .NET Framework 4.8. No game or BepInEx assemblies are includ
 ```
 
 The first command restores pinned NuGet packages and builds/tests a local package.
-The second validates and creates `artifacts/Valheim_Moments-0.10.1.zip`, including
+The second validates and creates `artifacts/Valheim_Moments-0.11.0.zip`, including
 manifest, README, changelog, icon, plugin, encoder and license notices. It does not
 publish anything. Do not reupload changed contents under an already published version.
 
@@ -79,7 +80,8 @@ peers; they are not a replacement for Steam/PlayFab or dedicated-server testing.
 Encoder tests check RIFF timing, full decode, color channels, vertical flip, unequal
 frame durations, cancellation and malformed input.
 
-See [capture checks](docs/PROTOTYPE-TEST.md) and [co-op checks](docs/RELAY-TEST.md).
+See [capture checks](docs/PROTOTYPE-TEST.md), [natural loot checks](docs/NATURAL-LOOT-TEST.md)
+and [co-op checks](docs/RELAY-TEST.md).
 
 ## How it works
 
@@ -88,8 +90,9 @@ See [capture checks](docs/PROTOTYPE-TEST.md) and [co-op checks](docs/RELAY-TEST.
   skipped while a clip is collecting or encoding.
 - A hidden helper receives frames through a pipe and encodes animated WebP using
   libwebp on one encoding thread. Only the completed media is written to disk.
-- Read-only Harmony observers correlate player deaths, credited kills and generated
-  loot. Optional Epic Loot integration reads completed item data without rerolling it.
+- Harmony observers correlate player deaths, credited kills and generated
+  loot. Natural treasure gets a small provenance marker in item custom data, consumed
+  on acquisition or transfer; player storage and gravestones are excluded. Optional Epic Loot integration reads completed item data without rerolling it.
 - In multiplayer, direct peer RPCs send bounded clip transfers to the host. Webhook
   URLs and bot name stay host-owned. Successful uploads delete local clips by default;
   each recording player can retain them with SaveLocalCopy=true.
