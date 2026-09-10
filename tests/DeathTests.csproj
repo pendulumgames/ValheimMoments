@@ -10,6 +10,8 @@
     <Compile Include="EpicTests.cs" />
     <Compile Include="FilterTests.cs" />
     <Compile Include="RelayTests.cs" />
+    <Compile Include="PeriodicTests.cs" />
+    <Compile Include="../src/ValheimMoments/PeriodicAttribution.cs" Link="PeriodicAttribution.cs" />
     <Compile Include="../src/ValheimMoments/RelayBuffer.cs" Link="RelayBuffer.cs" />
     <Compile Include="../src/ValheimMoments/ClipRelay.cs" Link="ClipRelay.cs" />
     <Compile Include="../src/ValheimMoments/LootHighlights.cs" Link="LootHighlights.cs" />

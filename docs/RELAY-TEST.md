@@ -42,7 +42,7 @@ working listen host.
 
 ### Automatic co-op checks
 
-1. Use 0.9.1 on both players, in a test world/character where losing equipment or
+1. Use the current version on both players, in a test world/character where losing equipment or
    skills will not disrupt normal play. Keep the host's event switches enabled.
 2. Once in-world, the host can press F9 to pause its own recording while leaving
    incoming relay delivery enabled. This isolates the joining player's perspective.
@@ -56,7 +56,8 @@ working listen host.
    Recorded by name. Restore their preferred rarity afterward.
 5. Test a credited boss kill separately. FirstKillOnly and the recording player's
    boss rarity settings still apply. Expect boss loot and the selected credit/final
-   blow lines. Periodic damage may still show final blow unavailable.
+   blow lines. In 0.9.2, periodic damage from one tracked source can supply the final
+   blow; mixed/unknown sources may still show unavailable.
 6. If separate channels are available, configure one host override locally while
    closed, relaunch, and repeat its event. The event should use that channel and
    the host's bot name; F10 should still use the default channel. Do not send the
@@ -66,6 +67,18 @@ working listen host.
 Wait for each upload before the next event: the relay has no queue. Report which
 event was tested, whether a local clip was created, and where the post appeared.
 No configured webhook URL is needed in the report.
+
+### Deferred 0.9.2 periodic-kill checks
+
+Keep Boss Kill.TrackPeriodicDamage enabled on the creature owner. Use a boss that
+can take the chosen damage and ensure your existing boss filters allow the clip.
+With one attacking player, apply Spirit damage, then stop attacking and let a periodic
+tick finish the boss. Expect that player's final-blow name. Repeat with poison/fire
+when practical. A direct finishing hit should continue to identify its attacker.
+If multiple players stack Spirit/fire into the same still-active effect, unavailable
+is intentional because the remaining damage has multiple sources. These checks and
+automatic co-op routing are deferred to final testing at the user's request; they
+have not been recorded as live passes.
 
 ### Headless hosting
 

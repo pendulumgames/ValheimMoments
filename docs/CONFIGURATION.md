@@ -1,6 +1,6 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.9.1. Launch once to generate
+Applies to Valheim Moments 0.9.2. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
 Restart after changes. Defaults describe a new installation; upgrades preserve
 existing settings. Never share a config containing webhook URLs.
@@ -104,6 +104,7 @@ original weapon belonged to a player.
 | MinimumLootRarity | Legendary | None accepts all; otherwise a verified Epic Loot rarity. |
 | Message | 🏆 {boss} defeated! | Supports {boss}, {player}, {credit}, {killer}, {loot}, {item_count}. |
 | PlayerNameMode | Both | KillCredit, FinalBlow or Both; selected names append if omitted. |
+| TrackPeriodicDamage | true | Track actual boss Spirit/fire/poison sources; restart required. Must be enabled on the creature owner. |
 | PostEventSeconds | 4 | Recording time after the credited kill. |
 | LootWaitSeconds | 12 | Metadata wait, clamped to 0–25 seconds; does not extend recording. |
 | ShowLoot | true | Include loot in the post; does not change rarity eligibility. |
@@ -115,7 +116,11 @@ takes precedence over every repeat-kill rarity outcome.
 In Both mode, {player} means kill credit; in FinalBlow mode it means final blow.
 Credit identifies the recording character whom Valheim credited. Final blow is the
 last-hit player when resolvable, otherwise “unavailable”; it does not mean highest
-damage. Spirit/fire/poison ticks may lack the attacker needed to determine it.
+damage. TrackPeriodicDamage can resolve Spirit/fire/poison ticks from one known player.
+Mixed or unknown effect sources remain unavailable. Fire/Spirit additions combine;
+weaker poison applications leave the existing source alone, while accepted equal or
+stronger poison replaces it. Tracking never changes damage or game kill credit.
+Only boss final-blow attribution uses this feature; death-cause messages are unchanged.
 
 With filtering enabled and no first-kill bypass, missing qualifying data skips the
 clip at the metadata deadline. Epic Loot 0.14.2 provides Magic, Rare, Epic, Legendary,

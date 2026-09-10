@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.2 — periodic final-blow attribution
+
+* Track actual Spirit/fire/poison status-effect sources on the boss owner, without
+  changing game damage or kill credit. A tick from one known player can now supply
+  the final-blow name; mixed or unknown sources remain unavailable.
+* Respect fire/Spirit stacking and poison replacement instead of assuming the last
+  direct attacker caused the periodic kill.
+* Added Boss Kill.TrackPeriodicDamage (default true, restart required).
+* Added automated status-effect attribution checks. Live periodic-kill and remaining
+  automatic co-op checks are deferred to final testing.
+
 ## 0.9.1 — recorder attribution for everyone
 
 * Added **Recorded by:** to host and solo posts for all clip types, using the

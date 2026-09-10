@@ -24,6 +24,11 @@ namespace ValheimMoments
         internal static string Resolve(HitData hit, out string reason)
         {
             if (hit == null) { reason = "no recorded damage"; return null; }
+            if (hit.m_attacker.IsNone())
+            {
+                string periodic = PeriodicAttribution.Resolve(hit);
+                if (periodic != null) { reason = "resolved single-source periodic damage"; return periodic; }
+            }
             var attacker = hit.GetAttacker();
             var player = attacker as Player;
             if (player != null) { reason = "resolved player object"; return player.GetPlayerName(); }

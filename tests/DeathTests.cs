@@ -17,10 +17,16 @@ public class Character
     public string Name;
     public virtual string GetHoverName() { return Name; }
     public void SetHit(HitData hit) { m_lastHit = hit; }
+    public Action<HitData> DamageAction;
+    [MethodImpl(MethodImplOptions.NoInlining)] public void RPC_Damage(long sender, HitData hit) { DamageAction?.Invoke(hit); }
+    [MethodImpl(MethodImplOptions.NoInlining)] public void ApplyDamage(HitData hit, bool show, bool trigger, HitData.DamageModifier modifier) { m_lastHit = hit; }
 }
 public class HitData
 {
     public ZDOID m_attacker;
+    public enum DamageModifier { Normal }
+    public struct DamageTypes { public float m_fire, m_spirit, m_poison; }
+    public DamageTypes m_damage;
     public enum HitType { Undefined, EnemyHit, PlayerHit, Fall, Drowning, Burning, Freezing, Poisoned, Water, Smoke, EdgeOfWorld, Impact, Cart, Tree, Self, Structural, Turret, Boat, Stalagtite, Catapult, CinderFire, AshlandsOcean, AshlandsLava, Incinerator, DrawBridge }
     public HitType m_hitType;
     public Character Attacker;
@@ -45,6 +51,7 @@ internal static class DeathTests
         FilterTests.Run();
         EpicTests.Run();
         RelayTests.Run();
+        PeriodicTests.Run();
         var harmony = new Harmony("valheimmoments.tests");
         int events = 0;
         int errors = 0;

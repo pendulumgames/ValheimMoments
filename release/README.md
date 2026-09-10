@@ -105,6 +105,12 @@ lists all settings, defaults, templates and host/client ownership.
 (`KillCredit`, `FinalBlow`, or `Both`). First kill means the character's first recorded
 kill in Valheim's saved statistics, not its first uploaded clip.
 
+`TrackPeriodicDamage = true` lets the boss owner track Spirit/fire/poison effects for
+final-blow attribution. A tick from one known player can supply their name; mixed or
+unknown sources stay unavailable. The creature owner needs 0.9.2 with this option
+enabled. Restart after changing it. This addition has automated coverage and awaits
+live periodic-kill testing.
+
 `[Loot Capture] MinimumRarity` defaults to `Legendary`. `None` is useful for testing
 any observed drop. Bosses exclusively use boss rules and do not produce a second
 ordinary-loot event. Ordinary-loot highlights require Epic Loot's optional adapter;

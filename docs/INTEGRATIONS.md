@@ -1,6 +1,6 @@
 # Integration and validation notes
 
-This describes 0.9.1, not a guarantee of compatibility with future versions.
+This describes 0.9.2, not a guarantee of compatibility with future versions.
 Observers do not intentionally change damage, kill credit, rolls or saved statistics.
 
 ## Harmony patch inventory
@@ -19,6 +19,11 @@ Observers do not intentionally change damage, kill credit, rolls or saved statis
 | Ragdoll.Setup | BossLootDetector prefix, Epic Loot enabled | Associate the exact ragdoll with the current character's pending snapshot. |
 | Ragdoll.SpawnLoot | BossLootDetector prefix/finalizer, Epic Loot enabled | Restore snapshot during delayed spawning, publish completion, clear association. |
 | EpicLoot.LootRoller.RollLootTableAndSpawnObjects, two list-returning overloads | EpicLootAdapter postfix | Read completed spawned items inside the correlated death/ragdoll context. |
+| Character.RPC_Damage(long, HitData) | PeriodicAttribution prefix/finalizer | Scope the actual incoming source and victim while status damage is applied; restore nested context. |
+| SE_Burning.AddFireDamage(float), AddSpiritDamage(float) | PeriodicAttribution prefix/postfix | Observe accepted additions to the relevant damage pool; retain a name only for one known player ID. |
+| SE_Poison.AddDamage(float) | PeriodicAttribution prefix/postfix | Observe equal/stronger replacements; rejected weaker applications do not change the source. |
+| SE_Burning.UpdateStatusEffect(float), SE_Poison.UpdateStatusEffect(float) | PeriodicAttribution prefix/finalizer | Scope the exact ticking effect and restore context even on exceptions. |
+| Character.ApplyDamage(HitData, bool, bool, HitData.DamageModifier) | PeriodicAttribution prefix | Associate an attackerless tick with its known source by HitData object identity, without changing HitData. |
 
 Source: [death](../src/ValheimMoments/PlayerDeathDetector.cs),
 [credit](../src/ValheimMoments/BossKillDetector.cs),
@@ -27,6 +32,16 @@ Source: [death](../src/ValheimMoments/PlayerDeathDetector.cs),
 [Epic Loot](../src/ValheimMoments/EpicLootAdapter.cs).
 Supplemental metadata alone cannot trigger capture: actual local game credit is
 required. These routed channels are distinct from the direct-peer clip relay.
+
+[PeriodicAttribution](../src/ValheimMoments/PeriodicAttribution.cs) uses weak tables
+for effect pools and exact tick objects. Fire and Spirit pools keep a source only
+while all observed contributions share a known player network ID. Existing unknown
+damage cannot be claimed by a later hit. Drained pools can start fresh. Poison follows
+the inspected replacement rule. Non-owner ticks invalidate local effect provenance.
+Patches are optional through TrackPeriodicDamage and removed if installation fails.
+The existing boss-owner metadata channel shares the resolved final blow with credited
+players. The read-only [inspection script](../tools/Inspect-PeriodicDamage.ps1) exposes
+the installed IL used to verify these paths.
 
 ## Epic Loot data
 
@@ -101,13 +116,14 @@ pixels compress much more readily than gameplay. Independent RIFF inspection and
 full decode passed, as did unequal frame durations, RGBA colors, vertical flip,
 cancellation and truncated-input rejection. These figures describe one local run.
 
-The event suite passes 166 assertions with actual Harmony and behavioral game/API
+The event suite passes 189 assertions with actual Harmony and behavioral game/API
 stand-ins, including simulated direct-peer transfer. Capture-core and fake-HTTP suites
 also exist. Automated checks do not replace live multiplayer tests.
 
 Remaining live coverage: automatic co-op death/boss/loot delivery, separate host
 destinations, relay disable/disconnect, Windows dedicated hosting, longer memory and
 frametime sessions, and broader graphics/network backends. Linux is outside the
-packaged Windows x64 support target. Periodic Spirit/fire/poison damage can omit the
-attacker and leave final blow unavailable; assigning the last direct attacker without
-tracking the actual status-effect source would risk incorrect credit.
+packaged Windows x64 support target. Periodic attribution has automated coverage but
+still needs live verification. Mixed/unknown sources, effects already active before
+tracking, ownership gaps, or unsupported damage paths can leave final blow unavailable.
+No last-direct-hit guess is used.

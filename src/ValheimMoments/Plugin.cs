@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.9.1")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.9.2")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -58,6 +58,7 @@ namespace ValheimMoments
         private double bossPostSeconds;
         private ConfigEntry<BossNameMode> bossNameMode;
         private Harmony attributionHarmony;
+        private Harmony periodicHarmony;
         private Harmony lootHarmony;
         private ConfigEntry<bool> showBossLoot, showLootQuantity;
         private ConfigEntry<int> maxLootItems;
@@ -147,6 +148,7 @@ namespace ValheimMoments
                 playerNameOverride = Config.Bind("Player Death", "PlayerNameOverride", "", "Optional display name instead of the character name.");
                 bossTrigger = Config.Bind("Triggers", "BossKill", true, "Capture boss kills credited by Valheim to this character.");
                 bossEnabled = Config.Bind("Boss Kill", "Enabled", true, "Enable boss capture; Triggers.BossKill must also be enabled.");
+                bool trackPeriodic = Config.Bind("Boss Kill", "TrackPeriodicDamage", true, "Track actual Spirit/fire/poison effects for final-blow attribution. Mixed or unknown sources remain unavailable. Requires the mod on the creature owner. Restart after changing.").Value;
                 firstBossOnly = Config.Bind("Boss Kill", "FirstKillOnly", false, "Only capture when this character has no previous kill of this boss in saved game statistics.");
                 bossMessage = Config.Bind("Boss Kill", "Message", "\uD83C\uDFC6 {boss} defeated!", "Discord boss message. Supported placeholders: {boss}, {player}. Loot placeholders: {loot}, {item_count}.");
                 bossPostSeconds = Config.Bind("Boss Kill", "PostEventSeconds", 4.0, "Seconds to record after a credited boss kill, to show loot dropping. Restart after changing. Longer clips must fit Capture.MemoryBudgetMiB and the encoder's 256 MiB raw-frame limit.").Value;
@@ -247,6 +249,21 @@ namespace ValheimMoments
                     Logger.LogInfo("[Boss] Final-blow attribution installed.");
                 }
                 catch (Exception error) { Logger.LogWarning("[Boss] Final-blow attribution unavailable: " + error.GetType().Name); }
+                if (trackPeriodic)
+                {
+                    try
+                    {
+                        periodicHarmony = new Harmony("local.valheimmoments.boss.periodic");
+                        PeriodicAttribution.Install(periodicHarmony);
+                        Logger.LogInfo("[Boss] Periodic damage source tracking installed.");
+                    }
+                    catch (Exception error)
+                    {
+                        periodicHarmony?.UnpatchSelf();
+                        PeriodicAttribution.Clear();
+                        Logger.LogWarning("[Boss] Periodic attribution unavailable: " + error.GetType().Name);
+                    }
+                }
                 try
                 {
                     lootHarmony = new Harmony("local.valheimmoments.boss.loot");
@@ -624,6 +641,8 @@ namespace ValheimMoments
             lootHighlights.Clear();
             BossKillDetector.OnError = null;
             BossAttribution.Clear();
+            PeriodicAttribution.Clear();
+            try { periodicHarmony?.UnpatchSelf(); } catch { Logger.LogWarning("[Boss] Could not remove periodic attribution patches."); }
             BossLootDetector.Clear(); pendingBoss = activeBoss = null;
             waitingForLoot?.Release(); waitingForLoot = null;
             try { epicHarmony?.UnpatchSelf(); } catch { Logger.LogWarning("[Loot] Could not remove Epic Loot patches."); }
