@@ -1,6 +1,6 @@
 # Integration and validation notes
 
-This describes 0.10.0, not a guarantee of compatibility with future versions.
+This describes 0.10.1, not a guarantee of compatibility with future versions.
 Observers do not intentionally change damage, kill credit, rolls or saved statistics.
 
 ## Harmony patch inventory
@@ -102,7 +102,7 @@ settings while connected. The installed manager's Advanced/ReadOnly/CustomDrawer
 and BuildSettingList method were inspected directly. No manager DLL is bundled or required.
 
 [CaptureLimits](../src/ValheimMoments.Core/CaptureLimits.cs) constrains dimensions,
-FPS, quality and aspect ratio, then reduces dimensions to fit frame-pool/raw-clip
+FPS, quality and aspect ratio, then reduces dimensions (minimum 480 x 270) followed by FPS to fit frame-pool/raw-clip
 budgets. Buffer replacement waits for GPU and encoder work. These bounds apply
 regardless of which UI or file supplied the settings.
 

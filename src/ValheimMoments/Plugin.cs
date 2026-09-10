@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.10.0")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.10.1")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -210,13 +210,13 @@ namespace ValheimMoments
                 highlightHeader = Bind("Loot Capture", "LootHeader", Value(lootHeader), "Header above generated loot in ordinary-loot posts.");
                 highlightWaitSeconds = Bind("Loot Capture", "LootWaitSeconds", 12.0, "Wait 0-25 seconds after credited kill for drops. Holds metadata only; up to 64 pending kills.");
                 lootPostSetting = Bind("Loot Capture", "PostEventSeconds", 4.0, "Seconds after observing qualifying loot. Uses rolling pre-event footage before the drop; long ragdoll delays may leave the kill outside the clip. Restart after changing.");
-                widthSetting = Bind("Capture", "Width", 640, "Output pixel width, 16-1920. Aspect ratio and memory limits may reduce the effective dimensions.");
-                heightSetting = Bind("Capture", "Height", 360, "Output pixel height, 16-1080. Supported aspect ratios: 1:2 through 3:1.");
+                widthSetting = Bind("Capture", "Width", 640, "Output pixel width, 480-1920. Aspect ratio and memory limits may reduce the effective dimensions.");
+                heightSetting = Bind("Capture", "Height", 360, "Output pixel height, 270-1080. Supported aspect ratios: 1:2 through 3:1.");
                 fpsSetting = Bind("Capture", "FPS", 15, "Capture sampling rate, 1-30. Missed samples are skipped.");
                 qualitySetting = Bind("Capture", "WebPQuality", 80, "Lossy animated WebP quality, 1-100.");
                 preSetting = Bind("Capture", "PreEventSeconds", 5.0, "Host-controlled rolling history, 1-30 seconds.");
                 postSetting = Bind("Capture", "PostEventSeconds", 2.0, "Host-controlled manual/death post-event duration, 0-30 seconds.");
-                budgetSetting = Bind("Capture", "MemoryBudgetMiB", 192, "Managed frame-pool budget, 16-512 MiB. Effective resolution reduces when required to fit.");
+                budgetSetting = Bind("Capture", "MemoryBudgetMiB", 192, "Managed frame-pool budget, 48-512 MiB. Effective resolution, then FPS, reduces when required to fit; dimensions never fall below 480x270.");
                 string pluginDirectory = Path.GetDirectoryName(Info.Location);
                 relayDirectory = Path.Combine(pluginDirectory, "RelayTemp");
                 relay = new ClipRelay(CanRelay, () => Math.Max(1, Math.Min(10, Value(uploadLimitMiB))) * 1048576,
@@ -339,7 +339,7 @@ namespace ValheimMoments
                 free.Enqueue(slot);
             }
             nextCapture = 0; captureSettingsDirty = false;
-            Logger.LogInfo(string.Format("[Capture] Effective settings: {0}x{1}, {2} FPS, quality {3}; pre={4}s, maximum post={5}s, pool={6:F1} MiB. Resolution fits aspect and memory limits.",
+            Logger.LogInfo(string.Format("[Capture] Effective settings: {0}x{1}, {2} FPS, quality {3}; pre={4}s, maximum post={5}s, pool={6:F1} MiB. Resolution and FPS fit aspect and memory limits.",
                 width, height, fps, quality, pre, maxPost, limits.PoolBytes / 1048576.0));
             return true;
         }

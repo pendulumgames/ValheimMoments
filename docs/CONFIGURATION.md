@@ -1,6 +1,6 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.10.0. Launch once to generate
+Applies to Valheim Moments 0.10.1. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
 Restart after editing the file. Configuration Manager edits apply in game; buffer
 changes wait for active GPU/encoder work. Defaults describe a new installation; upgrades preserve
@@ -38,10 +38,10 @@ cannot submit through a different session.
 | PreEventSeconds | 5 | Host-controlled history duration, 1–30 seconds. |
 | PostEventSeconds | 2 | Host-controlled duration for manual clips and deaths, 0–30 seconds. |
 | FPS | 15 | Sampling rate, 1–30. Missed samples are skipped. |
-| Width | 640 | Output width, 16–1920 pixels. |
-| Height | 360 | Output height, 16–1080 pixels. Effective aspect ratio is limited to 1:2 through 3:1. |
+| Width | 640 | Output width, 480–1920 pixels. |
+| Height | 360 | Output height, 270–1080 pixels. Effective aspect ratio is limited to 1:2 through 3:1. |
 | WebPQuality | 80 | Lossy quality, 1–100. Higher quality can increase file size. |
-| MemoryBudgetMiB | 192 | Managed frame-pool budget, 16–512 MiB; excludes GPU and encoder memory. |
+| MemoryBudgetMiB | 192 | Managed frame-pool budget, 48–512 MiB; excludes GPU and encoder memory. |
 | FlipVertically | false | Enable only if recordings appear upside down. |
 
 Bosses and ordinary loot use their own PostEventSeconds. Allocation uses the largest
@@ -49,8 +49,8 @@ post-event duration, even if that trigger is disabled. History plus that duratio
 must not exceed 60 seconds. The raw clip must fit 256 MiB and the whole frame pool
 must fit MemoryBudgetMiB. Numeric values are clamped in both UI and config file.
 Extreme aspect ratios reduce the longer dimension. If the combination still exceeds
-memory limits, effective dimensions reduce until it fits. The log reports the actual
-dimensions/allocation; stored resolution preferences are retained.
+memory limits, effective dimensions reduce to a floor of 480 x 270, then FPS reduces until it fits. The log reports the actual
+dimensions/FPS/allocation; stored resolution and FPS preferences are retained.
 
 Let P = ceil(PreEventSeconds × FPS) and Q = ceil(maximum post-event seconds × FPS).
 The frame pool occupies `Width × Height × 4 × (2P + Q + 1)` bytes: about 185.4 MiB

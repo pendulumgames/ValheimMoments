@@ -84,7 +84,7 @@ internal static class HostSettingsTests
             Check(!clientPolicy.Ready, "Missing host heartbeats stop policy-dependent capture");
             ZNet.instance = new ZNet { Server = true }; time += 1; clientPolicy.Tick(time);
             Check(clientPolicy.Ready && !clientPolicy.Get(localRule) && clientPolicy.Get(localPre) == 2 && ruleTags.ReadOnly == false, "Leaving for own world restores local settings and editing");
-            Check((int)SettingRanges.For("Capture", "Width", 640).Clamp(1) == 16, "One-pixel width clamped");
+            Check((int)SettingRanges.For("Capture", "Width", 640).Clamp(1) == 480, "One-pixel width clamped");
             Check((int)SettingRanges.For("Capture", "Height", 360).Clamp(10000) == 1080, "Extreme height clamped");
             Check((int)SettingRanges.For("Capture", "WebPQuality", 80).Clamp(500) == 100, "Excessive quality clamped");
             Check((double)SettingRanges.For("Capture", "PreEventSeconds", 5.0).Clamp(double.NaN) == 5, "Nonfinite timing falls back safely");

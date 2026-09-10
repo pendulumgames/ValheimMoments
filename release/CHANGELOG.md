@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.1 - practical capture minimums
+
+* Minimum capture dimensions are now 480 x 270; defaults remain 640 x 360.
+* Memory fitting respects that floor and reduces effective FPS when necessary.
+* Minimum frame-pool budget is 48 MiB so maximum clip durations fit at 1 FPS.
+
 ## 0.10.0 — host rules and bounded client settings
 
 * Host controls event switches, rarity/first-kill rules, timing, attribution and post

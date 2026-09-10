@@ -58,9 +58,9 @@ Recording uses a bounded frame buffer (roughly 185 MiB at defaults) and a separa
 background encoder. Only one clip collects/encodes at a time; extra triggers are skipped.
 Actual performance depends on your hardware and settings.
 
-Resolution is clamped to 16–1920 wide and 16–1080 high, FPS to 1–30 and quality to
-1–100. Aspect ratios stay between 1:2 and 3:1. Effective resolution reduces when needed
-to fit the memory budget; the log reports actual settings.
+Resolution is clamped to 480–1920 wide and 270–1080 high, FPS to 1–30 and quality to
+1–100. Aspect ratios stay between 1:2 and 3:1. Effective resolution reduces to a floor of 480 x 270, then FPS reduces when needed
+to fit the memory budget (48 MiB minimum); the log reports actual settings.
 
 Changing sessions clears the rolling buffer and cancels a clip still collecting.
 Wait five seconds after entering the new world for a full history. An already running

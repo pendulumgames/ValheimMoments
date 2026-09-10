@@ -18,11 +18,11 @@ namespace ValheimMoments
         {
             if (section == "Capture")
             {
-                if (key == "Width") return new AcceptableValueRange<int>(16, 1920);
-                if (key == "Height") return new AcceptableValueRange<int>(16, 1080);
+                if (key == "Width") return new AcceptableValueRange<int>(480, 1920);
+                if (key == "Height") return new AcceptableValueRange<int>(270, 1080);
                 if (key == "FPS") return new AcceptableValueRange<int>(1, 30);
                 if (key == "WebPQuality") return new AcceptableValueRange<int>(1, 100);
-                if (key == "MemoryBudgetMiB") return new AcceptableValueRange<int>(16, 512);
+                if (key == "MemoryBudgetMiB") return new AcceptableValueRange<int>(48, 512);
                 if (key == "PreEventSeconds") return new FiniteRange(1, 30, (double)fallback);
             }
             if (key == "PostEventSeconds") return new FiniteRange(0, 30, (double)fallback);
