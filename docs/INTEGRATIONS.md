@@ -123,7 +123,7 @@ also exist. Automated checks do not replace live multiplayer tests.
 Remaining live coverage: automatic co-op death/boss/loot delivery, separate host
 destinations, relay disable/disconnect, Windows dedicated hosting, longer memory and
 frametime sessions, and broader graphics/network backends. Linux is outside the
-packaged Windows x64 support target. Periodic attribution has automated coverage but
-still needs live verification. Mixed/unknown sources, effects already active before
+packaged Windows x64 support target. Spirit-damage final-blow naming passed the user's
+live 0.9.2 boss-kill test; fire/poison still need live verification. Mixed/unknown sources, effects already active before
 tracking, ownership gaps, or unsupported damage paths can leave final blow unavailable.
 No last-direct-hit guess is used.

@@ -70,6 +70,9 @@ No configured webhook URL is needed in the report.
 
 ### Deferred 0.9.2 periodic-kill checks
 
+The user confirmed that a Spirit-damage boss kill correctly named them in 0.9.2.
+The remaining fire/poison and co-op cases below are still pending.
+
 Keep Boss Kill.TrackPeriodicDamage enabled on the creature owner. Use a boss that
 can take the chosen damage and ensure your existing boss filters allow the clip.
 With one attacking player, apply Spirit damage, then stop attacking and let a periodic

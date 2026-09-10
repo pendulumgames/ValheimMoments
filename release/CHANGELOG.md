@@ -8,8 +8,8 @@
 * Respect fire/Spirit stacking and poison replacement instead of assuming the last
   direct attacker caused the periodic kill.
 * Added Boss Kill.TrackPeriodicDamage (default true, restart required).
-* Added automated status-effect attribution checks. Live periodic-kill and remaining
-  automatic co-op checks are deferred to final testing.
+* Added automated status-effect attribution checks. Spirit-damage final-blow naming
+  passed a live boss-kill test. Fire/poison and remaining automatic co-op checks are pending.
 
 ## 0.9.1 — recorder attribution for everyone
 

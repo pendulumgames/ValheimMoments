@@ -108,8 +108,8 @@ kill in Valheim's saved statistics, not its first uploaded clip.
 `TrackPeriodicDamage = true` lets the boss owner track Spirit/fire/poison effects for
 final-blow attribution. A tick from one known player can supply their name; mixed or
 unknown sources stay unavailable. The creature owner needs 0.9.2 with this option
-enabled. Restart after changing it. This addition has automated coverage and awaits
-live periodic-kill testing.
+enabled. Restart after changing it. Spirit-damage final-blow attribution passed a
+live boss-kill test; fire/poison and additional co-op cases retain automated coverage.
 
 `[Loot Capture] MinimumRarity` defaults to `Legendary`. `None` is useful for testing
 any observed drop. Bosses exclusively use boss rules and do not produce a second
