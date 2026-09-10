@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.9.0")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.9.1")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -99,6 +99,7 @@ namespace ValheimMoments
             }
         }
         private string pendingKind = "manual", pendingMessage = "Valheim moment", activeMessage;
+        private string pendingRecorder, activeRecorder;
         private RenderTexture screen;
         private byte[] scratch;
         private ConfigEntry<bool> captureEnabled, timing, flip;
@@ -446,6 +447,7 @@ namespace ValheimMoments
         {
             encodingClip = clip;
             activeMessage = pendingMessage;
+            activeRecorder = pendingRecorder;
             activeKind = pendingKind; activeSession = pendingSession; activeAsHost = pendingAsHost;
             activeBoss = pendingBoss; pendingBoss = null;
             activeOutput = Path.Combine(outputDirectory, pendingKind + "-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff") + "-" + Guid.NewGuid().ToString("N").Substring(0, 6) + ".webp");
@@ -489,7 +491,7 @@ namespace ValheimMoments
                 WebhookUrl = DiscordRouting.Destination(activeKind, webhookUrl.Value,
                     useBossWebhook.Value, bossWebhook.Value, useLootWebhook.Value, lootWebhook.Value, useDeathWebhook.Value, deathWebhook.Value),
                 Username = discordUsername.Value,
-                Message = EventMessages.FormatPost(activeBoss == null ? activeMessage : BossMessage(activeBoss)),
+                Message = EventMessages.RecordedPost(activeBoss == null ? activeMessage : BossMessage(activeBoss), activeRecorder),
                 SaveLocalCopy = saveLocalCopy.Value,
                 MaxUploadBytes = Math.Max(1, Math.Min(100, uploadLimitMiB.Value)) * 1048576L
             };
@@ -520,14 +522,8 @@ namespace ValheimMoments
         {
             var session = ZNet.instance;
             if (session == null || !session.IsServer() || !CanRelay(clip.Kind)) { completion(false); return; }
-            string name = (recorder ?? "Connected player").Replace("\r", " ").Replace("\n", " ").Replace("*", "").Replace("`", "");
-            if (name.Length > 80) name = name.Substring(0, 80);
-            string message = clip.Message;
-            int firstLine = message.IndexOf('\n');
-            if (firstLine < 0) firstLine = message.Length;
-            message = message.Insert(firstLine, "\n**Recorded by:** " + name);
             var options = new DiscordOptions { WebhookUrl = Destination(clip.Kind), Username = discordUsername.Value,
-                Message = EventMessages.FormatPost(message), SaveLocalCopy = true,
+                Message = EventMessages.RecordedPost(clip.Message, recorder), SaveLocalCopy = true,
                 MaxUploadBytes = Math.Max(1, Math.Min(10, uploadLimitMiB.Value)) * 1048576L };
             uploadSession = session; relayCompletion = completion;
             uploadCancellation = CancellationTokenSource.CreateLinkedTokenSource(shutdown.Token);
@@ -611,6 +607,7 @@ namespace ValheimMoments
             pendingSession = ZNet.instance;
             pendingAsHost = pendingSession != null && pendingSession.IsServer();
             pendingKind = kind; pendingMessage = message;
+            pendingRecorder = Player.m_localPlayer != null ? Player.m_localPlayer.GetPlayerName() : null;
             Logger.LogInfo("[Capture] " + kind + " event triggered; buffered frames: " + history.BufferedFrames);
             return true;
         }

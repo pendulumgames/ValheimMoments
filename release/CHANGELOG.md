@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.1 — recorder attribution for everyone
+
+* Added **Recorded by:** to host and solo posts for all clip types, using the
+  recording character's name at the time of the trigger.
+* Joining-player posts retain host-supplied recorder attribution with the same formatting.
+* Confirmed live co-op F10 Discord delivery for both host and joining player, and
+  visual playback of the WebP-only encoder's clips.
+
 ## 0.9.0 — consistent naming
 
 * Renamed source projects, namespaces, plugin DLL, encoder executable and install

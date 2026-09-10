@@ -11,6 +11,24 @@ namespace ValheimMoments
             return new string('#', level) + " " + Regex.Replace(text.TrimStart(), @"^#{1,6}[ \t]+", "");
         }
 
+        internal static string RecordedPost(string message, string recorder)
+        {
+            string name = (recorder ?? "").Replace("\r", " ").Replace("\n", " ").Replace("*", "").Replace("`", "").Trim();
+            if (string.IsNullOrWhiteSpace(name)) name = "unavailable";
+            if (name.Length > 80) name = name.Substring(0, char.IsHighSurrogate(name[79]) ? 79 : 80);
+            string text = FormatPost(message);
+            string attribution = "\n**Recorded by:** " + name;
+            int firstLine = text.IndexOf('\n');
+            if (firstLine < 0) firstLine = text.Length;
+            int titleLimit = 2000 - attribution.Length;
+            if (firstLine > titleLimit)
+            {
+                firstLine = char.IsHighSurrogate(text[titleLimit - 1]) ? titleLimit - 1 : titleLimit;
+                text = text.Substring(0, firstLine);
+            }
+            return FormatPost(text.Insert(firstLine, attribution));
+        }
+
         internal static string FormatPost(string message)
         {
             string text = (message ?? "Valheim moment").TrimStart();

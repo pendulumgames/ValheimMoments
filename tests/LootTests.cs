@@ -50,6 +50,13 @@ internal static class LootTests
         Check(EventMessages.FormatPost("Boss defeated!\nKill credit: Ragnar\nFinal blow: Astrid") == "# Boss defeated!\n**Kill credit:** Ragnar\n**Final blow:** Astrid", "Post heading and bold attribution");
         Check(EventMessages.FormatPost("# Boss defeated!\n**Kill credit:** Ragnar") == "# Boss defeated!\n**Kill credit:** Ragnar", "Existing user Markdown preserved without duplication");
         Check(EventMessages.Heading("## Generated Loot", 2) == "## Generated Loot", "Existing loot heading preserved");
+        Check(EventMessages.RecordedPost("Manual clip", "Ragnar") == "# Manual clip\n**Recorded by:** Ragnar", "Local manual clip identifies recorder");
+        Check(EventMessages.RecordedPost("# Boss defeated!\nKill credit: Astrid\nFinal blow: Bjorn\n\n## Generated Loot\n* Sword", "Ragnar") == "# Boss defeated!\n**Recorded by:** Ragnar\n**Kill credit:** Astrid\n**Final blow:** Bjorn\n\n## Generated Loot\n* Sword", "Recorder remains distinct from kill attribution and preserves loot Markdown");
+        Check(EventMessages.RecordedPost("Death", "*Ragnar*\n`Viking`").EndsWith("**Recorded by:** Ragnar Viking"), "Recorder cannot inject extra lines or bold delimiters");
+        Check(EventMessages.RecordedPost("Clip", null).EndsWith("**Recorded by:** unavailable"), "Missing recorder has explicit fallback");
+        Check(EventMessages.RecordedPost("Clip", new string('a', 79) + "\uD83D\uDE00").EndsWith(new string('a', 79)), "Recorder length limit preserves surrogate pairs");
+        string longPost = EventMessages.RecordedPost(new string('a', 2000), "Ragnar");
+        Check(longPost.Length <= 2000 && longPost.EndsWith("**Recorded by:** Ragnar"), "Long titles retain recorder within Discord limit");
         Check(EventMessages.FormatPost(new string('a', 1997) + "\uD83D\uDE00").Length == 1999, "Added heading retains surrogate-safe Discord limit");
         var decoded = BossLoot.Decode(loot.Encode());
         Check(decoded != null && decoded.Display(5, true, s => s) == loot.Display(5, true, s => s), "Wire round trip");

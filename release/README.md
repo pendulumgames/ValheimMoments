@@ -7,9 +7,9 @@ and anything you catch with a hotkey. Valheim Moments turns recent gameplay into
 animated WebP clips and can send them to Discord.
 
 **Windows x64 beta.** Manual capture, deaths, boss summaries and loot highlights have
-been tested in game. Multiplayer relay has automated coverage but still needs live
-co-op and dedicated-server testing. This release uses a smaller WebP-only encoder;
-its animation/decode tests pass, with a fresh in-game check recommended.
+been tested in game. Host and joining-player F10 clips have reached Discord in a live
+co-op test, with the smaller WebP-only encoder's clips confirmed visually.
+Dedicated-server testing remains pending.
 
 ## Features
 
@@ -90,7 +90,9 @@ The host's `Username` is used for every destination.
 **Joining clients need no webhook.** Their local webhook and bot-name settings are
 ignored in multiplayer. `EnableClientRelay = false` on a client prevents it sending
 clips; on the host it disables incoming clip delivery. No host webhook credentials
-are sent to clients. The host adds a Recorded by line from the connected player's name.
+are sent to clients. Every post includes **Recorded by:** with the recording character's
+name. For joining players, the host takes this name from their connection; host and
+solo clips use the local character's name captured when the event triggers.
 Client event captions/rarity decisions are not independently verified by the host.
 
 ## Boss and loot settings

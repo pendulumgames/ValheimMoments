@@ -66,6 +66,8 @@ a live dedicated-server check; no dedicated server is available in this workspac
 - Co-op perspectives are separate submissions. The first accepted transfer wins
   while busy; there is no encounter-wide deduplication or queued alternate view.
 
-Standalone/host F10 and existing automatic captures continue to use the same settings
-and formatting as 0.7.1. Relay network performance and Steam/PlayFab behavior still
-need the live co-op test above.
+Live co-op F10 delivery for both the host and a joining player passed on 2026-09-09,
+and the clips looked correct. Version 0.9.1 adds Recorded by to host/solo posts too;
+verify the host's F10 post shows their recording character beneath the title.
+Dedicated-server behavior, automatic co-op events and broader Steam/PlayFab coverage
+still need live testing.
