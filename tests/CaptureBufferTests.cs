@@ -87,6 +87,31 @@ internal static class CaptureBufferTests
         Throws(delegate { extended.TryTrigger(20, -1); }, "negative override rejected");
         Throws(delegate { new CaptureBuffer(1, 1, 15, 5, 2, 4096, 1); }, "maximum must cover default");
         Throws(delegate { new CaptureBuffer(640, 360, 15, 5, 2, 192L * 1024 * 1024, 5); }, "extended allocation obeys memory budget");
+        var isolated = new CaptureBuffer(1, 1, 15, 5, 2, 4096);
+        var sessions = new CaptureSession(isolated);
+        object worldA = new object(), worldB = new object();
+        Check(!sessions.HasSession && !sessions.Accepts(0), "Menu cannot accept captured pixels");
+        Check(sessions.Observe(worldA), "Joining a session establishes boundary");
+        long requestA = sessions.Revision;
+        isolated.AddFrame(new byte[] { 11, 0, 0, 0 }, 1);
+        isolated.TryTrigger(1.1);
+        Check(!sessions.Observe(worldA) && isolated.IsBusy, "Same session preserves pending clip");
+        Check(sessions.Observe(worldB) && isolated.BufferedFrames == 0 && !isolated.IsBusy, "Switch clears history and cancels collecting clip");
+        Check(!sessions.Accepts(requestA), "Late old-session readback rejected");
+        Check(sessions.Accepts(sessions.Revision), "New-session readback accepted");
+        isolated.AddFrame(new byte[] { 22, 0, 0, 0 }, 2);
+        isolated.TryTrigger(2.1);
+        var sessionClip = isolated.TryComplete(4.1);
+        Check(sessionClip.Count == 1 && sessionClip.GetPixels(0)[0] == 22, "New clip contains only new-session footage");
+        sessions.Observe(null);
+        Check(!sessions.HasSession && isolated.IsBusy, "Disconnect preserves worker ownership");
+        Check(sessionClip.GetPixels(0)[0] == 22 && isolated.BufferedFrames == 0, "Worker pixels survive disconnect history clear");
+        sessions.Observe(worldA);
+        Check(!sessions.Accepts(requestA), "Rejoining same session object cannot revive old request");
+        sessionClip.Release();
+        Check(!isolated.IsBusy && isolated.FreeFrames == 181, "Old encoder release reclaims pixels and allows new capture");
+        Check(isolated.TryTrigger(5), "Capture works after session change and encoder completion");
+        isolated.ClearHistory();
         Console.WriteLine("PASS: " + checks + " assertions (capture ownership, timing, bounded memory, cancellation)");
     }
 }

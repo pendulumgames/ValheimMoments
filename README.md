@@ -5,7 +5,7 @@
 Animated gameplay highlights for Valheim: manual captures, player deaths, boss kills
 and great loot, with optional Epic Loot details and host-controlled Discord delivery.
 
-**Windows x64 beta — version 0.9.2.** Manual capture, deaths, boss summaries and loot
+**Windows x64 beta — version 0.9.3.** Manual capture, deaths, boss summaries and loot
 highlights have been tested in game. The WebP-only encoder and host/joining-player
 F10 Discord delivery have passed a live co-op check. Dedicated-server checks remain pending.
 
@@ -30,7 +30,7 @@ the helper requires .NET Framework 4.8. No game or BepInEx assemblies are includ
 ```
 
 The first command restores pinned NuGet packages and builds/tests a local package.
-The second validates and creates `artifacts/Valheim_Moments-0.9.2.zip`, including
+The second validates and creates `artifacts/Valheim_Moments-0.9.3.zip`, including
 manifest, README, changelog, icon, plugin, encoder and license notices. It does not
 publish anything. Do not reupload changed contents under an already published version.
 

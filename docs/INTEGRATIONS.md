@@ -1,6 +1,6 @@
 # Integration and validation notes
 
-This describes 0.9.2, not a guarantee of compatibility with future versions.
+This describes 0.9.3, not a guarantee of compatibility with future versions.
 Observers do not intentionally change damage, kill credit, rolls or saved statistics.
 
 ## Harmony patch inventory
@@ -72,6 +72,13 @@ pool. A completed clip retains its frames while rolling history continues. One c
 may collect/encode at a time; extra triggers are skipped. Boss rarity decisions can
 hold completed footage awaiting metadata; ordinary-loot candidates hold bounded
 metadata until a qualifying drop triggers.
+
+[CaptureSession](../src/ValheimMoments.Core/CaptureSession.cs) clears rolling history
+and cancels pending collection when the ZNet session reference changes. GPU readbacks
+carry a session revision and cannot enter a later session's history. Completed
+worker-owned frames stay valid until their encoder releases them. The plugin also
+clears waiting loot captures/candidates at the boundary. These paths have automated
+coverage; repeated live leave/rejoin checks remain on the final test list.
 
 [EncoderClient](../src/ValheimMoments/EncoderClient.cs) pipes completed RGBA frames to
 a bundled hidden Windows x64 helper using Imazen.WebP 11.0.0 and libwebp 1.6.0. It

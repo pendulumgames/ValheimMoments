@@ -85,6 +85,16 @@ have not been recorded as live passes.
 
 ### Headless hosting
 
+### Session-boundary regression (0.9.3)
+
+In a test world, start an F10 clip and leave during its post-event recording. Rejoin
+and wait five seconds, then press F10 again. The new clip should contain only the new
+session and upload normally. Repeat while an earlier clip is already encoding: its
+local file may finish, but it should not upload through the new session. Look for
+the session-change message in the capture log. These live checks remain pending.
+
+### Headless startup
+
 The relay starts before graphics/encoder checks. A headless server should log that
 host delivery is ready and graphics capture is disabled. Install the plugin and its
 normal dependencies on the Windows BepInEx server, configure its webhook locally,

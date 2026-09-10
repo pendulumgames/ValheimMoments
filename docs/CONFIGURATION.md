@@ -1,6 +1,6 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.9.2. Launch once to generate
+Applies to Valheim Moments 0.9.3. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
 Restart after changes. Defaults describe a new installation; upgrades preserve
 existing settings. Never share a config containing webhook URLs.
@@ -9,6 +9,11 @@ existing settings. Never share a config containing webhook URLs.
 
 These settings belong to each recording player. Dedicated servers relay clips but
 do not record a screen. Output has no audio.
+
+Recording requires a session and local player. Changing sessions clears buffered
+footage and cancels any collecting clip. Allow the pre-event history to warm up after
+joining. An already encoding clip retains its frames and can finish locally, but
+cannot submit through a different session.
 
 | Key | Default | Meaning |
 | --- | --- | --- |

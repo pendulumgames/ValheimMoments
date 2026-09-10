@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.3 — capture session isolation
+
+* Clear buffered footage and cancel a collecting clip when joining, leaving or
+  switching sessions. Pending GPU readbacks from the old session are discarded.
+* Keep frames owned by an active encoder intact until it finishes; existing upload
+  guards continue to prevent sending the old clip through a different session.
+* Require an active session and local player before recording or triggering a new clip.
+* Added automated tests for session changes, late readbacks and encoder ownership.
+
 ## 0.9.2 — periodic final-blow attribution
 
 * Track actual Spirit/fire/poison status-effect sources on the boss owner, without

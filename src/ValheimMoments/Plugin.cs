@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.9.2")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.9.3")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -25,6 +25,7 @@ namespace ValheimMoments
             internal NativeArray<byte> Pixels;
             internal AsyncGPUReadbackRequest Request;
             internal double Submitted;
+            internal long SessionRevision;
         }
 
         private readonly Stopwatch clock = Stopwatch.StartNew();
@@ -33,6 +34,7 @@ namespace ValheimMoments
         private readonly List<ReadbackSlot> allSlots = new List<ReadbackSlot>(3);
         private readonly CancellationTokenSource shutdown = new CancellationTokenSource();
         private CaptureBuffer history;
+        private CaptureSession captureSession;
         private CaptureBuffer.Clip encodingClip;
         private Task<string> encoding;
         private Task<UploadResult> upload;
@@ -209,6 +211,7 @@ namespace ValheimMoments
                 if ((long)width * height * 4 * (Math.Ceiling(pre * fps) + Math.Ceiling(maxPost * fps)) > 256L * 1024 * 1024)
                     throw new ArgumentOutOfRangeException("Clip exceeds the encoder's 256 MiB raw-frame limit.");
                 history = new CaptureBuffer(width, height, fps, pre, post, budget * 1024L * 1024, maxPost);
+                captureSession = new CaptureSession(history);
                 scratch = new byte[checked(width * height * 4)];
                 for (int i = 0; i < 3; i++)
                 {
@@ -330,8 +333,9 @@ namespace ValheimMoments
                     paused = !paused;
                     Logger.LogInfo(paused ? "[Capture] Paused for baseline comparison." : "[Capture] Recording resumed; allow 5 seconds to warm up.");
                 }
+                SynchronizeCaptureSession();
                 DrainReadbacks();
-                bool active = captureEnabled.Value && !paused;
+                bool active = captureEnabled.Value && !paused && captureSession.HasSession;
                 if (active && epicReady && lootTrigger.Value && lootEnabled.Value)
                     lootHighlights.Poll(now, minimumLootRarity.Value, OnLootHighlight);
                 else lootHighlights.Clear();
@@ -411,6 +415,8 @@ namespace ValheimMoments
 
         private void SubmitCapture()
         {
+            SynchronizeCaptureSession();
+            if (!captureSession.HasSession || Player.m_localPlayer == null) return;
             double now = clock.Elapsed.TotalSeconds;
             if (now < nextCapture) return;
             // Anchor to the sampling grid; adding a period to each actual game-frame
@@ -430,6 +436,7 @@ namespace ValheimMoments
             ScreenCapture.CaptureScreenshotIntoRenderTexture(screen);
             Graphics.Blit(screen, slot.Target);
             slot.Submitted = now;
+            slot.SessionRevision = captureSession.Revision;
             slot.Request = AsyncGPUReadback.RequestIntoNativeArray(ref slot.Pixels, slot.Target, 0, TextureFormat.RGBA32);
             free.Dequeue(); pending.Enqueue(slot);
             double elapsed = clock.Elapsed.TotalMilliseconds - started;
@@ -441,6 +448,11 @@ namespace ValheimMoments
             while (pending.Count > 0 && pending.Peek().Request.done)
             {
                 ReadbackSlot slot = pending.Dequeue();
+                if (!captureSession.Accepts(slot.SessionRevision))
+                {
+                    free.Enqueue(slot);
+                    continue; // Completed request may be reused, but old pixels never enter new history.
+                }
                 latencyMs += (clock.Elapsed.TotalSeconds - slot.Submitted) * 1000;
                 if (slot.Request.hasError)
                 {
@@ -615,6 +627,8 @@ namespace ValheimMoments
         private bool Trigger(string kind, string message, double? postOverride = null)
         {
             if (!initialized || stopped || !captureEnabled.Value || paused) return false;
+            SynchronizeCaptureSession();
+            if (!captureSession.HasSession || Player.m_localPlayer == null) return false;
             if (!history.TryTrigger(clock.Elapsed.TotalSeconds, postOverride))
             {
                 Logger.LogInfo("[Capture] " + kind + " trigger ignored: a clip is collecting or encoding.");
@@ -629,6 +643,16 @@ namespace ValheimMoments
             return true;
         }
         private void OnDisable() { if (initialized || relay != null) StopCapture(); }
+        private void SynchronizeCaptureSession()
+        {
+            if (!captureSession.Observe(ZNet.instance)) return;
+            waitingForLoot?.Release(); waitingForLoot = null;
+            pendingBoss = null;
+            lootHighlights.Clear();
+            historyCleared = true;
+            consecutiveErrors = 0;
+            Logger.LogInfo("[Capture] Session changed; buffered footage and pending capture cleared.");
+        }
         private void StopCapture()
         {
             if (stopped) return;

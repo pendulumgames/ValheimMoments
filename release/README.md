@@ -54,6 +54,10 @@ Recording uses a bounded frame buffer (roughly 185 MiB at defaults) and a separa
 background encoder. Only one clip collects/encodes at a time; extra triggers are skipped.
 Actual performance depends on your hardware and settings.
 
+Changing sessions clears the rolling buffer and cancels a clip still collecting.
+Wait five seconds after entering the new world for a full history. An already running
+encoder can finish its local file, but that old clip cannot upload through the new session.
+
 ## Discord setup — host or single-player
 
 Launch once, exit, then edit `BepInEx/config/local.valheimmoments.cfg` locally:
