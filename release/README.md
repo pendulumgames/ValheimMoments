@@ -11,6 +11,10 @@ been tested in game. Host and joining-player F10 clips have reached Discord in a
 co-op test, with the smaller WebP-only encoder's clips confirmed visually.
 Dedicated-server testing remains pending.
 
+Version 0.10.0 adds host-synced event settings and requires host and recording clients
+to use 0.10.0 or compatible newer versions. This update has automated coverage; its
+Configuration Manager UI and live co-op settings sync still need verification.
+
 ## Features
 
 * **F10** captures recent gameplay. **F9** pauses/resumes recording.
@@ -53,6 +57,10 @@ WebP animations have **no audio**. They are not MP4 videos.
 Recording uses a bounded frame buffer (roughly 185 MiB at defaults) and a separate
 background encoder. Only one clip collects/encodes at a time; extra triggers are skipped.
 Actual performance depends on your hardware and settings.
+
+Resolution is clamped to 16–1920 wide and 16–1080 high, FPS to 1–30 and quality to
+1–100. Aspect ratios stay between 1:2 and 3:1. Effective resolution reduces when needed
+to fit the memory budget; the log reports actual settings.
 
 Changing sessions clears the rolling buffer and cancels a clip still collecting.
 Wait five seconds after entering the new world for a full history. An already running
@@ -99,6 +107,13 @@ name. For joining players, the host takes this name from their connection; host 
 solo clips use the local character's name captured when the event triggers.
 Client event captions/rarity decisions are not independently verified by the host.
 
+The host owns automatic triggers, rarity/first-kill rules, timing and post formatting.
+These settings are read-only on clients in Configuration Manager and follow the host
+in memory. Clients keep hotkeys, capture/relay opt-out, performance, image flip,
+local-copy retention and Advanced timing diagnostics editable. Their config files
+retain preferences for single-player. Client capture waits for host settings; older
+clients without the settings exchange cannot relay clips.
+
 ## Boss and loot settings
 
 The [complete configuration reference](https://github.com/PendulumGames/ValheimMoments/blob/main/docs/CONFIGURATION.md)
@@ -111,8 +126,8 @@ kill in Valheim's saved statistics, not its first uploaded clip.
 
 `TrackPeriodicDamage = true` lets the boss owner track Spirit/fire/poison effects for
 final-blow attribution. A tick from one known player can supply their name; mixed or
-unknown sources stay unavailable. The creature owner needs 0.9.2 with this option
-enabled. Restart after changing it. Spirit-damage final-blow attribution passed a
+unknown sources stay unavailable. The creature owner follows the host's synced option.
+Spirit-damage final-blow attribution passed a
 live boss-kill test; fire/poison and additional co-op cases retain automated coverage.
 
 `[Loot Capture] MinimumRarity` defaults to `Legendary`. `None` is useful for testing
@@ -122,7 +137,8 @@ item pickups, crafting and console-spawned items do not trigger them.
 
 Both sections have `MaxLootItemsShown`, `ShowQuantity`, `ShowRarity`, `ShowItemModifiers`,
 `ShowItemSockets`, `ShowUnidentifiedStatus`, and `LootHeader`. Highest rarity sorts first.
-Unidentified modifiers and sockets stay hidden. Restart after editing configuration.
+Unidentified modifiers and sockets stay hidden. Restart after editing the config file;
+Configuration Manager edits apply in game, with buffer changes waiting for active work.
 
 ## Current limits
 

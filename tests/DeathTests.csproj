@@ -4,6 +4,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
     <Reference Include="0Harmony"><HintPath>$(ProfilePath)/BepInEx/core/0Harmony.dll</HintPath></Reference>
+    <Reference Include="BepInEx"><HintPath>$(ProfilePath)/BepInEx/core/BepInEx.dll</HintPath></Reference>
+    <!-- Runtime-only aliases: BepInEx's real TOML converters need Unity, while the
+         behavioral game tests intentionally supply their own GameObject stand-in. -->
+    <Reference Include="UnityEngine"><HintPath>$(GamePath)/valheim_Data/Managed/UnityEngine.dll</HintPath><Aliases>RuntimeUnityFacade</Aliases></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(GamePath)/valheim_Data/Managed/UnityEngine.CoreModule.dll</HintPath><Aliases>RuntimeUnity</Aliases></Reference>
     <Compile Include="DeathTests.cs" />
     <Compile Include="BossTests.cs" />
     <Compile Include="LootTests.cs" />
@@ -11,6 +16,9 @@
     <Compile Include="FilterTests.cs" />
     <Compile Include="RelayTests.cs" />
     <Compile Include="PeriodicTests.cs" />
+    <Compile Include="HostSettingsTests.cs" />
+    <Compile Include="../src/ValheimMoments/HostConfiguration.cs" Link="HostConfiguration.cs" />
+    <Compile Include="../src/ValheimMoments/SettingRanges.cs" Link="SettingRanges.cs" />
     <Compile Include="../src/ValheimMoments/PeriodicAttribution.cs" Link="PeriodicAttribution.cs" />
     <Compile Include="../src/ValheimMoments/RelayBuffer.cs" Link="RelayBuffer.cs" />
     <Compile Include="../src/ValheimMoments/ClipRelay.cs" Link="ClipRelay.cs" />

@@ -14,6 +14,7 @@ namespace ValheimMoments
         private readonly Func<int> limit;
         private readonly Action<RelayBuffer, string, Action<bool>> deliver;
         private readonly Action<string> log;
+        private readonly Func<ZRpc, bool> allowPeer;
         private readonly HashSet<ZRpc> registered = new HashSet<ZRpc>();
         private readonly Dictionary<ZRpc, double> nextOffer = new Dictionary<ZRpc, double>();
         private ZNet session;
@@ -30,8 +31,8 @@ namespace ValheimMoments
         private double now, incomingDeadline, outgoingDeadline, nextSend, nextTick;
         private bool delivering, awaitingOffer, waitingResult, disposed;
 
-        internal ClipRelay(Func<string, bool> allow, Func<int> limit, Action<RelayBuffer, string, Action<bool>> deliver, Action<string> log)
-        { this.allow = allow; this.limit = limit; this.deliver = deliver; this.log = log; }
+        internal ClipRelay(Func<string, bool> allow, Func<int> limit, Action<RelayBuffer, string, Action<bool>> deliver, Action<string> log, Func<ZRpc, bool> allowPeer = null)
+        { this.allow = allow; this.limit = limit; this.deliver = deliver; this.log = log; this.allowPeer = allowPeer ?? (rpc => true); }
 
         internal void Tick(double time)
         {
@@ -132,7 +133,7 @@ namespace ValheimMoments
                 if (nextOffer.TryGetValue(rpc, out next) && now < next) { Send(rpc, "R|" + p[1] + "|0"); return; }
                 nextOffer[rpc] = now + 15;
                 int size;
-                if (source != null || delivering || !RelayProtocol.ValidKind(p[2]) || !allow(p[2]) || !int.TryParse(p[3], out size)) { Send(rpc, "R|" + p[1] + "|0"); return; }
+                if (source != null || delivering || !allowPeer(rpc) || !RelayProtocol.ValidKind(p[2]) || !allow(p[2]) || !int.TryParse(p[3], out size)) { Send(rpc, "R|" + p[1] + "|0"); return; }
                 string message = RelayProtocol.ReadText(p[4]);
                 try { incoming = new RelayBuffer(p[1], p[2], message, size, limit()); }
                 catch { Send(rpc, "R|" + p[1] + "|0"); return; }
@@ -142,7 +143,7 @@ namespace ValheimMoments
             else if (p[0] == "C" && p.Length == 4 && ReferenceEquals(source, rpc) && incoming != null && incoming.Id == p[1])
             {
                 int offset;
-                if (!allow(incoming.Kind) || !int.TryParse(p[2], out offset) || !incoming.Add(offset, Convert.FromBase64String(p[3])))
+                if (!allowPeer(rpc) || !allow(incoming.Kind) || !int.TryParse(p[2], out offset) || !incoming.Add(offset, Convert.FromBase64String(p[3])))
                 { Send(rpc, "R|" + p[1] + "|0"); incoming = null; source = null; return; }
                 if (!incoming.Complete) { Send(rpc, "A|" + p[1] + "|" + incoming.Received); return; }
                 var complete = incoming; incoming = null; source = null;

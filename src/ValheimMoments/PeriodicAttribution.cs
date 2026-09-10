@@ -8,6 +8,7 @@ namespace ValheimMoments
     // Read-only provenance: never write HitData, status effects or game credit.
     internal static class PeriodicAttribution
     {
+        internal static Func<bool> Enabled;
         private sealed class Source { internal ZDOID Id; internal string Name; }
         private sealed class Pools { internal Source Fire, Spirit, Poison; }
         private sealed class DamageScope { internal Character Victim; internal Source Source; }
@@ -46,7 +47,7 @@ namespace ValheimMoments
             __state = damage; damage = null;
             try
             {
-                if (!__instance.IsBoss() || !__instance.IsOwner()) return;
+                if (Enabled?.Invoke() == false || !__instance.IsBoss() || !__instance.IsOwner()) return;
                 Source source = null;
                 if (__1 != null && !__1.m_attacker.IsNone())
                 {
@@ -65,7 +66,7 @@ namespace ValheimMoments
             try
             {
                 var victim = Victim.GetValue(__instance) as Character;
-                if (victim == null || !victim.IsBoss() || !victim.IsOwner()) return;
+                if (Enabled?.Invoke() == false || victim == null || !victim.IsBoss() || !victim.IsOwner()) return;
                 var field = __originalMethod.Name == "AddFireDamage" ? Fire : __originalMethod.Name == "AddSpiritDamage" ? Spirit : Poison;
                 __state = new Addition { Field = field, Before = (float)field.GetValue(__instance),
                     Source = damage != null && ReferenceEquals(victim, damage.Victim) ? damage.Source : null };
@@ -103,7 +104,7 @@ namespace ValheimMoments
             try
             {
                 var victim = Victim.GetValue(__instance) as Character;
-                if (victim == null || !victim.IsBoss() || !victim.IsOwner()) { pools.Remove(__instance); return; }
+                if (Enabled?.Invoke() == false || victim == null || !victim.IsBoss() || !victim.IsOwner()) { pools.Remove(__instance); return; }
                 tick = __instance;
             }
             catch { }
@@ -133,11 +134,12 @@ namespace ValheimMoments
         internal static string Resolve(HitData hit)
         {
             Source source;
-            return hit != null && ticks.TryGetValue(hit, out source) ? source.Name : null;
+            return Enabled?.Invoke() != false && hit != null && ticks.TryGetValue(hit, out source) ? source.Name : null;
         }
         internal static void Clear()
         {
             damage = null; tick = null;
+            Enabled = null;
             pools = new ConditionalWeakTable<StatusEffect, Pools>();
             ticks = new ConditionalWeakTable<HitData, Source>();
         }

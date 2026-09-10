@@ -6,18 +6,37 @@ to qualify during testing; the shipped default is Legendary.
 
 ## Host setup
 
+For 0.10.0, install the matching build on host and recording clients. Older hosts do
+not provide policy snapshots; newer clients wait rather than use their own event rules.
+
 Configure Discord.Enabled, WebhookURL and Username on the host. Optional Good Loot,
 Boss Kill and Player Death webhook overrides also belong to the host; disabled
 overrides use the default. `Discord.EnableClientRelay = true` is the new default on
 both sides. The host's trigger enable switches apply to incoming event types.
 
 Clients never send a webhook URL or bot name. Their local Discord.Enabled, Username
-and webhook entries do not control relay delivery. Capture and rarity settings remain
-local in this increment. The host uses client-supplied event text and a fixed event
+and webhook entries do not control relay delivery. In 0.10.0 the host syncs event,
+timing, rarity and formatting rules; clients retain personal performance settings.
+The host uses client-supplied event text and a fixed event
 type, and adds **Recorded by:** using the authenticated connection's player name.
 The host does not independently verify the depicted event or rarity.
 
 ## First co-op test
+
+Before recording, check the new settings behavior:
+
+1. Give the client a different local boss rarity/template from the host, then join.
+2. In Configuration Manager, boss/loot/death rules should show host values read-only.
+   Hotkeys, capture on/off, relay opt-out, dimensions/FPS/quality, memory budget, flip,
+   local-copy retention and Advanced timing diagnostics should remain editable.
+3. Change a host rule. The client should follow within a few seconds. Webhook entries
+   should be hidden on the joining client, and no webhook should appear in its config.
+4. Leave and enter single-player. The client's original event preferences should return.
+5. With capture idle, try an extreme width/height/FPS via the UI. Bounds should clamp
+   inputs; effective aspect ratio and memory-safe resolution appear in the capture log.
+   Restore your preferred dimensions afterward. Confirm ordinary F10 still works.
+
+Then verify delivery:
 
 1. Host a world with the current version, then have a second player using that version join.
 2. Wait five seconds on the joining client and press F10 there.
@@ -52,7 +71,7 @@ working listen host.
    default channel, or PlayerDeathWebhookURL if its override is enabled.
 4. After delivery finishes, test a credited ordinary kill with Epic Loot enabled on
    the recording player and creature owner. For easy testing, set the recording
-   player's Loot Capture.MinimumRarity to None while closed, then relaunch. Expect
+   host's Loot Capture.MinimumRarity to None while closed, then relaunch. Expect
    an automatic clip only if an actual item drops, with Generated loot and their
    Recorded by name. Restore their preferred rarity afterward.
 5. Test a credited boss kill separately. FirstKillOnly and the recording player's

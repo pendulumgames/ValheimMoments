@@ -1,13 +1,28 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.9.5. Launch once to generate
+Applies to Valheim Moments 0.10.0. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
-Restart after changes. Defaults describe a new installation; upgrades preserve
+Restart after editing the file. Configuration Manager edits apply in game; buffer
+changes wait for active GPU/encoder work. Defaults describe a new installation; upgrades preserve
 existing settings. Never share a config containing webhook URLs.
+
+## Multiplayer ownership
+
+The host controls every setting except: Capture.Enabled, ManualCaptureKey,
+ToggleCaptureKey, Width, Height, FPS, WebPQuality, MemoryBudgetMiB, FlipVertically;
+Discord.EnableClientRelay and SaveLocalCopy; and Debug.LogCaptureTiming.
+These personal controls remain editable on clients. All other settings are read-only
+while connected. Private Discord settings are hidden from joining players' UI.
+
+Host event rules apply in memory without replacing clients' saved settings. Returning
+to single-player restores their own preferences and editing access. Host and clients
+need 0.10.0 or compatible newer versions: client capture waits for host settings and
+pauses if updates stop for ten seconds. No webhook URL or Discord Username is synced.
 
 ## Capture
 
-These settings belong to each recording player. Dedicated servers relay clips but
+Performance controls belong to each recording player; PreEventSeconds and
+PostEventSeconds belong to the host. Dedicated servers relay clips but
 do not record a screen. Output has no audio.
 
 Recording requires a session and local player. Changing sessions clears buffered
@@ -20,11 +35,11 @@ cannot submit through a different session.
 | Enabled | true | Enable recording; F9 temporarily pauses/resumes it. |
 | ManualCaptureKey | F10 | Manual capture key; also requires Triggers.ManualCapture. |
 | ToggleCaptureKey | F9 | Pause/resume key. |
-| PreEventSeconds | 5 | Rolling history duration; must be greater than zero. |
-| PostEventSeconds | 2 | Post-trigger duration for manual clips and deaths; zero or more. |
+| PreEventSeconds | 5 | Host-controlled history duration, 1–30 seconds. |
+| PostEventSeconds | 2 | Host-controlled duration for manual clips and deaths, 0–30 seconds. |
 | FPS | 15 | Sampling rate, 1–30. Missed samples are skipped. |
 | Width | 640 | Output width, 16–1920 pixels. |
-| Height | 360 | Output height, 16–1080 pixels. Screen stretches to this aspect ratio. |
+| Height | 360 | Output height, 16–1080 pixels. Effective aspect ratio is limited to 1:2 through 3:1. |
 | WebPQuality | 80 | Lossy quality, 1–100. Higher quality can increase file size. |
 | MemoryBudgetMiB | 192 | Managed frame-pool budget, 16–512 MiB; excludes GPU and encoder memory. |
 | FlipVertically | false | Enable only if recordings appear upside down. |
@@ -32,7 +47,10 @@ cannot submit through a different session.
 Bosses and ordinary loot use their own PostEventSeconds. Allocation uses the largest
 post-event duration, even if that trigger is disabled. History plus that duration
 must not exceed 60 seconds. The raw clip must fit 256 MiB and the whole frame pool
-must fit MemoryBudgetMiB. Invalid combinations disable capture and produce a log message.
+must fit MemoryBudgetMiB. Numeric values are clamped in both UI and config file.
+Extreme aspect ratios reduce the longer dimension. If the combination still exceeds
+memory limits, effective dimensions reduce until it fits. The log reports the actual
+dimensions/allocation; stored resolution preferences are retained.
 
 Let P = ceil(PreEventSeconds × FPS) and Q = ceil(maximum post-event seconds × FPS).
 The frame pool occupies `Width × Height × 4 × (2P + Q + 1)` bytes: about 185.4 MiB
@@ -86,8 +104,8 @@ saved clips and failed/skipped uploads are not automatically purged by this opti
 | LootDrop | true | Allow ordinary-loot captures; also requires Loot Capture.Enabled and the Epic Loot adapter. |
 
 The host also applies these switches and the corresponding event Enabled setting to
-incoming clips. Rarity decisions and capture settings remain local to recording
-players. The host does not independently verify client footage or loot claims.
+incoming clips. Recording clients evaluate the host's synced rarity/event rules.
+The host does not independently verify footage or loot claims from modified clients.
 
 ## Player Death
 
@@ -113,7 +131,7 @@ original weapon belonged to a player.
 | MinimumLootRarity | Legendary | None accepts all; otherwise a verified Epic Loot rarity. |
 | Message | 🏆 {boss} defeated! | Supports {boss}, {player}, {credit}, {killer}, {loot}, {item_count}. |
 | PlayerNameMode | Both | KillCredit, FinalBlow or Both; selected names append if omitted. |
-| TrackPeriodicDamage | true | Track actual boss Spirit/fire/poison sources; restart required. Must be enabled on the creature owner. |
+| TrackPeriodicDamage | true | Host-controlled tracking of actual boss Spirit/fire/poison sources on the creature owner. |
 | PostEventSeconds | 4 | Recording time after the credited kill. |
 | LootWaitSeconds | 12 | Metadata wait, clamped to 0–25 seconds; does not extend recording. |
 | ShowLoot | true | Include loot in the post; does not change rarity eligibility. |
@@ -177,8 +195,12 @@ spaces followed by `* -# ` for the requested Discord sub-bullet/subtext format.
 
 ## Debug
 
+Shown only when Configuration Manager's **Advanced** filter is enabled. This remains
+a personal troubleshooting control. The config section stays Debug to preserve
+existing preferences; existing true values are not reset during upgrade.
+
 | Key | Default | Meaning |
 | --- | --- | --- |
-| LogCaptureTiming | true | Aggregate capture timing, readback latency and frame counts every ten seconds. |
+| LogCaptureTiming | false | Aggregate capture timing, readback latency and frame counts every ten seconds. |
 
 Event, encoder, upload and attribution diagnostics also use the BepInEx log.

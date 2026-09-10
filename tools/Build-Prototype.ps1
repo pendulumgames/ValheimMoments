@@ -30,7 +30,7 @@ try {
         '{0}  {1}' -f (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash, $file.FullName.Substring($stage.Length + 1)
     }
     $hashes | Set-Content -LiteralPath (Join-Path $stage 'SHA256SUMS.txt')
-    $zip = Join-Path $workspace 'artifacts/ValheimMoments-0.9.5-test.zip'
+    $zip = Join-Path $workspace 'artifacts/ValheimMoments-0.10.0-test.zip'
     Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
     $stage | Set-Content -LiteralPath (Join-Path $workspace 'artifacts/latest-package-path.txt')
     Write-Output "Package: $zip"

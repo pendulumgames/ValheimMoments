@@ -2,8 +2,8 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <LangVersion>latest</LangVersion>
-    <AssemblyVersion>0.9.5.0</AssemblyVersion>
-    <Version>0.9.5</Version>
+    <AssemblyVersion>0.10.0.0</AssemblyVersion>
+    <Version>0.10.0</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <Import Project="../../local.props" Condition="Exists('../../local.props')" />
@@ -16,6 +16,8 @@
     <Reference Include="assembly_utils"><HintPath>$(GamePath)/valheim_Data/Managed/assembly_utils.dll</HintPath><Private>false</Private><ExternallyResolved>true</ExternallyResolved></Reference>
     <Compile Include="../ValheimMoments.Core/CaptureBuffer.cs" Link="Core/CaptureBuffer.cs" />
     <Compile Include="../ValheimMoments.Core/CaptureSession.cs" Link="Core/CaptureSession.cs" />
+    <Compile Include="../ValheimMoments.Core/CaptureLimits.cs" Link="Core/CaptureLimits.cs" />
+    <Reference Include="UnityEngine.IMGUIModule"><HintPath>$(GamePath)/valheim_Data/Managed/UnityEngine.IMGUIModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="BepInEx"><HintPath>$(ProfilePath)/BepInEx/core/BepInEx.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine"><HintPath>$(GamePath)/valheim_Data/Managed/UnityEngine.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(GamePath)/valheim_Data/Managed/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>

@@ -1,6 +1,6 @@
 # Integration and validation notes
 
-This describes 0.9.5, not a guarantee of compatibility with future versions.
+This describes 0.10.0, not a guarantee of compatibility with future versions.
 Observers do not intentionally change damage, kill credit, rolls or saved statistics.
 
 ## Harmony patch inventory
@@ -89,6 +89,23 @@ See [dependency licenses](DEPENDENCIES.md).
 
 ## Delivery boundaries
 
+[HostConfiguration](../src/ValheimMoments/HostConfiguration.cs) shares a bounded typed
+event-policy snapshot over direct peer RPC. Only the current server peer can install
+it; servers ignore client snapshots. Unknown/private keys, duplicates, invalid values
+and incompatible schemas are rejected atomically. Clients request updates every two
+seconds; absent refresh for ten seconds pauses capture. Relay requires a recent
+settings exchange. This governs ordinary clients, not modified-client footage claims.
+
+The in-memory overlay preserves client config files. Configuration Manager metadata
+makes host rules read-only, renders effective values and hides client-private Discord
+settings while connected. The installed manager's Advanced/ReadOnly/CustomDrawer tags
+and BuildSettingList method were inspected directly. No manager DLL is bundled or required.
+
+[CaptureLimits](../src/ValheimMoments.Core/CaptureLimits.cs) constrains dimensions,
+FPS, quality and aspect ratio, then reduces dimensions to fit frame-pool/raw-clip
+budgets. Buffer replacement waits for GPU and encoder work. These bounds apply
+regardless of which UI or file supplied the settings.
+
 [ClipRelay](../src/ValheimMoments/ClipRelay.cs) uses connected peers' direct ZRpc
 channels. Offers contain fixed event type, caption and file length, followed by paced
 16 KiB chunks with acknowledgments. Host settings supply Discord URLs and bot name;
@@ -124,7 +141,8 @@ pixels compress much more readily than gameplay. Independent RIFF inspection and
 full decode passed, as did unequal frame durations, RGBA colors, vertical flip,
 cancellation and truncated-input rejection. These figures describe one local run.
 
-The event suite passes 196 assertions with actual Harmony and behavioral game/API
+The event suite includes host-policy checks using actual BepInEx configuration and
+simulated peers, alongside event assertions with actual Harmony and behavioral game/API
 stand-ins, including simulated direct-peer transfer. Capture-core and fake-HTTP suites
 also exist. Automated checks do not replace live multiplayer tests.
 

@@ -52,6 +52,7 @@ internal static class DeathTests
         EpicTests.Run();
         RelayTests.Run();
         PeriodicTests.Run();
+        HostSettingsTests.Run();
         var harmony = new Harmony("valheimmoments.tests");
         int events = 0;
         int errors = 0;

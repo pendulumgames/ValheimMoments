@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.10.0 — host rules and bounded client settings
+
+* Host controls event switches, rarity/first-kill rules, timing, attribution and post
+  formatting. Connected clients see those options as read-only in Configuration Manager.
+* Clients keep hotkeys, capture/relay opt-out, resolution/FPS/quality, memory budget,
+  image flip, local-copy retention and performance diagnostics editable.
+* Host policies sync over the connected server's direct RPC channel. Webhook URLs and
+  Discord identity never enter the packet; client config files retain local preferences.
+* Host and clients need 0.10.0 or compatible newer versions. Capture waits for host
+  settings; outdated clients without the settings exchange cannot relay clips.
+* Added UI/config-file ranges, aspect-ratio limits (1:2 through 3:1), and automatic
+  resolution reduction to fit memory limits. Defaults remain 640x360 at 15 FPS.
+* Debug timing is under Configuration Manager's Advanced filter and defaults off.
+* Automated policy and bounds checks pass; live settings UI/co-op checks remain pending.
+
 ## 0.9.5 — compact posts and successful-upload cleanup
 
 * Removed the extra blank line before automatically appended generated loot.

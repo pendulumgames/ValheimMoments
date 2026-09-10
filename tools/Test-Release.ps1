@@ -23,7 +23,7 @@ try {
     # Verify documentation against actual binding keys, without reading any user config.
     $source = [IO.File]::ReadAllText((Join-Path $workspace 'src/ValheimMoments/Plugin.cs'))
     $reference = [IO.File]::ReadAllText((Join-Path $workspace 'docs/CONFIGURATION.md'))
-    $keys = @([regex]::Matches($source, 'Config\.Bind\("[^"]+", "([^"]+)"') | ForEach-Object { $_.Groups[1].Value }) +
+    $keys = @([regex]::Matches($source, '(?:Config\.)?Bind\("[^"]+", "([^"]+)"') | ForEach-Object { $_.Groups[1].Value }) +
         @([regex]::Matches($source, 'Setting\("([^"]+)"') | ForEach-Object { $_.Groups[1].Value })
     foreach ($key in $keys) {
         if (-not $reference.Contains('| ' + $key + ' |')) { throw "Undocumented configuration key: $key" }

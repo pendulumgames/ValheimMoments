@@ -112,6 +112,16 @@ internal static class CaptureBufferTests
         Check(!isolated.IsBusy && isolated.FreeFrames == 181, "Old encoder release reclaims pixels and allows new capture");
         Check(isolated.TryTrigger(5), "Capture works after session change and encoder completion");
         isolated.ClearHistory();
+        var limits = CaptureLimits.Fit(1, 10000, 500, 500, 192, 5, 4);
+        Check(limits.Width >= 16 && limits.Height <= limits.Width * 2 && limits.FPS == 30 && limits.Quality == 100, "Extreme capture values and tall aspect ratio bounded");
+        limits = CaptureLimits.Fit(1920, 16, 15, 80, 192, 5, 4);
+        Check(limits.Width <= limits.Height * 3, "Extreme wide aspect ratio bounded");
+        limits = CaptureLimits.Fit(1920, 1080, 30, 100, 16, 30, 30);
+        Check(limits.PoolBytes <= 16 * 1048576L && limits.ClipBytes <= 256 * 1048576L, "Individually valid extremes fit combined memory limits");
+        var bounded = new CaptureBuffer(limits.Width, limits.Height, limits.FPS, 30, 30, 16 * 1048576L, 30);
+        Check(bounded.AllocatedPixelBytes == limits.PoolBytes, "Predicted bounded allocation matches actual frame pool");
+        limits = CaptureLimits.Fit(640, 360, 15, 80, 192, 5, 4);
+        Check(limits.Width == 640 && limits.Height == 360 && limits.FPS == 15, "Normal default capture remains unchanged");
         Console.WriteLine("PASS: " + checks + " assertions (capture ownership, timing, bounded memory, cancellation)");
     }
 }
