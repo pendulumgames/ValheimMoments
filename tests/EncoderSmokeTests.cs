@@ -3,8 +3,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
-using ValheimEventClips;
-using ValheimEventClips.Core;
+using ValheimMoments;
+using ValheimMoments.Core;
 
 internal static class EncoderSmokeTests
 {

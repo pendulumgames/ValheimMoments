@@ -17,13 +17,13 @@ try {
     Copy-Item -LiteralPath (Join-Path $prototype 'BepInEx') -Destination $stage -Recurse
     $manifest = Get-Content (Join-Path $stage 'manifest.json') -Raw | ConvertFrom-Json
     if ($manifest.name -notmatch '^[A-Za-z0-9_]{1,128}$' -or $manifest.version_number -notmatch '^\d+\.\d+\.\d+$' -or $manifest.description.Length -gt 250) { throw 'Invalid manifest' }
-    $dll = Join-Path $stage 'BepInEx/plugins/ValheimEventClips/ValheimEventClips.dll'
+    $dll = Join-Path $stage 'BepInEx/plugins/ValheimMoments/ValheimMoments.dll'
     $version = [Reflection.AssemblyName]::GetAssemblyName($dll).Version
     if ($version.ToString(3) -ne $manifest.version_number) { throw 'Plugin/manifest version mismatch' }
     Add-Type -AssemblyName System.Drawing
     $icon = [Drawing.Image]::FromFile((Join-Path $stage 'icon.png'))
     try { if ($icon.Width -ne 256 -or $icon.Height -ne 256 -or $icon.RawFormat.Guid -ne [Drawing.Imaging.ImageFormat]::Png.Guid) { throw 'Icon must be a 256x256 PNG' } } finally { $icon.Dispose() }
-    $allowedBinaries = @('ValheimEventClips.dll','ValheimEventClips.Encoder.exe','Imazen.WebP.dll','libwebp.dll','libwebpmux.dll','libwebpdemux.dll','libsharpyuv.dll')
+    $allowedBinaries = @('ValheimMoments.dll','ValheimMoments.Encoder.exe','Imazen.WebP.dll','libwebp.dll','libwebpmux.dll','libwebpdemux.dll','libsharpyuv.dll')
     foreach ($file in Get-ChildItem -LiteralPath $stage -Recurse -File) {
         if ($file.Extension -in @('.dll','.exe') -and $file.Name -notin $allowedBinaries) { throw "Unexpected binary: $($file.Name)" }
         if ($file.Extension -in @('.cfg','.webp','.pdb') -or $file.Name -in @('local.props','LogOutput.log')) { throw 'Private/test file in release' }
@@ -49,7 +49,7 @@ try {
     $archive = [IO.Compression.ZipFile]::OpenRead($zip)
     try {
         foreach ($name in @('manifest.json','README.md','icon.png','CHANGELOG.md')) { if ($null -eq $archive.GetEntry($name)) { throw "Missing root entry: $name" } }
-        if ($null -eq $archive.GetEntry('BepInEx/plugins/ValheimEventClips/Encoder/ValheimEventClips.Encoder.exe')) { throw 'Encoder folder was not preserved' }
+        if ($null -eq $archive.GetEntry('BepInEx/plugins/ValheimMoments/Encoder/ValheimMoments.Encoder.exe')) { throw 'Encoder folder was not preserved' }
         Write-Output "Validated $($archive.Entries.Count) ZIP entries; no configs, footage, game DLLs or webhook URLs."
     } finally { $archive.Dispose() }
     $stage | Set-Content artifacts/latest-thunderstore-path.txt

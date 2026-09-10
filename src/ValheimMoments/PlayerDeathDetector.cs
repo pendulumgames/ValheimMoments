@@ -2,7 +2,7 @@ using System;
 using System.Reflection;
 using HarmonyLib;
 
-namespace ValheimEventClips
+namespace ValheimMoments
 {
     // Exact signatures and dead-state behavior verified in the installed game DLL.
     internal static class PlayerDeathDetector

@@ -10,17 +10,17 @@
     <Compile Include="EpicTests.cs" />
     <Compile Include="FilterTests.cs" />
     <Compile Include="RelayTests.cs" />
-    <Compile Include="../src/ValheimEventClips/RelayBuffer.cs" Link="RelayBuffer.cs" />
-    <Compile Include="../src/ValheimEventClips/ClipRelay.cs" Link="ClipRelay.cs" />
-    <Compile Include="../src/ValheimEventClips/LootHighlights.cs" Link="LootHighlights.cs" />
-    <Compile Include="../src/ValheimEventClips/BossLootFilter.cs" Link="BossLootFilter.cs" />
-    <Compile Include="../src/ValheimEventClips/EpicLootAdapter.cs" Link="EpicLootAdapter.cs" />
-    <Compile Include="../src/ValheimEventClips/BossLoot.cs" Link="BossLoot.cs" />
-    <Compile Include="../src/ValheimEventClips/BossLootDetector.cs" Link="BossLootDetector.cs" />
-    <Compile Include="../src/ValheimEventClips/BossAttribution.cs" Link="BossAttribution.cs" />
-    <Compile Include="../src/ValheimEventClips/BossKillDetector.cs" Link="BossKillDetector.cs" />
-    <Compile Include="../src/ValheimEventClips/DeathCause.cs" Link="DeathCause.cs" />
-    <Compile Include="../src/ValheimEventClips/PlayerDeathDetector.cs" Link="PlayerDeathDetector.cs" />
-    <Compile Include="../src/ValheimEventClips/EventMessages.cs" Link="EventMessages.cs" />
+    <Compile Include="../src/ValheimMoments/RelayBuffer.cs" Link="RelayBuffer.cs" />
+    <Compile Include="../src/ValheimMoments/ClipRelay.cs" Link="ClipRelay.cs" />
+    <Compile Include="../src/ValheimMoments/LootHighlights.cs" Link="LootHighlights.cs" />
+    <Compile Include="../src/ValheimMoments/BossLootFilter.cs" Link="BossLootFilter.cs" />
+    <Compile Include="../src/ValheimMoments/EpicLootAdapter.cs" Link="EpicLootAdapter.cs" />
+    <Compile Include="../src/ValheimMoments/BossLoot.cs" Link="BossLoot.cs" />
+    <Compile Include="../src/ValheimMoments/BossLootDetector.cs" Link="BossLootDetector.cs" />
+    <Compile Include="../src/ValheimMoments/BossAttribution.cs" Link="BossAttribution.cs" />
+    <Compile Include="../src/ValheimMoments/BossKillDetector.cs" Link="BossKillDetector.cs" />
+    <Compile Include="../src/ValheimMoments/DeathCause.cs" Link="DeathCause.cs" />
+    <Compile Include="../src/ValheimMoments/PlayerDeathDetector.cs" Link="PlayerDeathDetector.cs" />
+    <Compile Include="../src/ValheimMoments/EventMessages.cs" Link="EventMessages.cs" />
   </ItemGroup>
 </Project>

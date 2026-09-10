@@ -1,11 +1,11 @@
-﻿# Valheim Moments
+# Valheim Moments
 
 ![Valheim Moments icon](release/icon.png)
 
 Animated gameplay highlights for Valheim: manual captures, player deaths, boss kills
 and great loot, with optional Epic Loot details and host-controlled Discord delivery.
 
-**Windows x64 beta — version 0.8.1.** Manual capture, deaths, boss summaries and loot
+**Windows x64 beta — version 0.9.0.** Manual capture, deaths, boss summaries and loot
 highlights have been tested in game. The multiplayer relay and replacement WebP-only
 encoder have automated coverage; fresh live co-op/dedicated-server checks remain pending.
 
@@ -30,7 +30,7 @@ the helper requires .NET Framework 4.8. No game or BepInEx assemblies are includ
 ```
 
 The first command restores pinned NuGet packages and builds/tests a local package.
-The second validates and creates `artifacts/Valheim_Moments-0.8.1.zip`, including
+The second validates and creates `artifacts/Valheim_Moments-0.9.0.zip`, including
 manifest, README, changelog, icon, plugin, encoder and license notices. It does not
 publish anything. Do not reupload changed contents under an already published version.
 
@@ -84,7 +84,11 @@ updates or runtime executable downloads are performed.
 
 ## Configuration and privacy
 
-The plugin GUID and config filename remain `local.valheimeventclips` for compatibility.
+The plugin GUID is `local.valheimmoments`; the config is `local.valheimmoments.cfg`.
+Version 0.9.0 renames the technical identity. Before upgrading an older install, close
+Valheim and migrate its config to the new filename, preserve its Clips folder, and
+remove the previous plugin from the active profile. The development installer supports
+explicit `-PreviousPluginDirectory` and `-PreviousConfigPath` arguments for this upgrade.
 The generated config can contain Discord webhook secrets: **do not commit or share it**.
 Local paths, configs, footage, logs, game assemblies, build outputs and internal
 working notes are excluded from Git. The icon and source code are included.

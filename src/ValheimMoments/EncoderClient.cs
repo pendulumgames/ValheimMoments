@@ -2,9 +2,9 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
-using ValheimEventClips.Core;
+using ValheimMoments.Core;
 
-namespace ValheimEventClips
+namespace ValheimMoments
 {
     internal static class EncoderClient
     {

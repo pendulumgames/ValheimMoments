@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace ValheimEventClips
+namespace ValheimMoments
 {
     internal enum LootDecision { Accept, Wait, Reject }
     internal static class BossLootFilter

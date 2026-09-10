@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Reflection;
 using HarmonyLib;
 
-namespace ValheimEventClips
+namespace ValheimMoments
 {
     internal enum BossNameMode { KillCredit, FinalBlow, Both }
 

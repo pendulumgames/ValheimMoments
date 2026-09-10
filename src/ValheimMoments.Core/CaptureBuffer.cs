@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace ValheimEventClips.Core
+namespace ValheimMoments.Core
 {
     // Single producer/main-thread owner. Workers may READ a completed Clip's
     // pixels until it is released on the owner thread. Never expose ring memory

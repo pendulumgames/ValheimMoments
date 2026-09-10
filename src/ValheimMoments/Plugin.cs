@@ -11,11 +11,11 @@ using HarmonyLib;
 using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
-using ValheimEventClips.Core;
+using ValheimMoments.Core;
 
-namespace ValheimEventClips
+namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimeventclips", "Valheim Moments", "0.8.1")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.9.0")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -88,7 +88,7 @@ namespace ValheimEventClips
             {
                 System.Reflection.Assembly epic = null;
                 foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()) if (assembly.GetName().Name == "EpicLoot") { epic = assembly; break; }
-                epicHarmony = new Harmony("local.valheimeventclips.epicloot");
+                epicHarmony = new Harmony("local.valheimmoments.epicloot");
                 epicReady = EpicLootAdapter.Install(epic, epicHarmony);
                 Logger.LogInfo(epicReady ? "[Loot] Optional Epic Loot adapter installed." : "[Loot] Epic Loot absent; vanilla summaries enabled.");
             }
@@ -187,7 +187,7 @@ namespace ValheimEventClips
                 relayDirectory = Path.Combine(pluginDirectory, "RelayTemp");
                 relay = new ClipRelay(CanRelay, () => Math.Max(1, Math.Min(10, uploadLimitMiB.Value)) * 1048576,
                     ReceiveRelayedClip, message => Logger.LogInfo("[Relay] " + message));
-                encoderPath = Path.Combine(pluginDirectory, "Encoder", "ValheimEventClips.Encoder.exe");
+                encoderPath = Path.Combine(pluginDirectory, "Encoder", "ValheimMoments.Encoder.exe");
                 outputDirectory = Path.Combine(pluginDirectory, "Clips");
                 if (Application.isBatchMode || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
                 {
@@ -195,7 +195,7 @@ namespace ValheimEventClips
                     return;
                 }
                 if (!SystemInfo.supportsAsyncGPUReadback) throw new NotSupportedException("This graphics backend does not support asynchronous GPU readback.");
-                if (!File.Exists(encoderPath)) throw new FileNotFoundException("Bundled Encoder/ValheimEventClips.Encoder.exe is missing.");
+                if (!File.Exists(encoderPath)) throw new FileNotFoundException("Bundled Encoder/ValheimMoments.Encoder.exe is missing.");
                 if (width < 16 || width > 1920 || height < 16 || height > 1080 || fps < 1 || fps > 30 || quality < 1 || quality > 100 || budget < 16 || budget > 512)
                     throw new ArgumentOutOfRangeException("Capture configuration is outside prototype limits.");
                 double maxPost = Math.Max(post, Math.Max(bossPostSeconds, lootPostSeconds));
@@ -218,7 +218,7 @@ namespace ValheimEventClips
                 initialized = true;
                 try
                 {
-                    deathHarmony = new Harmony("local.valheimeventclips.death");
+                    deathHarmony = new Harmony("local.valheimmoments.death");
                     PlayerDeathDetector.OnLocalDeath = OnLocalDeath;
                     PlayerDeathDetector.OnError = () => Logger.LogWarning("[Death] Could not inspect local death; gameplay was left unchanged.");
                     PlayerDeathDetector.Install(deathHarmony);
@@ -227,7 +227,7 @@ namespace ValheimEventClips
                 catch (Exception error) { Logger.LogWarning("[Death] Detector unavailable: " + error.GetType().Name + ". Manual capture remains available."); }
                 try
                 {
-                    bossHarmony = new Harmony("local.valheimeventclips.boss");
+                    bossHarmony = new Harmony("local.valheimmoments.boss");
                     BossKillDetector.OnKill = OnBossKill;
                     BossKillDetector.ObserveOrdinary = () => epicReady && lootTrigger.Value && lootEnabled.Value;
                     BossKillDetector.OnLootKill = kill => {
@@ -240,7 +240,7 @@ namespace ValheimEventClips
                 catch (Exception error) { Logger.LogWarning("[Boss] Detector unavailable: " + error.GetType().Name + ". Other captures remain available."); }
                 try
                 {
-                    attributionHarmony = new Harmony("local.valheimeventclips.boss.attribution");
+                    attributionHarmony = new Harmony("local.valheimmoments.boss.attribution");
                     BossAttribution.OnDiagnostic = reason => Logger.LogInfo("[Boss] Final-blow source: " + reason);
                     BossAttribution.Install(attributionHarmony);
                     Logger.LogInfo("[Boss] Final-blow attribution installed.");
@@ -248,7 +248,7 @@ namespace ValheimEventClips
                 catch (Exception error) { Logger.LogWarning("[Boss] Final-blow attribution unavailable: " + error.GetType().Name); }
                 try
                 {
-                    lootHarmony = new Harmony("local.valheimeventclips.boss.loot");
+                    lootHarmony = new Harmony("local.valheimmoments.boss.loot");
                     BossLootDetector.OnObserved = count => Logger.LogDebug("[Loot] Observed generated loot; item types=" + count);
                     BossLootDetector.OnError = () => Logger.LogWarning("[Loot] Some loot data unavailable; boss capture remains enabled.");
                     BossLootDetector.Install(lootHarmony);
@@ -269,7 +269,7 @@ namespace ValheimEventClips
         private static RenderTexture MakeTarget(int w, int h)
         {
             var result = new RenderTexture(w, h, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB)
-            { name = "ValheimEventClips", antiAliasing = 1, useMipMap = false, filterMode = FilterMode.Bilinear };
+            { name = "ValheimMoments", antiAliasing = 1, useMipMap = false, filterMode = FilterMode.Bilinear };
             if (!result.Create()) { Destroy(result); throw new InvalidOperationException("RenderTexture creation failed"); }
             return result;
         }

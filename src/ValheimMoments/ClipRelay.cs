@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
-namespace ValheimEventClips
+namespace ValheimMoments
 {
     // Direct ZRpc binds the sender to the connected transport; no routed sender ID
     // or client-provided destination/username is accepted by this protocol.

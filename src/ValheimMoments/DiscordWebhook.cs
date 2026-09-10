@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ValheimEventClips
+namespace ValheimMoments
 {
     internal sealed class DiscordOptions
     {
@@ -68,7 +68,7 @@ namespace ValheimEventClips
                 {
                     timeout.CancelAfter(TimeSpan.FromSeconds(75));
                     client.Timeout = Timeout.InfiniteTimeSpan;
-                    client.DefaultRequestHeaders.UserAgent.ParseAdd("ValheimMoments/0.8.1");
+                    client.DefaultRequestHeaders.UserAgent.ParseAdd("ValheimMoments/0.9.0");
                     for (int attempt = 0; attempt < 3; attempt++)
                     {
                         using (var multipart = new MultipartFormDataContent())

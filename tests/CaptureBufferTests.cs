@@ -1,5 +1,5 @@
 using System;
-using ValheimEventClips.Core;
+using ValheimMoments.Core;
 
 internal static class CaptureBufferTests
 {

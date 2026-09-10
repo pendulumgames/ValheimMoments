@@ -32,10 +32,12 @@ For multiplayer relay, install this version on the host and every recording clie
 The host needs the mod even if it does not record footage. Windows headless servers
 run relay delivery without allocating a graphics capture buffer.
 
-If upgrading from the manually installed prototype, close Valheim and move the old
-`BepInEx/plugins/ValheimEventClips` folder out of the profile before installing through
-the manager. Keep its `Clips` folder if you want those recordings. Keep your existing
-config. Installing both copies can cause duplicate-plugin conflicts.
+Version 0.9.0 renames the plugin, helper and config identifier. Before upgrading from
+an earlier build, close Valheim and move the previous plugin folder out of the active
+profile. Keep its `Clips` folder and copy the previous mod config to
+`BepInEx/config/local.valheimmoments.cfg` before launching. Do not overwrite an existing
+new config without comparing your settings. Installing both plugin identities can
+cause duplicate recording and uploads. The new plugin folder is `ValheimMoments`.
 
 ## First capture
 
@@ -54,7 +56,7 @@ Actual performance depends on your hardware and settings.
 
 ## Discord setup — host or single-player
 
-Launch once, exit, then edit `BepInEx/config/local.valheimeventclips.cfg` locally:
+Launch once, exit, then edit `BepInEx/config/local.valheimmoments.cfg` locally:
 
 ```ini
 [Discord]

@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
-using ValheimEventClips;
+using ValheimMoments;
 
 // A behavioral stand-in, not evidence of game API compatibility. The production
 // plugin separately compiles against the inspected, real game assembly.

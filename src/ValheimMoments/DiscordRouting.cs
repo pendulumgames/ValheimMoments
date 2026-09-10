@@ -1,6 +1,6 @@
 using System;
 
-namespace ValheimEventClips
+namespace ValheimMoments
 {
     internal static class DiscordRouting
     {

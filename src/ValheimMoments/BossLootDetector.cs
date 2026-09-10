@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using HarmonyLib;
 using UnityEngine;
 
-namespace ValheimEventClips
+namespace ValheimMoments
 {
     internal static class BossLootDetector
     {

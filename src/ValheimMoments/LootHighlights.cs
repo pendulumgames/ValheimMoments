@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace ValheimEventClips
+namespace ValheimMoments
 {
     // Holds metadata only. Unqualified kills never reserve frames or launch encoders.
     internal sealed class LootHighlights

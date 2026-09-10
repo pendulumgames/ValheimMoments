@@ -1,7 +1,7 @@
 using System;
 using System.Reflection;
 
-namespace ValheimEventClips
+namespace ValheimMoments
 {
     internal static class DeathCause
     {

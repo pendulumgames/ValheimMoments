@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
-using ValheimEventClips;
+using ValheimMoments;
 
 // Behavioral stand-ins; production separately builds against installed game DLLs.
 public class PlayerProfile

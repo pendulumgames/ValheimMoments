@@ -1,7 +1,7 @@
 using System;
 using System.Text;
 
-namespace ValheimEventClips
+namespace ValheimMoments
 {
     internal static class RelayProtocol
     {

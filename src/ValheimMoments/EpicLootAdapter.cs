@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 using HarmonyLib;
 using UnityEngine;
 
-namespace ValheimEventClips
+namespace ValheimMoments
 {
     // No Epic Loot type appears in a compile-time reference or plugin signature.
     internal static class EpicLootAdapter

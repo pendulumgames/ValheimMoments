@@ -4,7 +4,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
 using UnityEngine;
-using ValheimEventClips;
+using ValheimMoments;
 
 public class Ragdoll
 {
