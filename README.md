@@ -45,6 +45,23 @@ installed copy when switching between a manual install and the mod manager.
 
 ## Verification
 
+Run all automated release checks and generate the Thunderstore package plus a DLL
+provenance report with one command:
+
+```powershell
+./tools/Test-Release.ps1
+```
+
+This restores pinned dependencies, runs capture/event/relay/fake-HTTP tests, builds
+and validates the package, checks encoder output, and compares bundled library DLLs
+with their original NuGet archive entries. It verifies package signatures and archive
+checksums, and checks restored content hashes against the lockfile. The report is
+`artifacts/BINARY-PROVENANCE.md`.
+It does not install the mod or publish anything. Live acceptance remains separate.
+Use `-SkipRestore` only when dependencies are already restored.
+
+Individual checks are also available:
+
 ```powershell
 ./tools/Test-Core.ps1
 ./tools/Test-Discord.ps1
