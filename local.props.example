@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <GamePath>C:\Program Files (x86)\Steam\steamapps\common\Valheim</GamePath>
+    <ProfilePath>C:\path\to\your\Valheim\profile</ProfilePath>
+  </PropertyGroup>
+</Project>

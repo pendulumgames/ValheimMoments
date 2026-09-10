@@ -1,0 +1,30 @@
+artifacts/
+bin/
+obj/
+.vs/
+*.user
+*.webp
+*.cfg
+local.props
+.codex/
+.agents/
+.env
+.env.*
+*.log
+*.zip
+*.dll
+*.exe
+*.pdb
+*.pem
+*.key
+*.pfx
+assembly-inspection.txt
+Valheim Loot & Event Clip Mod — Build Prompt.md
+assets/
+# Local development history is not part of the public source repository.
+docs/*
+!docs/DEPENDENCIES.md
+!docs/PROTOTYPE-TEST.md
+!docs/RELAY-TEST.md
+third-party/*
+!third-party/webp/

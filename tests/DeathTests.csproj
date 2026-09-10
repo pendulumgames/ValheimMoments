@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net48</TargetFramework><OutputType>Exe</OutputType><LangVersion>latest</LangVersion><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup>
+  <Import Project="../local.props" />
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="0Harmony"><HintPath>$(ProfilePath)/BepInEx/core/0Harmony.dll</HintPath></Reference>
+    <Compile Include="DeathTests.cs" />
+    <Compile Include="BossTests.cs" />
+    <Compile Include="LootTests.cs" />
+    <Compile Include="EpicTests.cs" />
+    <Compile Include="FilterTests.cs" />
+    <Compile Include="RelayTests.cs" />
+    <Compile Include="../src/ValheimEventClips/RelayBuffer.cs" Link="RelayBuffer.cs" />
+    <Compile Include="../src/ValheimEventClips/ClipRelay.cs" Link="ClipRelay.cs" />
+    <Compile Include="../src/ValheimEventClips/LootHighlights.cs" Link="LootHighlights.cs" />
+    <Compile Include="../src/ValheimEventClips/BossLootFilter.cs" Link="BossLootFilter.cs" />
+    <Compile Include="../src/ValheimEventClips/EpicLootAdapter.cs" Link="EpicLootAdapter.cs" />
+    <Compile Include="../src/ValheimEventClips/BossLoot.cs" Link="BossLoot.cs" />
+    <Compile Include="../src/ValheimEventClips/BossLootDetector.cs" Link="BossLootDetector.cs" />
+    <Compile Include="../src/ValheimEventClips/BossAttribution.cs" Link="BossAttribution.cs" />
+    <Compile Include="../src/ValheimEventClips/BossKillDetector.cs" Link="BossKillDetector.cs" />
+    <Compile Include="../src/ValheimEventClips/DeathCause.cs" Link="DeathCause.cs" />
+    <Compile Include="../src/ValheimEventClips/PlayerDeathDetector.cs" Link="PlayerDeathDetector.cs" />
+    <Compile Include="../src/ValheimEventClips/EventMessages.cs" Link="EventMessages.cs" />
+  </ItemGroup>
+</Project>
