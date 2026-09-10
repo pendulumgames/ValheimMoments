@@ -1,6 +1,6 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.9.3. Launch once to generate
+Applies to Valheim Moments 0.9.4. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
 Restart after changes. Defaults describe a new installation; upgrades preserve
 existing settings. Never share a config containing webhook URLs.
@@ -166,6 +166,10 @@ Vanilla quantities group by prefab; distinct magic items stay separate. {item_co
 counts entries before the display limit, rather than total stack quantity. Posts use
 a # title, ## loot subheading, item bullets and bold attribution labels. Captions are
 limited to 2,000 characters and may truncate long loot summaries.
+
+When ShowRarity is enabled, an identical rarity at the beginning of the localized
+item name is shown only once. Each modifier/socket line uses exactly two leading
+spaces followed by `* -# ` for the requested Discord sub-bullet/subtext format.
 
 ## Debug
 

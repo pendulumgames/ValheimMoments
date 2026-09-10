@@ -50,6 +50,14 @@ internal static class LootTests
         Check(EventMessages.FormatPost("Boss defeated!\nKill credit: Ragnar\nFinal blow: Astrid") == "# Boss defeated!\n**Kill credit:** Ragnar\n**Final blow:** Astrid", "Post heading and bold attribution");
         Check(EventMessages.FormatPost("# Boss defeated!\n**Kill credit:** Ragnar") == "# Boss defeated!\n**Kill credit:** Ragnar", "Existing user Markdown preserved without duplication");
         Check(EventMessages.Heading("## Generated Loot", 2) == "## Generated Loot", "Existing loot heading preserved");
+        var formatted = new BossLoot();
+        formatted.AddEpic(new LootItem { Id = "shield", Name = "Magic Magic Wood Tower Shield", Rarity = "Magic", Rank = 0, Quantity = 1, Modifiers = "Block Stamina Use -4.5%\r\n\n+10 Armor", Sockets = 2 });
+        Check(formatted.Display(5, true, s => s) == "* \u25C6 Magic Wood Tower Shield \u00D71\n  * -# Block Stamina Use -4.5%\n  * -# +10 Armor\n  * -# Sockets: 2", "Rarity deduplicated and details use exact two-space sub-bullets");
+        Check(formatted.Display(5, false, s => s, false, false, false) == "* Magic Magic Wood Tower Shield", "Hiding rarity leaves original item name unchanged");
+        formatted.Items[0].Name = "Magical Shield";
+        Check(formatted.Display(5, false, s => s, true, false, false) == "* \u25C6 Magic Magical Shield", "Rarity prefix must match a whole word");
+        formatted.Items[0].Name = "magic Wood Tower Shield";
+        Check(formatted.Display(5, false, s => s, true, false, false) == "* \u25C6 Magic Wood Tower Shield", "Rarity matching ignores case");
         Check(EventMessages.RecordedPost("Manual clip", "Ragnar") == "# Manual clip\n**Recorded by:** Ragnar", "Local manual clip identifies recorder");
         Check(EventMessages.RecordedPost("# Boss defeated!\nKill credit: Astrid\nFinal blow: Bjorn\n\n## Generated Loot\n* Sword", "Ragnar") == "# Boss defeated!\n**Recorded by:** Ragnar\n**Kill credit:** Astrid\n**Final blow:** Bjorn\n\n## Generated Loot\n* Sword", "Recorder remains distinct from kill attribution and preserves loot Markdown");
         Check(EventMessages.RecordedPost("Death", "*Ragnar*\n`Viking`").EndsWith("**Recorded by:** Ragnar Viking"), "Recorder cannot inject extra lines or bold delimiters");

@@ -1,6 +1,6 @@
 # Integration and validation notes
 
-This describes 0.9.3, not a guarantee of compatibility with future versions.
+This describes 0.9.4, not a guarantee of compatibility with future versions.
 Observers do not intentionally change damage, kill credit, rolls or saved statistics.
 
 ## Harmony patch inventory
@@ -123,7 +123,7 @@ pixels compress much more readily than gameplay. Independent RIFF inspection and
 full decode passed, as did unequal frame durations, RGBA colors, vertical flip,
 cancellation and truncated-input rejection. These figures describe one local run.
 
-The event suite passes 189 assertions with actual Harmony and behavioral game/API
+The event suite passes 193 assertions with actual Harmony and behavioral game/API
 stand-ins, including simulated direct-peer transfer. Capture-core and fake-HTTP suites
 also exist. Automated checks do not replace live multiplayer tests.
 

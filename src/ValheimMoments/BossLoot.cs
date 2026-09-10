@@ -54,14 +54,32 @@ namespace ValheimMoments
             for (int i = 0; i < Math.Min(maximum, sorted.Count); i++)
             {
                 var item = sorted[i];
-                lines.Add("* " + (showRarity && item.Rank >= 0 ? Marker(item.Color) + " " + item.Rarity + " " : "") + item.Name + (quantity ? " \u00D7" + item.Quantity : "") + (showUnidentified && item.Unidentified ? " (unidentified)" : ""));
-                if (!item.Unidentified && showModifiers && !string.IsNullOrEmpty(item.Modifiers)) lines.Add("  " + item.Modifiers.Replace("\n", "\n  "));
-                if (!item.Unidentified && showSockets && item.Sockets > 0) lines.Add("  Sockets: " + item.Sockets);
+                string name = showRarity && item.Rank >= 0 ? Marker(item.Color) + " " + WithRarity(item.Name, item.Rarity) : item.Name;
+                lines.Add("* " + name + (quantity ? " \u00D7" + item.Quantity : "") + (showUnidentified && item.Unidentified ? " (unidentified)" : ""));
+                if (!item.Unidentified && showModifiers && !string.IsNullOrEmpty(item.Modifiers))
+                    foreach (string detail in item.Modifiers.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
+                        if (!string.IsNullOrWhiteSpace(detail)) lines.Add("  * -# " + detail.Trim());
+                if (!item.Unidentified && showSockets && item.Sockets > 0) lines.Add("  * -# Sockets: " + item.Sockets);
             }
             if (sorted.Count > maximum) lines.Add("+" + (sorted.Count - maximum) + " more item types");
             if (Incomplete) lines.Add("Some loot details unavailable.");
             if (Pending) lines.Add("Additional Epic Loot details unavailable before upload.");
             return string.Join("\n", lines);
+        }
+
+        private static string WithRarity(string name, string rarity)
+        {
+            string label = (rarity ?? "").Trim();
+            if (label.Length == 0) return name;
+            string title = (name ?? "").TrimStart();
+            // Match the localized rarity as a whole leading word/phrase, never a substring.
+            while (title.StartsWith(label, StringComparison.OrdinalIgnoreCase))
+            {
+                if (title.Length == label.Length) return label;
+                if (!char.IsWhiteSpace(title[label.Length])) break;
+                title = title.Substring(label.Length).TrimStart();
+            }
+            return label + (title.Length == 0 ? "" : " " + title);
         }
 
         private static string Marker(string color)

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.4 — loot formatting
+
+* Avoid repeating rarity words already at the beginning of item names, including
+  Magic and Legendary. Matching uses the localized rarity and whole-word boundaries.
+* Format each modifier and socket detail with two spaces followed by `* -# `.
+* Applies to both boss and ordinary-loot summaries; hidden unidentified details remain hidden.
+
 ## 0.9.3 — capture session isolation
 
 * Clear buffered footage and cancel a collecting clip when joining, leaving or
