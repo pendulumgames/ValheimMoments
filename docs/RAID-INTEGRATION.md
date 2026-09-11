@@ -1,0 +1,30 @@
+# Raid capture integration findings
+
+Inspected the installed Valheim assembly on 2026-09-11 with `tools/Inspect-Raids.ps1` (read-only Mono.Cecil inspection). This document describes implementation evidence, not a shipped raid feature.
+
+## Participation
+
+`RandEventSystem.FixedUpdate` selects the current random event as the local active event only while a local player is inside its area. The area check uses horizontal distance strictly below the event range and excludes positions above y=3000. Leaving calls `SetActiveEvent(null, false)`. A forced event takes precedence; forced boss ambience must not be treated as a raid.
+
+The observer snapshots `GetActiveEvent()` and whether it equals `GetCurrentRandomEvent()` before `SetActiveEvent(RandomEvent, bool)`, then compares actual references afterward. This handles the game's same-name early return without inventing a transition. Only the random event receives entry/leave/end notifications. No local player means no local recording participant. Names are display metadata, not occurrence identifiers.
+
+## Endings are not victories
+
+On the server, `RandomEvent.Update` advances elapsed time unless configured to pause while nobody is in range. A positive duration expires when elapsed time is strictly greater than duration. The caller then clears the random event. `SetRandomEvent` also clears/deactivates the previous event when an administrator resets it or another event replaces it. If the old random event was locally active, it calls `SetActiveEvent(null, true)` in each case.
+
+Consequently, that boolean means an event-ending notification, not a victory. The client `RPC_SetEvent` carries name, elapsed time and position; it does not carry an authoritative termination reason or unique occurrence ID. A local `RandomEvent` object identity must not be sent as a multiplayer identity or replaced by a guess based on a matching name/time.
+
+Initial safe caption: **Raid ended**. The current observer/policy cannot claim all attackers died, the raid timed out naturally, or the player defended it successfully. A future verified natural-expiry caption would require server-side outcome metadata correlated with this exact occurrence. Grouped raid perspectives likewise need a host-generated occurrence ID. Existing creature-death IDs do not solve raid identity.
+
+## Implemented checkpoint
+
+`RaidDetector` observes entered/left/ended transitions without changing game behavior. `RaidMoment` tracks one bounded pending opening per session and local occurrence. Death, leaving, disabled policy, world change or a thirty-minute maximum lifetime abandon it; reentry into the same occurrence cannot replay a skipped/abandoned opening. An unrelated occurrence cannot complete it. Neither component currently registers with Plugin or writes footage.
+
+## Next integration
+
+1. Capture a bounded opening segment and encode it to an owned temporary intermediate. Release its raw pixels and the capture slot while the raid continues.
+2. At a valid observed ending, capture the ending segment; combine bounded intermediates into the proposed four-second opening plus six-second ending animation. Verify actual decoded timing and peak memory.
+3. Reject missing/failed opening segments, preserve death priority, and expire owned intermediate files on cancellation/session exit. No continuous recording during the raid.
+4. Add host settings and personal default-route delivery, or add authoritative raid IDs before enabling multiplayer grouping. Keep unverified outcome wording explicit.
+
+Automated observer tests use real Harmony with behavioral game stand-ins. Production compilation checks API compatibility. Live raid behavior, media concatenation and performance remain untested.

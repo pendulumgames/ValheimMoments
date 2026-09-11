@@ -30,5 +30,6 @@ docs/*
 !docs/INTEGRATIONS.md
 !docs/NATURAL-LOOT-TEST.md
 !docs/DEVELOPMENT-PLAN.md
+!docs/RAID-INTEGRATION.md
 third-party/*
 !third-party/webp/

@@ -4,6 +4,12 @@ Updated: 2026-09-11. Baseline: 0.11.1.
 
 This is the implementation backlog for the user's September feature request. Existing 0.11.1 packages remain unchanged. Items are planned unless listed in the progress section below. Do not describe pending features as available in release READMEs.
 
+## In development: raid observation and lifecycle
+
+Inspected installed RandEventSystem/RandomEvent IL and added a read-only transition observer plus a bounded metadata lifecycle. The game distinguishes local area exit from event termination, but natural expiry, reset and replacement share termination semantics; the client RPC does not supply a reason or unique occurrence ID. RaidDetector therefore reports only entered/left/ended, excludes forced boss ambience and does not claim victory. RaidMoment abandons opening eligibility on death, leave, policy loss, world change or expiry and prevents same-occurrence reentry from replaying it. See docs/RAID-INTEGRATION.md for exact API evidence and remaining media/grouping work.
+
+Validation: 22 new raid policy/observer assertions passed alongside existing event/relay tests, and production builds with zero warnings/errors. No gameplay registration, raid settings or media capture in this checkpoint. Released 0.16.0 ZIPs remain unchanged. Next work is bounded encoded opening/ending intermediates and concatenation, with explicit ownership/cleanup and death priority; multiplayer raid grouping additionally needs a host-issued occurrence identity.
+
 ## Progress: 0.16.0 close-call gameplay integration
 
 Close calls now connect the local owned-player ApplyDamage observer to survival policy, fixed-pool sampling, encoding and personal default-webhook delivery. Five host-owned settings control enable, threshold, recovery percentage/hold and cooldown. Timeline is fixed at one source second to three playback seconds plus twenty source seconds to seven playback seconds; duration customization remains pending. Pool fitting reserves at least eight seconds of selected-frame capacity when enabled, without retaining twenty full-rate source seconds. This can lower effective resolution/FPS under the existing memory cap.
