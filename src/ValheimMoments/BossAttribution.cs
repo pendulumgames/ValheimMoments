@@ -14,13 +14,15 @@ namespace ValheimMoments
     {
         private const string RpcName = "ValheimMoments_BossFinalBlow_v1";
         private const string CreditRpcName = "ValheimMoments_KillCredits_v1";
+        private const string EventRpcName = "ValheimMoments_KillEvent_v1";
         private static readonly FieldInfo LastHit = typeof(Character).GetField("m_lastHit", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly FieldInfo NetworkView = AccessTools.Field(typeof(Character), "m_nview");
-        private sealed class Context { internal string Enemy, Name, Credits; }
+        private sealed class Context { internal string Enemy, Name, Credits, EventId; }
         [ThreadStatic] private static Context current;
         private static ZRoutedRpc registered;
         private static readonly AttributionInbox inbox = new AttributionInbox();
         private static readonly AttributionInbox creditInbox = new AttributionInbox(1024);
+        private static readonly AttributionInbox eventInbox = new AttributionInbox(32);
         private static readonly Stopwatch clock = Stopwatch.StartNew();
         internal static Action<string> OnDiagnostic;
 
@@ -103,8 +105,11 @@ namespace ValheimMoments
                 if (router == null || ReferenceEquals(registered, router)) return;
                 router.Register<string, string>(RpcName, Receive);
                 router.Register<string, string>(CreditRpcName, (sender, enemy, names) => creditInbox.Add(sender, enemy, names, clock.Elapsed.TotalSeconds));
+                router.Register<string, string>(EventRpcName, (sender, enemy, id) => {
+                    if (HighlightDirector.ValidId(id)) eventInbox.Add(sender, enemy, id, clock.Elapsed.TotalSeconds);
+                });
                 registered = router;
-                inbox.Clear(); creditInbox.Clear();
+                inbox.Clear(); creditInbox.Clear(); eventInbox.Clear();
             }
             catch { } // A missing channel yields unavailable attribution, not lost gameplay.
         }
@@ -120,12 +125,13 @@ namespace ValheimMoments
             current = null;
             try
             {
-                if (!__instance.IsBoss() || !__instance.IsOwner()) return;
+                if (!__instance.IsOwner() || __instance is Player) return;
+                current = new Context { Enemy = __instance.m_name, EventId = Guid.NewGuid().ToString("N") };
+                if (!__instance.IsBoss()) return;
                 var hit = LastHit?.GetValue(__instance) as HitData;
                 string reason;
                 string name = Resolve(hit, out reason);
-                current = new Context { Enemy = __instance.m_name,
-                    Name = name, Credits = ResolveCredits(__instance) };
+                current.Name = name; current.Credits = ResolveCredits(__instance);
                 try { OnDiagnostic?.Invoke(reason); } catch { }
             }
             catch { }
@@ -137,9 +143,12 @@ namespace ValheimMoments
         {
             try
             {
-                if (bossNumber <= 0 || current == null || current.Enemy != enemyName) return;
+                if (current == null || current.Enemy != enemyName) return;
                 // Sent to exactly the recipient of the immediately following vanilla
                 // credit, over the same ordered routed-RPC connection.
+                try { ZRoutedRpc.instance.InvokeRoutedRPC(playerPeerID, EventRpcName, new object[] { enemyName, current.EventId }); }
+                catch { } // Optional director metadata must not suppress existing attribution.
+                if (bossNumber <= 0) return;
                 ZRoutedRpc.instance.InvokeRoutedRPC(playerPeerID, RpcName, new object[] { enemyName, current.Name ?? "" });
                 ZRoutedRpc.instance.InvokeRoutedRPC(playerPeerID, CreditRpcName, new object[] { enemyName, current.Credits ?? "" });
             }
@@ -160,7 +169,13 @@ namespace ValheimMoments
             return creditInbox.Take(sender, enemy, clock.Elapsed.TotalSeconds);
         }
 
-        internal static void Clear() { current = null; inbox.Clear(); creditInbox.Clear(); OnDiagnostic = null; }
+        internal static string TakeEvent(long sender, string enemy)
+        {
+            if (sender == 0 && current != null && current.Enemy == enemy) return current.EventId;
+            return eventInbox.Take(sender, enemy, clock.Elapsed.TotalSeconds);
+        }
+
+        internal static void Clear() { current = null; inbox.Clear(); creditInbox.Clear(); eventInbox.Clear(); OnDiagnostic = null; }
     }
 
     // Bounded, short-lived and sender-scoped: never reuse another participant's
