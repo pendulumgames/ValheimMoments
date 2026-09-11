@@ -1,8 +1,18 @@
 # Valheim Moments development plan
 
-Updated: 2026-09-10. Baseline: 0.11.1.
+Updated: 2026-09-11. Baseline: 0.11.1.
 
 This is the implementation backlog for the user's September feature request. Existing 0.11.1 packages remain unchanged. Items are planned unless listed in the progress section below. Do not describe pending features as available in release READMEs.
+
+## In development: multiplayer director upload foundation
+
+The Discord transport now supports one to three labeled WebP perspectives in a single request, with independent local retention and separate per-file/combined attachment-byte budgets. Duplicate paths, invalid counts/labels and over-budget groups are rejected before sending. Files are streamed, and all handles close before successful cleanup. The combined budget covers attachment bytes; it is not an automatic discovery of Discord's destination allowance or a complete HTTP multipart request budget.
+
+Existing single-clip uploads use the same path. Success now requires a bounded `wait=true` receipt containing valid message/channel IDs and every expected attachment filename/byte count. Missing, malformed, duplicate or mismatched attachment receipts preserve local footage and report delivery unknown without an automatic repeat. Network interruptions after submission and ambiguous server responses also report unknown. Explicit rate limits retain the existing bounded retry behavior. Upload results retain message/channel IDs and construct a message link only when a valid guild ID is present; absent guild context still needs resolution for the gallery. The local notification distinguishes an unconfirmed upload. Host relay processing preserves this result, but the current v1 client acknowledgement remains boolean until the relay redesign.
+
+This is transport groundwork, **not a released multiplayer director**. Event identity/correlation, collection/selection, offer budgets, disk-backed multi-client transfer, per-client rich receipts, fallback encoding and gallery persistence remain pending. No new configuration or gameplay grouping is exposed; 0.14.0 packages remain unchanged. Production compiled with zero warnings/errors; 1,843 assertions passed across the existing suites, including 72 fake-transport Discord assertions. No live Discord messages, installation, package rebuild or game interruption.
+
+API contract checked against [Discord Execute Webhook](https://docs.discord.com/developers/resources/webhook#execute-webhook) on 2026-09-11: `wait=true` returns the created message, multipart supports indexed files and attachment metadata. Retained identifiers do not contain webhook credentials or expiring attachment URLs.
 
 ## Progress: 0.14.0 discoveries and special-enemy milestone
 

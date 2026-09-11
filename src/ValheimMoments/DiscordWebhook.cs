@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -10,6 +11,12 @@ using System.Threading.Tasks;
 
 namespace ValheimMoments
 {
+    internal sealed class DiscordClip
+    {
+        internal readonly string File, Recorder;
+        internal readonly bool Keep;
+        internal DiscordClip(string file, string recorder, bool keep) { File = file; Recorder = recorder; Keep = keep; }
+    }
     internal sealed class DiscordOptions
     {
         internal string WebhookUrl, Username;
@@ -22,7 +29,16 @@ namespace ValheimMoments
     {
         internal bool Success;
         internal string Message;
+        internal string MessageId, ChannelId, GuildId;
+        internal bool DeliveryUnknown;
+        internal string MessageLink { get { return MessageId == null || GuildId == null ? null : "https://discord.com/channels/" + GuildId + "/" + ChannelId + "/" + MessageId; } }
         internal static UploadResult Fail(string message) { return new UploadResult { Message = message + " Local clip retained." }; }
+        internal static UploadResult Unknown(string message)
+        {
+            var result = Fail(message + " Delivery is unknown; check Discord before retrying.");
+            result.DeliveryUnknown = true;
+            return result;
+        }
     }
 
     internal static class DiscordWebhook
@@ -32,9 +48,28 @@ namespace ValheimMoments
             [DataMember] public string username;
             [DataMember] public string content;
             [DataMember] public Mentions allowed_mentions = new Mentions();
+            [DataMember] public AttachmentMetadata[] attachments;
+        }
+        [DataContract] private sealed class AttachmentMetadata
+        {
+            [DataMember] public int id;
+            [DataMember] public string filename;
+            [DataMember] public string description;
         }
         [DataContract] private sealed class Mentions { [DataMember] public string[] parse = new string[0]; }
         [DataContract] private sealed class RateLimit { [DataMember(IsRequired = true)] public double retry_after { get; set; } }
+        [DataContract] private sealed class Receipt
+        {
+            [DataMember(IsRequired = true)] public string id { get; set; }
+            [DataMember(IsRequired = true)] public string channel_id { get; set; }
+            [DataMember] public string guild_id { get; set; }
+            [DataMember(IsRequired = true)] public ReceiptAttachment[] attachments { get; set; }
+        }
+        [DataContract] private sealed class ReceiptAttachment
+        {
+            [DataMember(IsRequired = true)] public string filename { get; set; }
+            [DataMember(IsRequired = true)] public long size { get; set; }
+        }
 
         internal static bool TryEndpoint(string value, out Uri endpoint)
         {
@@ -49,20 +84,53 @@ namespace ValheimMoments
             return true;
         }
 
-        internal static async Task<UploadResult> UploadAsync(string file, DiscordOptions options, CancellationToken stop,
+        internal static Task<UploadResult> UploadAsync(string file, DiscordOptions options, CancellationToken stop,
             HttpMessageHandler testHandler = null)
         {
+            if (options == null) return Task.FromResult(UploadResult.Fail("Missing Discord configuration."));
+            return UploadManyAsync(new[] { new DiscordClip(file, null, options.SaveLocalCopy) }, options,
+                options.MaxUploadBytes, stop, testHandler);
+        }
+
+        // Director supplies host-authenticated recorder labels and already-selected perspectives.
+        // This transport never silently drops a clip to make a group fit.
+        internal static async Task<UploadResult> UploadManyAsync(DiscordClip[] clips, DiscordOptions options, long maxPostBytes,
+            CancellationToken stop, HttpMessageHandler testHandler = null)
+        {
             // This boundary never returns exception text, response bodies or request URIs.
+            bool submitted = false;
             try
             {
+                if (options == null) return UploadResult.Fail("Missing Discord configuration.");
+                options = new DiscordOptions { WebhookUrl = options.WebhookUrl, Username = options.Username,
+                    Message = options.Message, MaxUploadBytes = options.MaxUploadBytes, SaveLocalCopy = options.SaveLocalCopy };
                 Uri endpoint;
                 if (!TryEndpoint(options.WebhookUrl, out endpoint)) return UploadResult.Fail("Missing or invalid Discord webhook configuration.");
                 if (string.IsNullOrWhiteSpace(options.Username) || options.Username.Length > 80)
                     return UploadResult.Fail("Discord username must contain 1–80 characters.");
-                long size = new FileInfo(file).Length;
-                if (size == 0) return UploadResult.Fail("Clip is empty.");
-                if (options.MaxUploadBytes < 1 || size > options.MaxUploadBytes)
-                    return UploadResult.Fail("Clip exceeds the configured Discord upload limit (" + size + " bytes).");
+                if (clips == null || clips.Length < 1 || clips.Length > 3 || maxPostBytes < 1 || options.MaxUploadBytes < 1)
+                    return UploadResult.Fail("Invalid perspective count or upload budget.");
+                clips = (DiscordClip[])clips.Clone();
+                if (options.Message == null || options.Message.Length > 2000) return UploadResult.Fail("Discord message exceeds its text budget.");
+                var sizes = new long[clips.Length];
+                var metadata = new AttachmentMetadata[clips.Length];
+                var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                long total = 0;
+                for (int i = 0; i < clips.Length; i++)
+                {
+                    if (clips[i] == null || !paths.Add(Path.GetFullPath(clips[i].File))) return UploadResult.Fail("Duplicate or missing perspective.");
+                    sizes[i] = new FileInfo(clips[i].File).Length;
+                    if (sizes[i] < 1 || sizes[i] > options.MaxUploadBytes || sizes[i] > maxPostBytes - total)
+                        return UploadResult.Fail("Clips exceed the per-file or combined Discord upload budget.");
+                    total += sizes[i];
+                    string recorder = clips[i].Recorder;
+                    if (clips.Length > 1 && string.IsNullOrWhiteSpace(recorder)) return UploadResult.Fail("Missing perspective recorder.");
+                    if (recorder != null && (recorder.Length > 128 || recorder.IndexOfAny(new[] { '\r', '\n' }) >= 0))
+                        return UploadResult.Fail("Invalid perspective recorder.");
+                    metadata[i] = new AttachmentMetadata { id = i,
+                        filename = clips.Length == 1 ? "valheim-moment.webp" : "valheim-moment-" + (i + 1) + ".webp",
+                        description = recorder == null ? "Valheim moment" : "Recorded by: " + recorder };
+                }
                 using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(stop))
                 using (var client = new HttpClient(testHandler ?? new HttpClientHandler { AllowAutoRedirect = false }))
                 {
@@ -72,34 +140,51 @@ namespace ValheimMoments
                     for (int attempt = 0; attempt < 3; attempt++)
                     {
                         using (var multipart = new MultipartFormDataContent())
-                        using (var stream = File.OpenRead(file))
                         {
                             using (var json = new MemoryStream())
                             {
-                                new DataContractJsonSerializer(typeof(Payload)).WriteObject(json, new Payload { username = options.Username, content = options.Message });
+                                new DataContractJsonSerializer(typeof(Payload)).WriteObject(json, new Payload { username = options.Username, content = options.Message, attachments = metadata });
                                 var data = new ByteArrayContent(json.ToArray());
                                 data.Headers.ContentType = new MediaTypeHeaderValue("application/json");
                                 multipart.Add(data, "payload_json");
                             }
-                            var attachment = new StreamContent(stream);
-                            attachment.Headers.ContentType = new MediaTypeHeaderValue("image/webp");
-                            multipart.Add(attachment, "files[0]", "valheim-moment.webp");
-                            using (var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = multipart })
-                            using (var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false))
+                            for (int i = 0; i < clips.Length; i++)
                             {
+                                var stream = File.OpenRead(clips[i].File);
+                                var attachment = new StreamContent(stream);
+                                attachment.Headers.ContentType = new MediaTypeHeaderValue("image/webp");
+                                multipart.Add(attachment, "files[" + i + "]", metadata[i].filename);
+                                if (stream.Length != sizes[i]) return UploadResult.Fail("Clip changed before submission.");
+                            }
+                            using (var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = multipart })
+                            {
+                              timeout.Token.ThrowIfCancellationRequested();
+                              submitted = true;
+                              using (var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false))
+                              {
                                 int status = (int)response.StatusCode;
                                 if (status == 200)
                                 {
-                                    stream.Dispose(); // Release the Windows file handle before optional deletion.
-                                    if (!options.SaveLocalCopy)
+                                    Receipt receipt;
+                                    using (var json = await ReadBounded(response.Content, 65536, timeout.Token).ConfigureAwait(false))
+                                        receipt = (Receipt)new DataContractJsonSerializer(typeof(Receipt)).ReadObject(json);
+                                    if (!ValidSnowflake(receipt.id) || !ValidSnowflake(receipt.channel_id) || !Matches(receipt.attachments, metadata, sizes))
+                                        return UploadResult.Unknown("Discord returned an incomplete upload receipt.");
+                                    var result = new UploadResult { Success = true, MessageId = receipt.id, ChannelId = receipt.channel_id,
+                                        GuildId = ValidSnowflake(receipt.guild_id) ? receipt.guild_id : null,
+                                        Message = "Uploaded to Discord; local retention settings applied." };
+                                    multipart.Dispose(); // Release every Windows file handle before optional deletion.
+                                    foreach (var clip in clips)
                                     {
-                                        try { File.Delete(file); }
-                                        catch { return new UploadResult { Success = true, Message = "Uploaded to Discord; local copy could not be removed." }; }
+                                        if (clip.Keep) continue;
+                                        try { File.Delete(clip.File); }
+                                        catch { result.Message = "Uploaded to Discord; local copy could not be removed."; }
                                     }
-                                    return new UploadResult { Success = true, Message = options.SaveLocalCopy ? "Uploaded to Discord; local copy retained." : "Uploaded to Discord; local copy removed." };
+                                    return result;
                                 }
                                 if (status == 429)
                                 {
+                                    submitted = false;
                                     double delay = await RetrySeconds(response, timeout.Token).ConfigureAwait(false);
                                     if (attempt == 2 || double.IsNaN(delay) || double.IsInfinity(delay) || delay < 0 || delay > 30)
                                         return UploadResult.Fail("Discord rate limited the upload; retry budget exhausted or wait exceeds 30 seconds.");
@@ -108,15 +193,57 @@ namespace ValheimMoments
                                 }
                                 if (status == 413) return UploadResult.Fail("Discord rejected the attachment as too large.");
                                 if (status == 401 || status == 403 || status == 404) return UploadResult.Fail("Discord webhook is invalid, deleted, or not permitted.");
+                                if (status >= 500 || status == 204) return UploadResult.Unknown("Discord did not confirm the uploaded attachment.");
                                 return UploadResult.Fail("Discord rejected the upload (HTTP " + status + ").");
+                              }
                             }
                         }
                     }
                 }
                 return UploadResult.Fail("Discord upload did not complete.");
             }
-            catch (OperationCanceledException) { return UploadResult.Fail(stop.IsCancellationRequested ? "Discord upload cancelled." : "Discord upload timed out."); }
-            catch { return UploadResult.Fail("Discord upload failed (network, file access, or service error)."); }
+            catch (OperationCanceledException) { return submitted ? UploadResult.Unknown("Discord upload timed out or was cancelled after submission.") : UploadResult.Fail(stop.IsCancellationRequested ? "Discord upload cancelled." : "Discord upload timed out."); }
+            catch { return submitted ? UploadResult.Unknown("Discord upload confirmation failed.") : UploadResult.Fail("Discord upload failed (network, file access, or service error)."); }
+        }
+
+        private static bool Matches(ReceiptAttachment[] actual, AttachmentMetadata[] expected, long[] sizes)
+        {
+            if (actual == null || actual.Length != expected.Length) return false;
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var item in actual)
+            {
+                if (item == null || !seen.Add(item.filename)) return false;
+                int index = Array.FindIndex(expected, x => x.filename == item.filename);
+                if (index < 0 || sizes[index] != item.size) return false;
+            }
+            return true;
+        }
+
+        private static bool ValidSnowflake(string value)
+        {
+            ulong id;
+            return value != null && value.Length <= 20 && Regex.IsMatch(value, @"^[1-9][0-9]*$") && ulong.TryParse(value, out id);
+        }
+
+        private static async Task<MemoryStream> ReadBounded(HttpContent content, int maximum, CancellationToken token)
+        {
+            var result = new MemoryStream();
+            try
+            {
+                using (var source = await content.ReadAsStreamAsync().ConfigureAwait(false))
+                {
+                    var buffer = new byte[1024];
+                    int count;
+                    while ((count = await source.ReadAsync(buffer, 0, buffer.Length, token).ConfigureAwait(false)) > 0)
+                    {
+                        if (result.Length + count > maximum) throw new InvalidDataException();
+                        result.Write(buffer, 0, count);
+                    }
+                }
+                result.Position = 0;
+                return result;
+            }
+            catch { result.Dispose(); throw; }
         }
 
         private static async Task<double> RetrySeconds(HttpResponseMessage response, CancellationToken token)

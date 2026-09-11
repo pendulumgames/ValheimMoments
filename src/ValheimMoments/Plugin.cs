@@ -498,7 +498,8 @@ namespace ValheimMoments
                     var origin = uploadSession;
                     uploadCancellation?.Dispose(); uploadCancellation = null; uploadSession = null;
                     var completed = relayCompletion; relayCompletion = null;
-                    if (completed == null) FinishMoment(uploadDeath, origin, result.Success, result.Success ? "Memory Uploaded" : "Upload failed - memory kept locally");
+                    if (completed == null) FinishMoment(uploadDeath, origin, result.Success, result.Success ? "Memory Uploaded" :
+                        result.DeliveryUnknown ? "Upload unconfirmed - check Discord" : "Upload failed - memory kept locally");
                     uploadDeath = null;
                     completed?.Invoke(result.Success);
                 }
@@ -827,7 +828,9 @@ namespace ValheimMoments
                     using (var stream = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None, 16384, true))
                         await stream.WriteAsync(clip.Bytes, 0, clip.Bytes.Length, token).ConfigureAwait(false);
                     var result = await DiscordWebhook.UploadAsync(file, options, token).ConfigureAwait(false);
-                    return new UploadResult { Success = result.Success, Message = result.Success ? "Client clip uploaded; success confirmation sent." : "Client clip delivery failed; client retains original." };
+                    result.Message = result.Success ? "Client clip uploaded; success confirmation sent." :
+                        result.DeliveryUnknown ? "Client clip delivery unknown; check Discord before retrying. Client retains original." : "Client clip delivery failed; client retains original.";
+                    return result;
                 }
                 catch { return new UploadResult { Success = false, Message = "Client clip delivery cancelled or failed; client retains original." }; }
                 finally { try { if (File.Exists(file)) File.Delete(file); } catch { } }

@@ -19,10 +19,11 @@ internal sealed class FakeDiscord : HttpMessageHandler
 internal static class DiscordTests
 {
     private static int checks;
+    private const string Receipt = "{\"id\":\"12345\",\"channel_id\":\"67890\",\"attachments\":[{\"filename\":\"valheim-moment.webp\",\"size\":4}]}";
     private const string Secret = "FAKE_TEST_TOKEN_NEVER_REAL";
     private static void Check(bool value, string name) { if (!value) throw new Exception(name); checks++; }
     private static Task<HttpResponseMessage> Reply(int status, string body)
-    { return Task.FromResult(new HttpResponseMessage((HttpStatusCode)status) { Content = new StringContent(body) }); }
+    { return Task.FromResult(new HttpResponseMessage((HttpStatusCode)status) { Content = new StringContent(status == 200 ? Receipt : body) }); }
     private static DiscordOptions Options() { return new DiscordOptions { WebhookUrl = "https://discord.com/api/webhooks/123/" + Secret, Username = "Test \"name\"", Message = "Ragnar died!", SaveLocalCopy = true }; }
     public static void Main(string[] args)
     {
@@ -58,10 +59,61 @@ internal static class DiscordTests
             Check(body.Contains("payload_json") && body.Contains("allowed_mentions") && body.Contains("parse"), "JSON and mention suppression");
             Check(!body.Contains(Secret), "No token in payload");
             Check(body.Contains("Ragnar died!"), "Event message included");
-            return new HttpResponseMessage(HttpStatusCode.OK);
+            return await Reply(200, "");
         }};
         var result = DiscordWebhook.UploadAsync(file, Options(), CancellationToken.None, handler).GetAwaiter().GetResult();
         Check(result.Success && File.Exists(file), "Upload retains local copy");
+        Check(result.MessageId == "12345" && result.ChannelId == "67890" && result.MessageLink == null, "Receipt IDs retained without inventing missing guild");
+        foreach (string badReceipt in new[] { "", "{}", "not-json", Receipt.Replace("12345", "secret/path"), Receipt.Replace("size\":4", "size\":5"), Receipt.Replace("valheim-moment.webp", "other.webp"), new string('x', 65537) })
+        {
+            var malformed = badReceipt;
+            handler = new FakeDiscord { Respond = (n, req) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(malformed) }) };
+            var remove = Options(); remove.SaveLocalCopy = false;
+            result = DiscordWebhook.UploadAsync(file, remove, CancellationToken.None, handler).GetAwaiter().GetResult();
+            Check(!result.Success && result.DeliveryUnknown && File.Exists(file) && handler.Calls == 1, "Unconfirmed receipt retains clip without retry");
+        }
+        string second = Path.Combine(args[0], "discord-second.webp");
+        File.WriteAllBytes(second, new byte[] { 1, 2, 3, 4 });
+        var perspectives = new[] { new DiscordClip(file, "Alice", true), new DiscordClip(second, "Bjorn", false) };
+        const string groupReceipt = "{\"id\":\"12345\",\"channel_id\":\"67890\",\"guild_id\":\"98765\",\"attachments\":[{\"filename\":\"valheim-moment-2.webp\",\"size\":4},{\"filename\":\"valheim-moment-1.webp\",\"size\":4}]}";
+        handler = new FakeDiscord { Respond = async (n, req) => {
+            string body = await req.Content.ReadAsStringAsync();
+            Check(body.Contains("files[0]") && body.Contains("files[1]") && body.Contains("Recorded by: Alice") && body.Contains("Recorded by: Bjorn"), "Multiple labeled perspectives");
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(groupReceipt) };
+        }};
+        result = DiscordWebhook.UploadManyAsync(perspectives, Options(), 7, CancellationToken.None, handler).GetAwaiter().GetResult();
+        Check(!result.Success && handler.Calls == 0 && File.Exists(second), "Aggregate budget rejects before network");
+        var perFile = Options(); perFile.MaxUploadBytes = 3;
+        result = DiscordWebhook.UploadManyAsync(perspectives, perFile, 8, CancellationToken.None, handler).GetAwaiter().GetResult();
+        Check(!result.Success && handler.Calls == 0, "Per-file budget independent of aggregate");
+        result = DiscordWebhook.UploadManyAsync(new[] { perspectives[0], perspectives[0] }, Options(), 8, CancellationToken.None, handler).GetAwaiter().GetResult();
+        Check(!result.Success && handler.Calls == 0, "Duplicate file rejected");
+        result = DiscordWebhook.UploadManyAsync(perspectives, Options(), 8, CancellationToken.None, handler).GetAwaiter().GetResult();
+        Check(result.Success && File.Exists(file) && !File.Exists(second) && handler.Calls == 1, "One grouped post with independent retention and unordered receipt");
+        Check(result.MessageLink == "https://discord.com/channels/98765/67890/12345", "Stable message link without attachment URL or webhook token");
+        File.WriteAllBytes(second, new byte[] { 1, 2, 3, 4 });
+        foreach (string incomplete in new[] { groupReceipt.Replace("valheim-moment-2.webp", "valheim-moment-1.webp"), Receipt })
+        {
+            var body = incomplete;
+            handler = new FakeDiscord { Respond = (n, req) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) }) };
+            result = DiscordWebhook.UploadManyAsync(perspectives, Options(), 8, CancellationToken.None, handler).GetAwaiter().GetResult();
+            Check(!result.Success && result.DeliveryUnknown && File.Exists(second) && handler.Calls == 1, "Incomplete group never acknowledges or removes perspectives");
+        }
+        File.Delete(second);
+        foreach (var invalid in new[] { new DiscordClip[0], new DiscordClip[] { null },
+            new[] { perspectives[0], perspectives[0], perspectives[0], perspectives[0] },
+            new[] { perspectives[0], new DiscordClip(file, "Alice\nforged", false) } })
+        {
+            handler = new FakeDiscord { Respond = (n, req) => Reply(200, "") };
+            result = DiscordWebhook.UploadManyAsync(invalid, Options(), long.MaxValue, CancellationToken.None, handler).GetAwaiter().GetResult();
+            Check(!result.Success && !result.DeliveryUnknown && handler.Calls == 0, "Invalid group rejected before submission");
+        }
+        foreach (int unknown in new[] { 204, 500, 502 })
+        {
+            handler = new FakeDiscord { Respond = (n, req) => Reply(unknown, "") };
+            result = DiscordWebhook.UploadAsync(file, Options(), CancellationToken.None, handler).GetAwaiter().GetResult();
+            Check(result.DeliveryUnknown && !result.Success && handler.Calls == 1 && File.Exists(file), "Ambiguous response never blindly retries");
+        }
         handler = new FakeDiscord { Respond = (n, req) => Reply(n == 1 ? 429 : 200, "{\"retry_after\":0.001}") };
         result = DiscordWebhook.UploadAsync(file, Options(), CancellationToken.None, handler).GetAwaiter().GetResult();
         Check(result.Success && handler.Calls == 2, "429 retries");
