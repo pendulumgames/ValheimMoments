@@ -1,6 +1,6 @@
 # Integration and validation notes
 
-This describes 0.18.0, not a guarantee of compatibility with future versions.
+This describes 0.18.1, not a guarantee of compatibility with future versions.
 Observers do not intentionally change damage, kill credit, rolls or saved statistics.
 
 ## Harmony patch inventory

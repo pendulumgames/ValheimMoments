@@ -27,6 +27,10 @@ namespace ValheimMoments
         private readonly string root;
         private Task worker;
         private bool dirty;
+        private bool indexUnavailable;
+        private int recoveryMaximum = 20, recoveryHours = 24, indexMaximum = 200;
+        private long recoveryBudget = 250L * 1048576;
+        private string indexError;
         internal string Error { get; private set; }
         internal MomentGallery(string root)
         {
@@ -115,12 +119,31 @@ namespace ValheimMoments
         {
             lock (gate)
             {
+                recoveryMaximum = Math.Max(1, Math.Min(100, maximum));
+                recoveryBudget = Math.Max(10L * 1048576, Math.Min(1024L * 1048576, bytes));
+                recoveryHours = Math.Max(1, Math.Min(168, hours));
+                indexMaximum = Math.Max(20, Math.Min(1000, index));
                 if (worker != null && !worker.IsCompleted) return;
-                worker = Task.Run(() => Sweep(Math.Max(1, Math.Min(100, maximum)), Math.Max(10L * 1048576, Math.Min(1024L * 1048576, bytes)),
-                    Math.Max(1, Math.Min(168, hours)), Math.Max(20, Math.Min(1000, index))));
+                worker = Task.Run(SweepConfigured);
             }
         }
-        internal Task Flush() { Tick(); lock (gate) return worker ?? Task.CompletedTask; }
+        internal Task Flush()
+        {
+            lock (gate)
+            {
+                // Queue a final pass even if a previous worker is just finishing.
+                // Keep the user's last policy instead of silently restoring defaults.
+                worker = (worker ?? Task.CompletedTask).ContinueWith(previous => {
+                    var ignored = previous.Exception;
+                    SweepConfigured();
+                }, TaskScheduler.Default);
+                return worker;
+            }
+        }
+        private void SweepConfigured()
+        {
+            lock (gate) Sweep(recoveryMaximum, recoveryBudget, recoveryHours, indexMaximum);
+        }
         private void Sweep(int maximum, long budget, int hours, int index)
         {
             lock (gate)
@@ -136,7 +159,8 @@ namespace ValheimMoments
                         e.Bytes = new FileInfo(path).Length;
                         if (e.Pinned && !e.Saved)
                         { File.Move(path, Path.Combine(root, "Saved", e.Id + ".webp")); e.Saved = true; dirty = true; }
-                        else if (!e.Pinned && (((e.Status == "Uploaded" || e.Status == "Not shared") && now >= e.Completed.AddSeconds(30)) || now >= e.Created.AddHours(hours)))
+                        else if (!e.Pinned && now >= e.Completed.AddSeconds(30) &&
+                            (e.Status == "Uploaded" || e.Status == "Not shared" || now >= e.Created.AddHours(hours)))
                         { File.Delete(path); e.Bytes = 0; dirty = true; }
                     }
                     var recovery = entries.Where(x => !x.Busy && !x.Pinned && x.Bytes > 0).OrderByDescending(x => x.Created).ToArray();
@@ -155,7 +179,10 @@ namespace ValheimMoments
                         entries.Remove(e); dirty = true; // Saved media is never quota-deleted.
                         File.Delete(PreviewPath(e.Id));
                     }
-                    if (dirty) { Persist(); dirty = false; }
+                    if (dirty && !indexUnavailable) { Persist(); dirty = false; }
+                    // An unreadable index cannot prove that old files were unpinned.
+                    // Preserve both the index and unrecognized media for recovery.
+                    if (indexUnavailable) { Error = indexError; return; }
                     var known = new HashSet<string>(entries.Select(x => x.Id + ".webp"), StringComparer.OrdinalIgnoreCase);
                     foreach (string orphan in Directory.EnumerateFiles(Path.Combine(root, "Recovery")))
                     {
@@ -228,7 +255,12 @@ namespace ValheimMoments
                 }
                 entries.AddRange(loaded);
             }
-            catch (Exception e) { Error = "Gallery index unavailable: " + e.GetType().Name; }
+            catch (Exception e)
+            {
+                indexUnavailable = true;
+                indexError = "Gallery index unavailable (" + e.GetType().Name + "). Existing files and index.bin are preserved; new history cannot persist until the index is repaired.";
+                Error = indexError;
+            }
         }
         internal static bool ValidLink(string link)
         {

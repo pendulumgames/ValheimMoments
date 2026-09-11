@@ -2,7 +2,7 @@
 
 ## Final 0.18 acceptance pass
 
-Use matching 0.18.0 builds on host and clients. No installation was performed during development.
+Use matching 0.18.1 builds on host and clients. No installation was performed during development.
 
 1. Open F8; verify cursor access, blocked character input, close/reopen, thumbnails, local WebP opening and Configuration Manager ordering. Remap F7/F8; verify local controls remain editable for joining players.
 2. Press F10 then F7 during recording, encoding and uploading. Verify Gallery/Saved preserves the clip. Upload another without Keep: original expires after 30 seconds, thumbnail/history remains. Check SaveLocalCopy with host Discord disabled.
@@ -18,7 +18,7 @@ to qualify during testing; the shipped default is Legendary.
 
 ## Host setup
 
-For 0.18.0, install the matching build on host and recording clients. Older hosts do
+For 0.18.1, install the matching build on host and recording clients. Older hosts do
 not provide policy snapshots; newer clients wait rather than use their own event rules.
 
 Configure Discord.Enabled, WebhookURL and Username on the host. Optional Good Loot,
@@ -222,7 +222,7 @@ Use matching 0.16.0 host and clients when convenient, with the game closed for i
 5. Confirm joining players cannot edit Close Calls policy and their local webhook cannot redirect delivery. Discord disabled plus SaveLocalCopy enabled should retain a local clip.
 6. Check smoothness, effective capture settings and FPS impact at your preferred resolution. Synthetic timing tests do not establish in-game performance.
 
-## Raid milestone (0.18.0)
+## Raid milestone (0.18.1)
 
 Install matching host/clients only with Valheim closed, when convenient.
 

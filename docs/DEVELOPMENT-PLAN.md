@@ -4,6 +4,12 @@ Updated: 2026-09-11. Baseline: 0.11.1.
 
 This is the implementation backlog for the user's September feature request. Existing 0.11.1 packages remain unchanged. Items are planned unless listed in the progress section below. Do not describe pending features as available in release READMEs.
 
+## Progress: 0.18.1 gallery retention corrections
+
+Review found that Flush called Tick with defaults, potentially expiring recovery files earlier than the player's configured policy on shutdown. Flush now queues behind any current worker and applies the most recently configured limits under the storage lock. Age expiry also respects the 30-second post-completion grace, including old retried clips. An unreadable index now stays intact with a persistent error and suppresses orphan cleanup/index replacement, preserving unknown pin ownership. New regression scenarios cover all three cases. 0.18.0 archives remain unchanged; 0.18.1 is the next matched host/client test package. Live acceptance remains in docs/RELAY-TEST.md.
+
+Validation passed: full core/event/Discord/encoder suites including the new gallery regression scenarios, 107 configuration entries, 19-entry archive validation, pinned native provenance and the installed Configuration Manager contract. Builds have no warnings/errors. artifacts/Valheim_Moments-0.18.1.zip is 559,182 bytes, SHA256 A76BDFA963E3C32DE6CC9E6AAFD3C29B03E8CD12D743CB67F3FA570CCC4E6CDB; the matching test ZIP is also prepared. Nothing was installed or submitted to Thunderstore.
+
 ## Progress: 0.18.0 gallery, retention and remaining timeline integration
 
 Final verification: 2,458 counted regression assertions passed, plus new gallery ownership/retry/persistence/preview/crash-cleanup scenarios and authenticated raid identity tests. Full encoder decode, exact timing/composition, cancellation, 107 documented config entries, 19-entry Thunderstore archive, pinned native provenance and installed Configuration Manager attribute-contract checks passed. Production/helper/test builds finish without warnings or errors. Packaged artifacts: artifacts/Valheim_Moments-0.18.0.zip and artifacts/ValheimMoments-0.18.0-test.zip. Existing 0.17.0 archive SHA256 remains 1937DB43190155542FEDDD6AAEE23FE6C78BAD4F59A47A4C56FEACE124A42291.

@@ -1,16 +1,18 @@
 # Valheim Moments
 
+0.18.1 improves gallery file protection: shutdown respects your recovery limits, older retried clips retain their Keep grace, and an unreadable history index preserves existing files with a visible error.
+
 [Source code and issue reports](https://github.com/PendulumGames/ValheimMoments)
 
 Save the moments worth sharing: boss victories, rare drops, unfortunate deaths,
 and anything you catch with a hotkey. Valheim Moments turns recent gameplay into
 animated WebP clips and can send them to Discord.
 
-**Windows x64 beta - 0.18.0.** Manual capture, deaths, boss summaries, Epic Loot,
+**Windows x64 beta - 0.18.1.** Manual capture, deaths, boss summaries, Epic Loot,
 ordinary loot and natural acquisitions have passed user testing. Host and joining-player
 F10 clips have reached Discord, and the WebP clips were confirmed visually.
 
-Grouped multiplayer highlights: compatible creature-death recordings share one Discord post with up to three labeled perspectives. Discoveries and configurable special-enemy captures from 0.14 are included. Settings, sizing, notifications and death-rate improvements from 0.12/0.13 are included. Install **0.18.0 on the host and every recording client**. Automated checks cover persistence, rules and hook behavior; in-game exploration, visual/audio and live co-op acceptance remain pending.
+Grouped multiplayer highlights: compatible creature-death recordings share one Discord post with up to three labeled perspectives. Discoveries and configurable special-enemy captures from 0.14 are included. Settings, sizing, notifications and death-rate improvements from 0.12/0.13 are included. Install **0.18.1 on the host and every recording client**. Automated checks cover persistence, rules and hook behavior; in-game exploration, visual/audio and live co-op acceptance remain pending.
 
 ## Features
 
@@ -19,7 +21,7 @@ Grouped multiplayer highlights: compatible creature-death recordings share one D
 * **Controlled retries:** at most three deliberate retries with 30/60/120-second backoff, only in the original session/host role. Unknown delivery warns about duplicate posts. Restart/world changes disable old retries; no host webhook secrets are stored in gallery history.
 * **Timeline controls:** hosts can configure raid opening/ending and close-call source/follow-up/playback durations. Defaults retain the 4+6-second raid and 1-to-3 plus 20-to-7 close call. Authenticated host raid IDs allow grouped participant perspectives; unmatched footage stays personal.
 
-* **Raid moments:** four seconds at local raid entry plus six seconds after its observed end, joined into one clip through the default host webhook, with compatible participant perspectives grouped when identity is available. “Raid ended” includes administrative resets and does not claim victory. Leaving, dying, pause or capture reconfiguration abandons it. Busy/missing segments skip the attempt. Live acceptance remains pending; matched 0.18.0 host/clients required.
+* **Raid moments:** four seconds at local raid entry plus six seconds after its observed end, joined into one clip through the default host webhook, with compatible participant perspectives grouped when identity is available. “Raid ended” includes administrative resets and does not claim victory. Leaving, dying, pause or capture reconfiguration abandons it. Busy/missing segments skip the attempt. Live acceptance remains pending; matched 0.18.1 host/clients required.
 
 * **Close calls:** enabled by default. Actual damage crossing 5% health starts a pending memory; survive twenty seconds to finish it. One source second plays for three seconds, followed by twenty source seconds compressed to seven. No game slowdown or generated frames. Host controls threshold, recovery and cooldown; the clip uses the main webhook and stays personal. Death cancels it and takes capture priority. Live acceptance is pending.
 

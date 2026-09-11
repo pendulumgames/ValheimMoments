@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.18.1
+
+- Shutdown gallery flushing preserves the player's configured recovery limits and queues a final pass after any active storage worker.
+- Age-based recovery expiry now honors the full 30-second Keep grace after completion, including retries of older clips.
+- An unreadable gallery index remains intact with a persistent error. Existing unrecognized media is preserved because its pin status cannot be established; new history is not written over the damaged index. Known new captures can still finish and kept originals remain saveable.
+- Added regression coverage for custom retention at shutdown, old-clip grace, and corrupt-index preservation. Use matching 0.18.1 host/clients for the existing final gameplay checklist.
+
 ## 0.18.0
 
 - Personal gallery (F8), Keep this moment (F7), lazy thumbnails, local animation opening, and verified Discord message links where available. Both hotkeys are player configurable.

@@ -59,6 +59,29 @@ internal static class GalleryTests
         if (File.Exists(stale) || File.Exists(opening) || !File.Exists(unknown) || !File.Exists(recent) || !File.Exists(gallery.PathFor(kept)))
             throw new Exception("Restart cleanup ownership/age failure");
         File.Delete(unknown); File.Delete(recent); Directory.Delete(raidDirectory); Directory.Delete(raidsRoot); Directory.Delete(relayRoot);
+        var old = gallery.Add("manual", "Older recovery", "Recorder", session, true, false);
+        old.Created = DateTime.UtcNow.AddDays(-2);
+        File.WriteAllText(gallery.PathFor(old), "recovery"); gallery.Complete(old, "Failed");
+        gallery.Flush().GetAwaiter().GetResult();
+        if (!File.Exists(gallery.PathFor(old))) throw new Exception("Age expiry bypassed post-completion Keep grace");
+        old.Completed = DateTime.UtcNow.AddMinutes(-1);
+        gallery.Tick(hours: 168); gallery.Flush().GetAwaiter().GetResult();
+        if (!File.Exists(gallery.PathFor(old))) throw new Exception("Flush reset player recovery policy to default expiry");
+        gallery.Tick(hours: 24); gallery.Flush().GetAwaiter().GetResult();
+        if (File.Exists(gallery.PathFor(old))) throw new Exception("Explicit shorter recovery policy did not expire old media");
+        // A corrupt index must neither erase the index nor classify possibly pinned
+        // existing originals as disposable orphans, including after a new capture.
+        byte[] corrupt = { 255, 254, 253 };
+        File.WriteAllBytes(Path.Combine(root, "index.bin"), corrupt);
+        string protectedMedia = Path.Combine(root, "Recovery", Guid.NewGuid().ToString("N") + ".webp");
+        File.WriteAllText(protectedMedia, "possibly pinned"); File.SetLastWriteTimeUtc(protectedMedia, DateTime.UtcNow.AddDays(-5));
+        var damaged = new MomentGallery(root);
+        var newRecord = damaged.Add("manual", "New capture", "Recorder", session, true, false);
+        damaged.Complete(newRecord, "Failed"); damaged.Flush().GetAwaiter().GetResult();
+        if (damaged.Error == null || !File.Exists(protectedMedia) || new FileInfo(Path.Combine(root, "index.bin")).Length != corrupt.Length ||
+            File.ReadAllBytes(Path.Combine(root, "index.bin"))[0] != 255)
+            throw new Exception("Corrupt index recovery discarded existing evidence or hid its error");
+        File.Delete(protectedMedia);
         foreach (var entry in gallery.Snapshot()) { string path = gallery.PathFor(entry); if (File.Exists(path)) File.Delete(path); }
         File.Delete(Path.Combine(root, "index.bin")); Directory.Delete(Path.Combine(root, "Recovery")); Directory.Delete(Path.Combine(root, "Saved")); Directory.Delete(root);
         Console.WriteLine("Gallery: pin/cleanup ownership, grace, bounded retries, authority, persistence and link tests passed.");

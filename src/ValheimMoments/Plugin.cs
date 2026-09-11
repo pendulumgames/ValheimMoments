@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.18.0")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.18.1")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
