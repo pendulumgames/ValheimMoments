@@ -1,12 +1,16 @@
 # Integration and validation notes
 
-This describes 0.15.0, not a guarantee of compatibility with future versions.
+This describes 0.18.0, not a guarantee of compatibility with future versions.
 Observers do not intentionally change damage, kill credit, rolls or saved statistics.
 
 ## Harmony patch inventory
 
 | Target | Observer | Purpose |
 | --- | --- | --- |
+| Character.ApplyDamage | LocalDamageDetector prefix/postfix | Observe actual owned-player health loss for survival-validated close calls. |
+| RandEventSystem.SetActiveEvent | RaidDetector prefix/postfix | Distinguish local random-event entry, leave and observed ending; never equate ending with victory. |
+| RandEventSystem.SendCurrentRandomEvent / RPC_SetEvent | RaidIdentity prefix / postfix | Pair host-issued occurrence identity with the exact authenticated native snapshot; unmatched footage stays personal. |
+| Player.TakeInput / GameCamera.UpdateMouseCapture | GalleryInput postfix / prefix | Block character input and expose the cursor only while the personal gallery is open. |
 | Player.OnDeath() | PlayerDeathDetector prefix/postfix | Snapshot local alive state/cause; emit only after the original makes that local player dead. |
 | Game.RPC_RegisterKill(long, string, int, int, int, bool) | BossKillDetector prefix/postfix | Compare profile kill counts before/after actual credit. Boss number selects boss or ordinary-loot rules. |
 | Character.OnDeath() | BossAttribution prefix/finalizer | Snapshot owner-observed final blow and the same credited-player attacker flags vanilla checks; restore nested context on exceptions. |

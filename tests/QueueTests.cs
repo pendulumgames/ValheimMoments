@@ -21,7 +21,7 @@ internal static class QueueTests
         Func<int, QueuedPerspective> remote = peer => new QueuedPerspective {
             Offer = new HighlightOffer(Id(peer), Id(100), "boss", peer, "Player " + peer, 4, peer == 2), Message = "Boss", Keep = true,
             Eligible = () => true, Transfer = done => { starts.Add(peer); transfers[peer] = done; return true; },
-            Complete = result => results.Add(peer, result), Release = () => released++
+            Complete = result => results.Add(peer, result), Receipt = result => { if (result == null) throw new Exception("Missing receipt"); }, Release = () => released++
         };
         Check(queue.Offer(session, remote(3), 0) == HighlightAdmission.Accepted, "First remote metadata reserved");
         Check(queue.Offer(session, remote(2), 0) == HighlightAdmission.Accepted, "Second remote metadata reserved");

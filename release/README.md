@@ -6,15 +6,20 @@ Save the moments worth sharing: boss victories, rare drops, unfortunate deaths,
 and anything you catch with a hotkey. Valheim Moments turns recent gameplay into
 animated WebP clips and can send them to Discord.
 
-**Windows x64 beta - 0.17.0.** Manual capture, deaths, boss summaries, Epic Loot,
+**Windows x64 beta - 0.18.0.** Manual capture, deaths, boss summaries, Epic Loot,
 ordinary loot and natural acquisitions have passed user testing. Host and joining-player
 F10 clips have reached Discord, and the WebP clips were confirmed visually.
 
-This release adds grouped multiplayer highlights: compatible creature-death recordings share one Discord post with up to three labeled perspectives. Discoveries and configurable special-enemy captures from 0.14 are included. Settings, sizing, notifications and death-rate improvements from 0.12/0.13 are included. Install **0.17.0 on the host and every recording client**. Automated checks cover persistence, rules and hook behavior; in-game exploration, visual/audio and live co-op acceptance remain pending.
+Grouped multiplayer highlights: compatible creature-death recordings share one Discord post with up to three labeled perspectives. Discoveries and configurable special-enemy captures from 0.14 are included. Settings, sizing, notifications and death-rate improvements from 0.12/0.13 are included. Install **0.18.0 on the host and every recording client**. Automated checks cover persistence, rules and hook behavior; in-game exploration, visual/audio and live co-op acceptance remain pending.
 
 ## Features
 
-* **Raid moments:** four seconds at local raid entry plus six seconds after its observed end, joined into one personal clip through the default host webhook. “Raid ended” includes administrative resets and does not claim victory. Leaving, dying, pause or capture reconfiguration abandons it. Busy/missing segments skip the attempt. Live acceptance remains pending; matched 0.17.0 host/clients required.
+* **Personal gallery:** F8 opens history with on-demand thumbnails, recorder, timestamp, upload status, file size, Keep, local animation opening and Discord message links when supplied by the verified receipt. F7 keeps the current/latest memory. Both keys are configurable.
+* **Bounded storage:** new originals use Gallery/Recovery; kept originals move to Gallery/Saved. Successful unpinned uploads expire after a 30-second Keep window. Recovery defaults to 20 clips, 250 MiB and 24 hours; history defaults to 200 entries. Existing Clips files are preserved. Saved originals are never quota-deleted.
+* **Controlled retries:** at most three deliberate retries with 30/60/120-second backoff, only in the original session/host role. Unknown delivery warns about duplicate posts. Restart/world changes disable old retries; no host webhook secrets are stored in gallery history.
+* **Timeline controls:** hosts can configure raid opening/ending and close-call source/follow-up/playback durations. Defaults retain the 4+6-second raid and 1-to-3 plus 20-to-7 close call. Authenticated host raid IDs allow grouped participant perspectives; unmatched footage stays personal.
+
+* **Raid moments:** four seconds at local raid entry plus six seconds after its observed end, joined into one clip through the default host webhook, with compatible participant perspectives grouped when identity is available. “Raid ended” includes administrative resets and does not claim victory. Leaving, dying, pause or capture reconfiguration abandons it. Busy/missing segments skip the attempt. Live acceptance remains pending; matched 0.18.0 host/clients required.
 
 * **Close calls:** enabled by default. Actual damage crossing 5% health starts a pending memory; survive twenty seconds to finish it. One source second plays for three seconds, followed by twenty source seconds compressed to seven. No game slowdown or generated frames. Host controls threshold, recovery and cooldown; the clip uses the main webhook and stays personal. Death cancels it and takes capture priority. Live acceptance is pending.
 
@@ -150,7 +155,7 @@ clients without the settings exchange cannot relay clips.
 
 Choose Tiny, Small, Medium, Balanced, Large or Ultra for an aspect-aware size, or Custom to edit Width and Height directly below the picker. At 16:9 these correspond to approximately 480x270, 640x360, 854x480, 960x540, 1280x720 and 1920x1080. Memory limits may reduce effective dimensions/FPS. Mismatched canvases are padded instead of stretched.
 
-Capture.SaveLocalCopy=true also works with host Discord disabled. With both off, new clip triggers are suppressed. With Discord on and saving off, confirmed uploads are deleted; failed uploads still remain for recovery. The planned gallery, Keep key and bounded failure expiry are not in this milestone.
+Capture.SaveLocalCopy=true also works with host Discord disabled. With both off, new clip triggers are suppressed. With Discord on and saving off, confirmed uploads are deleted; failed uploads still remain for recovery. Use F8 for bounded recovery and F7 to keep a memory permanently.
 
 Discord upload allowance depends on the destination/server boost level. Personal Nitro does not establish the webhook allowance. This release retains its conservative 10 MiB client relay cap; check actual file sizes. Motion and detail make resolution/FPS/quality estimates uncertain.
 
@@ -203,10 +208,10 @@ The director also applies the 10 MiB per-file cap to host footage. Oversized, la
 * Relay clips are limited to 10 MiB, also subject to the host's lower upload limit.
 * Relay transfers are paced and take time before Discord upload. The host accepts one
   incoming transfer and one grouped upload at a time. The director reserves bounded queue capacity; excess/expired offers are omitted without automatic retry.
-* Successfully uploaded clips are deleted by default, including client originals after
+* Successfully uploaded unpinned clips are deleted after a 30-second Keep grace, including client originals after
   host confirmation. Set SaveLocalCopy=true on the recording player to keep them.
-  Failed/skipped clips remain local. Host relay temp files are removed after delivery
-  or failure; a process crash can leave a `RelayTemp` file behind.
+  Failed/skipped clips use bounded recovery. Host relay temp files are removed after delivery
+  or failure; recognized crash leftovers older than 24 hours are swept at startup.
 * Compatible creature-death perspectives share a post when offered within the host collection window. Missing IDs, manual captures and personal discovery/death events remain separate.
 * Long ragdoll delays can put the killing blow outside an ordinary-loot clip's history.
 * Periodic damage can leave final-blow attribution unavailable. No guessed player is shown.
@@ -223,8 +228,8 @@ Game API changes can still require compatibility updates.
 
 * Extend discovery coverage where additional reliable game events are available.
 * Selected achievement unlocks, driven by the game's achievement definitions rather than a hardcoded list.
-* Director fallback encoding and larger transfer budgets, survival-validated close calls, and a personal gallery with Keep and bounded retries.
-* Optional raid start/completion highlights, with per-event controls and cooldowns.
+* Optional fallback re-encoding and larger transfer budgets beyond the current conservative transport cap.
+* Optional separate raid-start posts in addition to the combined ending highlight.
 * Group overlapping progression events to avoid duplicate posts for the same moment.
 
 ## Credits

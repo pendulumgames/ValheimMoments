@@ -13,6 +13,7 @@ namespace ValheimMoments
         internal Func<bool> Eligible;
         internal Func<Action<string>, bool> Transfer;
         internal Action<RelayOutcome> Complete;
+        internal Action<UploadResult> Receipt;
         internal Action Release;
     }
 
@@ -71,6 +72,7 @@ namespace ValheimMoments
                 }
                 UploadResult result;
                 try { result = upload.GetAwaiter().GetResult(); } catch { result = UploadResult.Unknown("Group upload confirmation failed."); }
+                foreach (var item in uploading) { try { item.Receipt?.Invoke(result); } catch { } }
                 foreach (var item in uploading)
                     if (entries.TryGetValue(item.Offer, out var entry)) Finish(entry,
                         result.Success ? RelayOutcome.Uploaded : result.DeliveryUnknown ? RelayOutcome.Unknown : RelayOutcome.Failed);

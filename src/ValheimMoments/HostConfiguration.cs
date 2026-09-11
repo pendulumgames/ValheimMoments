@@ -50,6 +50,7 @@ namespace ValheimMoments
         {
             if (section == "Debug") return true;
             if (section == "Notifications") return true;
+            if (section == "Gallery") return true;
             if (section == "Discord") return false;
             if (section != "Capture") return false;
             return key == "Enabled" || key == "ManualCaptureKey" || key == "ToggleCaptureKey" ||
@@ -67,7 +68,7 @@ namespace ValheimMoments
         }
         private void OnLocalChanged(object sender, EventArgs args)
         {
-            if (sender is ConfigEntryBase entry && entry.Definition.Section == "Notifications") return;
+            if (sender is ConfigEntryBase entry && (entry.Definition.Section == "Notifications" || entry.Definition.Section == "Gallery")) return;
             changed?.Invoke();
         }
         internal bool PeerHasPolicy(ZRpc rpc)
@@ -104,7 +105,7 @@ namespace ValheimMoments
                 entry.Tags.Browsable = !(locked && entry.Config.Definition.Section == "Discord" && !entry.Shared);
                 entry.Tags.CustomDrawer = locked && !entry.Local ? drawRemote : entry.LocalDrawer;
                 string section = entry.Config.Definition.Section;
-                entry.Tags.Category = section == "Notifications" ? "02 - Your Notifications" : entry.Local ? "01 - Your Capture" : section == "Discord" ? "03 - Discord (Host)" :
+                entry.Tags.Category = section == "Gallery" ? "02 - Your Gallery" : section == "Notifications" ? "02 - Your Notifications" : entry.Local ? "01 - Your Capture" : section == "Discord" ? "03 - Discord (Host)" :
                     section == "Capture" ? "04 - Capture Timing (Host)" : "05 - " + section + " (Host)";
                 if (section == "Debug") entry.Tags.Category = "99 - Advanced";
             }

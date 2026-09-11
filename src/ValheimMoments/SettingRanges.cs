@@ -16,6 +16,15 @@ namespace ValheimMoments
         }
         internal static AcceptableValueBase For(string section, string key, object fallback)
         {
+            if (section == "Gallery" && key == "RecoveryClips") return new AcceptableValueRange<int>(1, 100);
+            if (section == "Gallery" && key == "RecoveryMiB") return new AcceptableValueRange<int>(10, 1024);
+            if (section == "Gallery" && key == "RecoveryHours") return new AcceptableValueRange<int>(1, 168);
+            if (section == "Gallery" && key == "IndexEntries") return new AcceptableValueRange<int>(20, 1000);
+            if (section == "Raids" && (key == "OpeningSeconds" || key == "EndingSeconds")) return new FiniteRange(1, 10, (double)fallback);
+            if (section == "Close Calls" && key == "FollowUpSeconds") return new FiniteRange(5, 60, (double)fallback);
+            if (section == "Close Calls" && key == "SlowSourceSeconds") return new FiniteRange(.5, 3, (double)fallback);
+            if (section == "Close Calls" && key == "SlowPlaybackSeconds") return new FiniteRange(1, 5, (double)fallback);
+            if (section == "Close Calls" && key == "PlaybackSeconds") return new FiniteRange(6, 20, (double)fallback);
             if (section == "Close Calls" && key == "ThresholdPercent") return new FiniteRange(1, 15, (double)fallback);
             if (section == "Close Calls" && key == "RecoveryPercent") return new FiniteRange(16, 100, (double)fallback);
             if (section == "Close Calls" && key == "RecoverySeconds") return new FiniteRange(1, 120, (double)fallback);

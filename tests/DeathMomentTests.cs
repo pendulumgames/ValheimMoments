@@ -32,6 +32,14 @@ internal static class DeathMomentTests
         deaths.Observe(); var saved = deaths.Reserve();
         Check(saved.Additional == 0, "Successful local-only save consumes its death snapshot");
         deaths.Complete(saved, true);
+        deaths.Observe(); var failedRetry = deaths.Reserve(); deaths.Complete(failedRetry, false);
+        deaths.Observe();
+        Check(deaths.Reopen(failedRetry) && deaths.Reserve() == null, "Gallery retry reserves original death snapshot without overlapping claims");
+        deaths.Complete(failedRetry, true);
+        var afterRetry = deaths.Reserve();
+        Check(afterRetry.Additional == 0 && !deaths.Reopen(failedRetry), "Retry acknowledgement consumes only its original death snapshot");
+        deaths.Complete(afterRetry, false); deaths.Clear();
+        Check(!deaths.Reopen(afterRetry), "Old-session retry ticket cannot reopen");
         var quota = new MomentRateLimit();
         Check(quota.TryTake(0, 2, 60) && quota.TryTake(10, 2, 60) && !quota.TryTake(59, 2, 60), "Configurable per-player quota allows two captures");
         Check(quota.TryTake(60, 2, 60) && !quota.TryTake(61, 2, 60) && quota.TryTake(70, 2, 60), "Sliding window differs from fixed minute buckets");

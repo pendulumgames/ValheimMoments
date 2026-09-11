@@ -6,7 +6,7 @@ plugin DLL, including Imazen.WebP and the libwebp native DLLs.
 
 1. Enter a world and wait five seconds.
 2. Move the camera and press F10, then play for two more seconds.
-3. Open the resulting animated WebP from the mod's Clips folder in a browser.
+3. Press F7 to keep the result, then open F8 and choose Open local animation (Gallery/Saved). Unpinned successful uploads expire after a 30-second grace.
 4. Verify pre-event footage, duration, orientation, colors and HUD. Repeat in combat
    or a busy forest.
 5. Compare performance with F9 recording paused and resumed in the same scene.

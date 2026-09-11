@@ -43,6 +43,14 @@ namespace ValheimMoments
         private string offeredEventId;
         private bool offeredFirst;
         private string outgoingId;
+        internal string LastMessageLink { get; private set; }
+        internal void PublishReceipt(string id, string link)
+        {
+            if (!MomentGallery.ValidLink(link) || session == null || !session.IsServer()) return;
+            if (delivery != null && delivery.Id == id && deliveryPeer != null) Send(deliveryPeer, "L|" + id + "|" + link);
+            foreach (var entry in waiting.Values) if (entry.File.Id == id) Send(entry.Peer, "L|" + id + "|" + link);
+        }
+        internal void PublishDeliveryReceipt(string link) { if (delivery != null) PublishReceipt(delivery.Id, link); }
         private int sent, acknowledged;
         private double now, incomingDeadline, incomingEnd, outgoingDeadline, outgoingEnd, nextSend, nextTick;
         private bool delivering, awaitingOffer, waitingResult, disposed;
@@ -125,6 +133,7 @@ namespace ValheimMoments
             try
             {
                 target = peer.m_rpc; outgoingId = Guid.NewGuid().ToString("N");
+                LastMessageLink = null;
                 outgoingCompletion = completed;
                 outgoingFile = file; keepOutgoing = saveLocalCopy;
                 offeredKind = kind; offeredMessage = message;
@@ -227,6 +236,7 @@ namespace ValheimMoments
         private void ReceiveClient(string[] p)
         {
             if (outgoingSize == 0 || p.Length != 3) return;
+            if (p[0] == "L" && waitingResult && acknowledged == outgoingSize && MomentGallery.ValidLink(p[2])) { LastMessageLink = p[2]; return; }
             if (p[0] == "W" && (awaitingOffer || waitingResult)) { outgoingDeadline = now + 30; return; }
             if (p[0] == "R")
             {

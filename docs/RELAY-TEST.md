@@ -1,12 +1,24 @@
 # Valheim Moments — multiplayer clip relay
 
+## Final 0.18 acceptance pass
+
+Use matching 0.18.0 builds on host and clients. No installation was performed during development.
+
+1. Open F8; verify cursor access, blocked character input, close/reopen, thumbnails, local WebP opening and Configuration Manager ordering. Remap F7/F8; verify local controls remain editable for joining players.
+2. Press F10 then F7 during recording, encoding and uploading. Verify Gallery/Saved preserves the clip. Upload another without Keep: original expires after 30 seconds, thumbnail/history remains. Check SaveLocalCopy with host Discord disabled.
+3. Cause a known delivery failure; inspect gallery status. Correct the host destination and retry in the same session. Check backoff and the three-attempt limit. Unknown delivery must require duplicate confirmation. Disconnect/reconnect or restart: old retries must stay disabled.
+4. Host/client enter and remain in one raid; verify one grouped post when exact identity is available. Leave, die, reset or switch worlds: no fabricated survival. Try customized opening/ending durations and verify total playback.
+5. Test direct/periodic close-call hits, poison oscillation and death during follow-up. Customize follow-up and slow/total playback, verifying survival requirement and exact playback duration.
+6. Confirm receipt links where available, omitted perspectives, disabled event policies, dedicated-host coordination and no client-controlled destinations or bot names.
+7. Record quiet movement, forest motion and particle-heavy combat at selected sizes/FPS/quality. Note bytes, actual dimensions, duration, encode time and FPS. These live measurements are required before publishing typical-size estimates; synthetic tests do not establish them.
+
 Install the same current version on **both the host and recording clients**. Use a
 separate test profile. Set MinimumRarity=None only if you want any observed loot drop
 to qualify during testing; the shipped default is Legendary.
 
 ## Host setup
 
-For 0.15.0, install the matching build on host and recording clients. Older hosts do
+For 0.18.0, install the matching build on host and recording clients. Older hosts do
 not provide policy snapshots; newer clients wait rather than use their own event rules.
 
 Configure Discord.Enabled, WebhookURL and Username on the host. Optional Good Loot,
@@ -210,7 +222,7 @@ Use matching 0.16.0 host and clients when convenient, with the game closed for i
 5. Confirm joining players cannot edit Close Calls policy and their local webhook cannot redirect delivery. Discord disabled plus SaveLocalCopy enabled should retain a local clip.
 6. Check smoothness, effective capture settings and FPS impact at your preferred resolution. Synthetic timing tests do not establish in-game performance.
 
-## Raid milestone (0.17.0)
+## Raid milestone (0.18.0)
 
 Install matching host/clients only with Valheim closed, when convenient.
 

@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.17.0")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.18.0")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -45,6 +45,18 @@ namespace ValheimMoments
         private CaptureBuffer.Clip encodingClip;
         private Task<string> encoding;
         private Task<UploadResult> upload;
+        private MomentGallery gallery;
+        private MomentGallery.Entry activeGallery, uploadGallery;
+        private ConfigEntry<KeyCode> galleryKey, keepKey;
+        private ConfigEntry<int> recoveryCount, recoveryMiB, recoveryHours, galleryCount;
+        private bool galleryOpen, pendingKeep;
+        private Vector2 galleryScroll;
+        private double nextGalleryTick;
+        private string retryConfirmation;
+        private Texture2D galleryPreview;
+        private Harmony galleryHarmony;
+        private Task<byte[]> previewLoad;
+        private byte[] raidPreview;
         private ConfigEntry<bool> discordEnabled, saveLocalCopy;
         private ConfigEntry<string> webhookUrl, discordUsername;
         private ConfigEntry<bool> useBossWebhook, useLootWebhook, useDeathWebhook;
@@ -91,7 +103,8 @@ namespace ValheimMoments
         private ConfigEntry<bool> closeEnabled;
         private ConfigEntry<double> closeThreshold, closeRecovery, closeHold, closeCooldown;
         private CloseCall closeCall;
-        private readonly CloseCallTimeline closeTimeline = new CloseCallTimeline();
+        private CloseCallTimeline closeTimeline = new CloseCallTimeline();
+        private ConfigEntry<double> closeFollow, closeSlowSource, closeSlowPlayback, closePlayback, raidOpening, raidEndingSeconds;
         private Harmony closeHarmony;
         private Player closePlayer;
         private double appliedCloseThreshold, appliedCloseRecovery, appliedCloseHold, appliedCloseCooldown;
@@ -101,9 +114,13 @@ namespace ValheimMoments
         private readonly RaidMoment raidMoment = new RaidMoment();
         private RaidMedia raidMedia;
         private Harmony raidHarmony;
+        private Harmony raidIdentityHarmony;
+        private RandomEvent raidOccurrence;
+        private string raidEventId, activeEventId;
         private Task<string> raidWorker;
         private CaptureBuffer.Clip raidClip;
         private bool raidCollecting, raidEnding, raidComposing;
+        private bool raidKeep;
         private Player raidPlayer;
         private ZNet raidSession;
         private string raidRecorder;
@@ -260,7 +277,13 @@ namespace ValheimMoments
                     new ConfigDescription("Troubleshooting: log aggregate CPU timing, readback latency and frame counts every 10 seconds.", null, "Advanced"));
                 flip = Bind("Capture", "FlipVertically", false, "Enable if the test WebP is upside down on your graphics backend.");
                 discordEnabled = Bind("Discord", "Enabled", true, "Host/single-player only: enable Discord delivery. Remote clients send clips to the host and never use local webhook settings.");
-                saveLocalCopy = Bind("Capture", "SaveLocalCopy", migration.SaveLocalCopy, "Keep clips on this computer, including when host Discord delivery is disabled. When false, successful uploads are deleted; failed delivery retains a recovery copy. Both delivery and local saving off means no clip is recorded.");
+                saveLocalCopy = Bind("Capture", "SaveLocalCopy", migration.SaveLocalCopy, "Keep clips on this computer, including when host Discord delivery is disabled. When false, successful unpinned uploads expire after a 30-second Keep grace; failed delivery uses bounded gallery recovery. Both delivery and local saving off means no clip is recorded.");
+                galleryKey = Bind("Gallery", "GalleryKey", KeyCode.F8, "Open or close your personal moments gallery.");
+                keepKey = Bind("Gallery", "KeepMomentKey", KeyCode.F7, "Permanently keep the current or latest memory, including during capture/upload and 30 seconds after completion.");
+                recoveryCount = Bind("Gallery", "RecoveryClips", 20, "Maximum completed unpinned recovery clips, 1-100. Active work and the 30-second Keep grace are excluded.");
+                recoveryMiB = Bind("Gallery", "RecoveryMiB", 250, "Recovery storage budget, 10-1024 MiB. Pinned Saved clips are never automatically removed.");
+                recoveryHours = Bind("Gallery", "RecoveryHours", 24, "Unpinned recovery expiry, 1-168 hours.");
+                galleryCount = Bind("Gallery", "IndexEntries", 200, "Gallery history entries, 20-1000. Removing history never deletes a pinned file.");
                 webhookUrl = Bind("Discord", "WebhookURL", "", "Secret: enter locally, never share this config. HTTPS Discord webhook; optional thread_id query.");
                 discordUsername = Bind("Discord", "Username", "Valheim Moments", "Host/single-player only: bot display name, 1–80 characters. Remote client values are ignored.");
                 useBossWebhook = Bind("Discord", "UseBossKillWebhook", false, "Host only: route boss clips to BossKillWebhookURL; when off, use WebhookURL.");
@@ -277,12 +300,18 @@ namespace ValheimMoments
                 discoveryPostSetting = Bind("Discoveries", "PostEventSeconds", 3.0, "Seconds after a discovery group. Nearby discoveries group for 1.25 seconds before capture.");
                 discoveryCooldown = Bind("Discoveries", "CooldownSeconds", 30.0, "Seconds between discovery captures, 0-3600. Initial warmup is at least five seconds.");
                 discoveryMessage = Bind("Discoveries", "Message", "\uD83E\uDDED Discovered {discovery}!", "Supports {discovery} (one name or grouped names) and {player}. Recorded by appends at delivery.");
-                closeEnabled = Bind("Close Calls", "Enabled", true, "Capture a damage crossing only after surviving 20 seconds. One source second plays for three seconds; the follow-up plays for seven. Death cancels it. Uses the default Discord destination.");
-                raidsEnabled = Bind("Raids", "Enabled", true, "Record four seconds on local raid entry and six seconds after its observed end, combined into one personal clip using the default webhook. Leaving, dying, pausing or changing capture settings abandons it. Raid ended does not imply victory; resets also end raids. Opening expires after 30 minutes.");
+                closeEnabled = Bind("Close Calls", "Enabled", true, "Capture a damage crossing only after surviving FollowUpSeconds. SlowSourceSeconds plays for SlowPlaybackSeconds; the sampled follow-up fills the remaining PlaybackSeconds. Death cancels it. Uses the default Discord destination.");
+                raidsEnabled = Bind("Raids", "Enabled", true, "Record configured opening and ending segments, combined through the default webhook. Compatible participant perspectives can share a director post. Leaving, dying, pausing or changing capture settings abandons it. Raid ended does not imply victory; resets also end raids. Opening expires after 30 minutes.");
                 closeThreshold = Bind("Close Calls", "ThresholdPercent", 5.0, "Health percentage crossed by actual damage, 1-15. Starting low or food changes alone do not trigger.");
                 closeRecovery = Bind("Close Calls", "RecoveryPercent", 20.0, "Health required before rearming, 16-100 percent, sustained for RecoverySeconds.");
                 closeHold = Bind("Close Calls", "RecoverySeconds", 10.0, "Continuous recovery observation before rearming, 1-120 seconds.");
                 closeCooldown = Bind("Close Calls", "CooldownSeconds", 120.0, "Minimum seconds between attempts, 0-3600. Sustained recovery is also required.");
+                closeFollow = Bind("Close Calls", "FollowUpSeconds", 20.0, "Must survive this many source seconds after the hit, 5-60. Death cancels the clip.");
+                closeSlowSource = Bind("Close Calls", "SlowSourceSeconds", 1.0, "Source seconds ending at the hit, 0.5-3. Capture history expands to cover this.");
+                closeSlowPlayback = Bind("Close Calls", "SlowPlaybackSeconds", 3.0, "Playback seconds for the slow segment, 1-5.");
+                closePlayback = Bind("Close Calls", "PlaybackSeconds", 10.0, "Total playback seconds, 6-20. Remaining playback time contains the sampled follow-up.");
+                raidOpening = Bind("Raids", "OpeningSeconds", 4.0, "Opening segment duration, 1-10 seconds. Kept compressed until the raid ends.");
+                raidEndingSeconds = Bind("Raids", "EndingSeconds", 6.0, "Ending segment duration, 1-10 seconds. Total playback is opening plus ending.");
                 specialEnabled = Bind("Special Enemies", "Enabled", true, "Capture selected ordinary-enemy kill credits. Empty EnemyKeys selects none. Normal bosses remain exclusive to Boss Kill.");
                 specialKeys = Bind("Special Enemies", "EnemyKeys", "", "Exact case-sensitive kill-credit keys separated by commas/semicolons; up to 64 keys/4096 characters. LogEnemyKeys shows actual identifiers. These are stat keys, not prefab or translated names. No wildcards.");
                 specialFirstOnly = Bind("Special Enemies", "FirstKillOnly", false, "Only this character's first saved kill of the selected enemy across worlds. Discovery history is independently per-world.");
@@ -350,11 +379,13 @@ namespace ValheimMoments
                 ConfigurationMigration.Retire(Config);
                 hostSettings.RefreshPresentation();
                 string pluginDirectory = Path.GetDirectoryName(Info.Location);
+                _ = TemporaryCleanup.Start(pluginDirectory);
                 relayDirectory = Path.Combine(pluginDirectory, "RelayTemp");
                 relay = new ClipRelay(CanRelay, () => Math.Max(1, Math.Min(10, Value(uploadLimitMiB))) * 1048576,
                     ReceiveRelayedClip, message => Logger.LogInfo("[Relay] " + message), hostSettings.PeerHasPolicy, AcceptRelayedEvent, relayDirectory);
                 encoderPath = Path.Combine(pluginDirectory, "Encoder", "ValheimMoments.Encoder.exe");
                 outputDirectory = Path.Combine(pluginDirectory, "Clips");
+                gallery = new MomentGallery(Path.Combine(pluginDirectory, "Gallery"));
                 discoveryHistory = new DiscoveryHistory(Path.Combine(pluginDirectory, "State", "Discoveries"), message => Logger.LogWarning("[Discovery] " + message));
                 try
                 {
@@ -385,6 +416,8 @@ namespace ValheimMoments
                     Logger.LogInfo("[Boss] Kill-credit roster and final-blow attribution installed.");
                 }
                 catch (Exception error) { Logger.LogWarning("[Boss] Final-blow attribution unavailable: " + error.GetType().Name); }
+                try { raidIdentityHarmony = new Harmony("local.valheimmoments.raid.identity"); RaidIdentity.Install(raidIdentityHarmony); }
+                catch (Exception error) { raidIdentityHarmony?.UnpatchSelf(); Logger.LogWarning("[Raid] Shared identity unavailable: " + error.GetType().Name); }
                 if (Application.isBatchMode || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
                 {
                     Logger.LogInfo("[Relay] Host delivery ready; graphics capture disabled on this headless server.");
@@ -394,6 +427,8 @@ namespace ValheimMoments
                 if (!File.Exists(encoderPath)) throw new FileNotFoundException("Bundled Encoder/ValheimMoments.Encoder.exe is missing.");
                 ApplyCaptureSettings();
                 initialized = true;
+                try { galleryHarmony = new Harmony("local.valheimmoments.gallery.input"); GalleryInput.Open = () => galleryOpen && !stopped; GalleryInput.Install(galleryHarmony); }
+                catch (Exception error) { galleryHarmony?.UnpatchSelf(); Logger.LogWarning("[Gallery] Input hooks unavailable: " + error.GetType().Name); }
                 try
                 {
                     discoveryHarmony = new Harmony("local.valheimmoments.discovery");
@@ -488,11 +523,12 @@ namespace ValheimMoments
         private bool ApplyCaptureSettings()
         {
             double pre = Value(preSetting), post = Value(postSetting);
+            if (Value(closeEnabled)) pre = Math.Max(pre, Value(closeSlowSource));
             double bossPost = Value(bossPostSetting), lootPost = Value(lootPostSetting);
             double discoveryPost = Value(discoveryPostSetting), specialPost = Value(specialPostSetting);
             double maxPost = Math.Max(Math.Max(discoveryPost, specialPost), Math.Max(post, Math.Max(bossPost, lootPost)));
-            if (Value(closeEnabled)) maxPost = Math.Max(maxPost, Math.Max(0, 8 - pre));
-            if (Value(raidsEnabled)) maxPost = Math.Max(maxPost, 6);
+            if (Value(closeEnabled)) maxPost = Math.Max(maxPost, Math.Max(0, Value(closeSlowSource) + Value(closePlayback) - Value(closeSlowPlayback) + 1 - pre));
+            if (Value(raidsEnabled)) maxPost = Math.Max(maxPost, Math.Max(Math.Max(Value(raidOpening), Value(raidEndingSeconds)), Value(raidOpening) + Value(raidEndingSeconds) + 1 - pre));
             int requestedWidth, requestedHeight;
             CaptureSizes.Resolve(Value(sizePreset), Screen.width, Screen.height, Value(widthSetting), Value(heightSetting), out requestedWidth, out requestedHeight);
             sourceWidth = Screen.width; sourceHeight = Screen.height;
@@ -540,6 +576,7 @@ namespace ValheimMoments
             try
             {
                 hostSettings?.Tick(clock.Elapsed.TotalSeconds);
+                RaidIdentity.Tick();
                 UpdateDirector();
                 if (relay != null && !Value(discordEnabled)) relay.StopSending();
                 relay?.Tick(clock.Elapsed.TotalSeconds);
@@ -559,6 +596,9 @@ namespace ValheimMoments
                     var origin = uploadSession;
                     uploadCancellation?.Dispose(); uploadCancellation = null; uploadSession = null;
                     var completed = relayCompletion; relayCompletion = null;
+                    if (completed != null && result.Success) relay.PublishDeliveryReceipt(result.MessageLink);
+                    if (completed == null) gallery?.Complete(uploadGallery, result.Success ? "Uploaded" : result.DeliveryUnknown ? "Unknown" : "Failed", result.MessageLink);
+                    uploadGallery = null;
                     if (completed == null) FinishMoment(uploadDeath, origin, result.Success, result.Success ? "Memory Uploaded" :
                         result.DeliveryUnknown ? "Upload unconfirmed - check Discord" : "Upload failed - memory kept locally");
                     uploadDeath = null;
@@ -570,6 +610,16 @@ namespace ValheimMoments
             try
             {
                 double now = clock.Elapsed.TotalSeconds;
+                if (Application.isFocused && Input.GetKeyDown(Value(galleryKey))) { galleryOpen = !galleryOpen; if (!galleryOpen) ClearGalleryPreview(); }
+                if (previewLoad != null && previewLoad.IsCompleted)
+                {
+                    var task = previewLoad; previewLoad = null;
+                    if (task.Status == TaskStatus.RanToCompletion && task.Result != null && galleryOpen)
+                    { ClearGalleryPreview(); galleryPreview = new Texture2D(256, 144, TextureFormat.RGBA32, false); galleryPreview.LoadRawTextureData(task.Result); galleryPreview.Apply(); }
+                    else { var ignored = task.Exception; }
+                }
+                if (Application.isFocused && Input.GetKeyDown(Value(keepKey))) KeepLatestMoment();
+                if (now >= nextGalleryTick) { nextGalleryTick = now + 1; gallery?.Tick(Value(recoveryCount), Value(recoveryMiB) * 1048576L, Value(recoveryHours), Value(galleryCount)); }
                 if (lastUpdate > 0)
                 {
                     double delta = (now - lastUpdate) * 1000;
@@ -621,7 +671,7 @@ namespace ValheimMoments
                         Logger.LogInfo("[WebP] " + encoding.GetAwaiter().GetResult() + "; saved " + activeOutput);
                         StartUpload(activeOutput);
                     }
-                    catch (Exception error) { Logger.LogWarning("[WebP] Clip failed: " + error.Message); FinishMoment(activeDeath, activeSession, false, "Memory capture failed"); }
+                    catch (Exception error) { gallery?.Complete(activeGallery, "Failed"); Logger.LogWarning("[WebP] Clip failed: " + error.Message); FinishMoment(activeDeath, activeSession, false, "Memory capture failed"); }
                     encodingClip.Release(); encodingClip = null; encoding = null;
                 }
                 // Oldest pending submission is a safe exclusive completion watermark.
@@ -767,16 +817,24 @@ namespace ValheimMoments
             activeMessage = pendingMessage;
             activeRecorder = pendingRecorder;
             activeKind = pendingKind; activeSession = pendingSession; activeAsHost = pendingAsHost;
+            activeEventId = null;
             activeBoss = pendingBoss; pendingBoss = null;
             activeDeath = pendingDeath; pendingDeath = null;
-            activeOutput = Path.Combine(outputDirectory, pendingKind + "-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff") + "-" + Guid.NewGuid().ToString("N").Substring(0, 6) + ".webp");
+            activeGallery = gallery.Add(activeKind, activeMessage, activeRecorder, activeSession, activeAsHost, pendingKeep || Value(saveLocalCopy));
+            activeGallery.Acknowledgement = activeDeath;
+            pendingKeep = false;
+            activeOutput = gallery.PathFor(activeGallery);
             string destination = activeOutput;
             bool flipImage = Value(flip);
             int encodeWidth = width, encodeHeight = height, encodeQuality = quality;
             int before = 0;
             for (int i = 0; i < clip.Count; i++) if (clip.GetTimestamp(i) < clip.TriggerTime) before++;
             Logger.LogInfo(string.Format("[WebP] Encoding {0} frames in background helper; pre-event={1}, post-event={2}.", clip.Count, before, clip.Count - before));
-            encoding = Task.Run(() => EncoderClient.Encode(clip, encoderPath, destination, encodeWidth, encodeHeight, encodeQuality, flipImage, shutdown.Token));
+            var record = activeGallery;
+            encoding = Task.Run(() => {
+                try { gallery.WritePreview(record, MomentGallery.Preview(clip.GetPixels(Math.Max(0, before - 1)), encodeWidth, encodeHeight, flipImage)); } catch { }
+                return EncoderClient.Encode(clip, encoderPath, destination, encodeWidth, encodeHeight, encodeQuality, flipImage, shutdown.Token);
+            });
         }
 
         private static void ReleaseTarget(RenderTexture target)
@@ -787,25 +845,29 @@ namespace ValheimMoments
 
         private void StartUpload(string file)
         {
+            var record = activeGallery;
+            gallery.Uploading(record);
+            if (record != null) record.Caption = EventMessages.FormatPost(activeBoss == null ? activeMessage : BossMessage(activeBoss));
             var session = ZNet.instance;
             if (ReferenceEquals(activeSession, session) && hostSettings.Ready && !Value(discordEnabled))
             {
-                if (!Value(saveLocalCopy))
-                { try { File.Delete(file); } catch { Logger.LogWarning("[Capture] Temporary clip cleanup failed."); } }
-                else Logger.LogInfo("[Capture] Local copy saved; host Discord delivery is disabled.");
-                FinishMoment(activeDeath, activeSession, Value(saveLocalCopy), Value(saveLocalCopy) ? "Memory Saved" : "Memory discarded - saving disabled");
+                bool retained = Value(saveLocalCopy) || record?.Pinned == true;
+                gallery.Complete(record, retained ? "Saved" : "Not shared");
+                FinishMoment(activeDeath, activeSession, retained, retained ? "Memory Saved" : "Memory not shared - saving disabled");
                 return;
             }
             if (session != null && !session.IsServer() && !activeAsHost && ReferenceEquals(activeSession, session))
             {
                 string message = EventMessages.FormatPost(activeBoss == null ? activeMessage : BossMessage(activeBoss));
                 var ticket = activeDeath; var origin = activeSession;
-                if (!Value(discordEnabled) || !relay.Offer(activeSession, file, activeKind, message, Value(saveLocalCopy), outcome =>
+                if (!Value(discordEnabled) || !relay.Offer(activeSession, file, activeKind, message, true, outcome => {
+                    gallery.Complete(record, outcome == RelayOutcome.Uploaded ? "Uploaded" : outcome == RelayOutcome.Unknown ? "Unknown" : outcome == RelayOutcome.Omitted ? "Omitted" : "Failed", outcome == RelayOutcome.Uploaded ? relay.LastMessageLink : null);
                     FinishMoment(ticket, origin, outcome == RelayOutcome.Uploaded, outcome == RelayOutcome.Uploaded ? "Memory Uploaded" :
                         outcome == RelayOutcome.Unknown ? "Upload unconfirmed - check Discord" :
-                        outcome == RelayOutcome.Omitted ? "Perspective omitted - memory kept locally" : "Upload incomplete - memory kept locally"), activeBoss?.EventId, activeBoss?.FirstKill == true))
+                        outcome == RelayOutcome.Omitted ? "Perspective omitted - memory kept locally" : "Upload incomplete - memory kept locally"); }, activeBoss?.EventId ?? activeEventId, activeBoss?.FirstKill == true))
                 {
                     Logger.LogInfo("[Relay] Clip retained locally: relay disabled, unavailable, busy or clip exceeds 10 MiB.");
+                    gallery.Complete(record, "Failed");
                     FinishMoment(ticket, origin, false, "Upload unavailable - memory kept locally");
                 }
                 else Notice("Memory Captured", false, false);
@@ -814,19 +876,21 @@ namespace ValheimMoments
             if (!DiscordRouting.CanSubmit(activeSession, activeAsHost, session, session != null && session.IsServer()))
             {
                 Logger.LogInfo("[Discord] Local clip retained: changed or ended sessions cannot submit old clips.");
+                gallery.Complete(record, "Failed");
                 FinishMoment(activeDeath, activeSession, false, "Memory kept locally");
                 return;
             }
-            if (!Value(discordEnabled)) return;
+            if (!Value(discordEnabled)) { gallery.Complete(record, "Failed"); return; }
             if (Value(directorEnabled) && highlightQueue != null)
             {
                 QueueHostClip(file);
                 return;
             }
-            if (highlightQueue?.Busy == true) { FinishMoment(activeDeath, activeSession, false, "Upload busy - memory kept locally"); return; }
+            if (highlightQueue?.Busy == true) { gallery.Complete(record, "Failed"); FinishMoment(activeDeath, activeSession, false, "Upload busy - memory kept locally"); return; }
             if (upload != null)
             {
                 Logger.LogWarning("[Discord] Upload busy; new clip retained locally.");
+                gallery.Complete(record, "Failed");
                 FinishMoment(activeDeath, activeSession, false, "Upload busy - memory kept locally");
                 return;
             }
@@ -835,11 +899,12 @@ namespace ValheimMoments
                 WebhookUrl = Destination(activeKind),
                 Username = Value(discordUsername),
                 Message = EventMessages.RecordedPost(activeBoss == null ? activeMessage : BossMessage(activeBoss), activeRecorder),
-                SaveLocalCopy = Value(saveLocalCopy),
+                SaveLocalCopy = true,
                 MaxUploadBytes = Math.Max(1, Math.Min(100, Value(uploadLimitMiB))) * 1048576L
             };
             Logger.LogInfo("[Discord] Starting background upload.");
             uploadSession = session;
+            uploadGallery = record;
             uploadDeath = activeDeath;
             Notice("Memory Captured", false, false);
             uploadCancellation = CancellationTokenSource.CreateLinkedTokenSource(shutdown.Token);
@@ -873,6 +938,7 @@ namespace ValheimMoments
             var item = new QueuedPerspective {
                 Offer = new HighlightOffer(file.Id, file.EventId, file.Kind, peer, EpicLootAdapter.Plain(recorder, 80), file.Size, file.PersonalFirst),
                 Message = file.Message, Keep = true, Transfer = transfer, Complete = complete, Release = file.Dispose,
+                Receipt = result => { if (result.Success) relay.PublishReceipt(file.Id, result.MessageLink); },
                 Eligible = () => Value(directorEnabled) && ReferenceEquals(origin, ZNet.instance) && connected() && CanRelay(file.Kind)
             };
             return highlightQueue.Offer(origin, item, clock.Elapsed.TotalSeconds) == HighlightAdmission.Accepted;
@@ -880,18 +946,20 @@ namespace ValheimMoments
 
         private void QueueHostClip(string file)
         {
-            if (localInspection != null) { FinishMoment(activeDeath, activeSession, false, "Queue busy - memory kept locally"); return; }
+            var record = activeGallery;
+            if (localInspection != null) { gallery.Complete(record, "Failed"); FinishMoment(activeDeath, activeSession, false, "Queue busy - memory kept locally"); return; }
             var origin = activeSession; var ticket = activeDeath; string kind = activeKind;
-            string eventId = activeBoss?.EventId, recorder = EpicLootAdapter.Plain(activeRecorder, 80);
-            bool first = activeBoss?.FirstKill == true, keep = Value(saveLocalCopy);
+            string eventId = activeBoss?.EventId ?? activeEventId, recorder = EpicLootAdapter.Plain(activeRecorder, 80);
+            bool first = activeBoss?.FirstKill == true, keep = true;
             string message = EventMessages.FormatPost(activeBoss == null ? activeMessage : BossMessage(activeBoss));
             localInspected = bytes => {
                 var item = new QueuedPerspective {
                     Offer = new HighlightOffer(Guid.NewGuid().ToString("N"), eventId, kind, long.MinValue, recorder, bytes, first),
                     File = file, Keep = keep, Message = message,
                     Eligible = () => Value(directorEnabled) && DiscordRouting.CanSubmit(origin, true, ZNet.instance, ZNet.instance != null && ZNet.instance.IsServer()) && CanRelay(kind),
-                    Complete = outcome => FinishMoment(ticket, origin, outcome == RelayOutcome.Uploaded,
-                        outcome == RelayOutcome.Uploaded ? "Memory Uploaded" : outcome == RelayOutcome.Unknown ? "Upload unconfirmed - check Discord" : "Perspective omitted - memory kept locally")
+                    Receipt = result => { if (result.Success) gallery.Complete(record, "Uploaded", result.MessageLink); },
+                    Complete = outcome => { gallery.Complete(record, outcome == RelayOutcome.Uploaded ? "Uploaded" : outcome == RelayOutcome.Unknown ? "Unknown" : "Omitted"); FinishMoment(ticket, origin, outcome == RelayOutcome.Uploaded,
+                        outcome == RelayOutcome.Uploaded ? "Memory Uploaded" : outcome == RelayOutcome.Unknown ? "Upload unconfirmed - check Discord" : "Perspective omitted - memory kept locally"); }
                 };
                 if (bytes == 0 || highlightQueue.Offer(origin, item, clock.Elapsed.TotalSeconds) != HighlightAdmission.Accepted) item.Complete(RelayOutcome.Omitted);
             };
@@ -1090,8 +1158,9 @@ namespace ValheimMoments
                 if (result != RaidMomentResult.Started) return;
                 raidMedia = new RaidMedia(Path.Combine(Path.GetDirectoryName(outputDirectory), "RaidTemp"));
                 raidPlayer = Player.m_localPlayer; raidSession = ZNet.instance; raidRecorder = raidPlayer.GetPlayerName();
+                raidOccurrence = occurrence; raidEventId = RaidIdentity.For(occurrence); raidKeep = false;
                 raidEnding = raidComposing = false;
-                raidCollecting = history.TryTriggerSegment(now, 4);
+                raidCollecting = history.TryTriggerSegment(now, Value(raidOpening));
                 if (!raidCollecting) CancelRaid();
                 else Notice("Recording raid opening", true, true);
             }
@@ -1102,7 +1171,7 @@ namespace ValheimMoments
                 if (result != RaidMomentResult.Ended) return;
                 if (raidMedia == null || raidWorker != null || history.IsBusy || !eligible || !File.Exists(raidMedia.Opening))
                 { CancelRaid(); return; }
-                raidEnding = true; raidCollecting = history.TryTriggerSegment(now, 6);
+                raidEnding = true; raidCollecting = history.TryTriggerSegment(now, Value(raidEndingSeconds));
                 if (!raidCollecting) CancelRaid();
                 else Notice("Recording raid ending", true, true);
             }
@@ -1114,10 +1183,19 @@ namespace ValheimMoments
             if (media == null) { clip.Release(); raidClip = null; return; }
             string path = raidEnding ? media.Ending : media.Opening;
             string helper = encoderPath; int w = width, h = height, q = quality; bool flipImage = Value(flip);
-            raidWorker = media.Start(token => EncoderClient.Encode(clip, helper, path, w, h, q, flipImage, token));
+            raidWorker = media.Start(token => {
+                raidPreview = MomentGallery.Preview(clip.GetPixels(0), w, h, flipImage);
+                return EncoderClient.Encode(clip, helper, path, w, h, q, flipImage, token);
+            });
         }
         private void UpdateRaid(double now, bool active)
         {
+            if (raidMedia != null && !raidEnding)
+            {
+                string id = RaidIdentity.For(raidOccurrence);
+                if (raidEventId != null && id != null && id != raidEventId) CancelRaid();
+                else if (id != null) raidEventId = id;
+            }
             if (raidMedia != null)
             {
                 bool valid = active && Value(raidsEnabled) && ReferenceEquals(raidSession, ZNet.instance) &&
@@ -1139,15 +1217,19 @@ namespace ValheimMoments
                 raidWorker = media.Start(token => EncoderClient.Compose(helper, media.Opening, media.Ending, media.Combined, q, token));
                 return;
             }
-            string destination = Path.Combine(outputDirectory, "raid-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff") + "-" + Guid.NewGuid().ToString("N") + ".webp");
+            activeGallery = gallery.Add("raid", "# Raid ended\nOpening and aftermath from this player's perspective.", raidRecorder, raidSession, raidSession.IsServer(), raidKeep || Value(saveLocalCopy));
+            string destination = gallery.PathFor(activeGallery);
             try
             {
+                if (raidPreview != null) { try { gallery.WritePreview(activeGallery, raidPreview); } catch { } }
                 File.Move(media.Combined, destination);
                 activeKind = "raid"; activeMessage = "# Raid ended\nOpening and aftermath from this player's perspective.";
                 activeRecorder = raidRecorder; activeSession = raidSession; activeAsHost = raidSession.IsServer();
+                activeEventId = raidEventId;
                 activeBoss = null; activeDeath = null; activeOutput = destination;
                 StartUpload(destination);
             }
+            catch { gallery.Complete(activeGallery, "Failed"); throw; }
             finally { CancelRaid(); }
         }
         private void CancelCloseCall()
@@ -1160,11 +1242,16 @@ namespace ValheimMoments
         {
             double threshold = Value(closeThreshold), recovery = Value(closeRecovery), hold = Value(closeHold), cooldown = Value(closeCooldown);
             if (closeCall == null || threshold != appliedCloseThreshold || recovery != appliedCloseRecovery ||
-                hold != appliedCloseHold || cooldown != appliedCloseCooldown || closePlayer != Player.m_localPlayer)
+                hold != appliedCloseHold || cooldown != appliedCloseCooldown || closePlayer != Player.m_localPlayer ||
+                closeTimeline.FollowUpSeconds != Value(closeFollow) || closeTimeline.SlowSourceSeconds != Value(closeSlowSource) ||
+                closeTimeline.SlowMilliseconds != (int)Math.Round(Value(closeSlowPlayback) * 1000) ||
+                closeTimeline.DurationMilliseconds != (int)Math.Round(Value(closePlayback) * 1000))
             {
                 CancelCloseCall(); closePlayer = Player.m_localPlayer;
                 appliedCloseThreshold = threshold; appliedCloseRecovery = recovery; appliedCloseHold = hold; appliedCloseCooldown = cooldown;
-                closeCall = new CloseCall(threshold / 100, recovery / 100, hold, cooldown);
+                closeCall = new CloseCall(threshold / 100, recovery / 100, hold, cooldown, Value(closeFollow));
+                closeTimeline = new CloseCallTimeline(Value(closeSlowSource), Value(closeFollow),
+                    (int)Math.Round(Value(closeSlowPlayback) * 1000), (int)Math.Round(Value(closePlayback) * 1000));
             }
             if (!active || !Value(closeEnabled) || closePlayer == null)
             { CancelCloseCall(); return; }
@@ -1183,7 +1270,7 @@ namespace ValheimMoments
             var result = closeCall.Damage(now, before, after, maximumBefore, maximumAfter, alive);
             if (result == CloseCallResult.Cancelled) { CancelCloseCall(); return; }
             if (result != CloseCallResult.Started) return;
-            if (Trigger("closecall", "# Barely survived!\nSurvived 20 seconds after a critical hit.", close: true))
+            if (Trigger("closecall", "# Barely survived!\nSurvived " + closeTimeline.FollowUpSeconds + " seconds after a critical hit.", close: true))
             { closeCollecting = true; closeSurvived = false; }
             else closeCall.Cancel();
         }
@@ -1226,6 +1313,7 @@ namespace ValheimMoments
             pendingSession = ZNet.instance;
             pendingAsHost = pendingSession != null && pendingSession.IsServer();
             pendingKind = kind; pendingMessage = message;
+            pendingKeep = false;
             pendingRecorder = Player.m_localPlayer != null ? Player.m_localPlayer.GetPlayerName() : null;
             Logger.LogInfo("[Capture] " + kind + " event triggered; buffered frames: " + history.BufferedFrames);
             Notice("Recording Memory", true, true);
@@ -1262,14 +1350,101 @@ namespace ValheimMoments
         }
         private void OnGUI()
         {
-            if (!initialized || stopped || !Value(notificationsEnabled)) return;
-            try { notifications.Draw(clock.Elapsed.TotalSeconds); } catch { }
+            if (!initialized || stopped) return;
+            try
+            {
+                if (Value(notificationsEnabled)) notifications.Draw(clock.Elapsed.TotalSeconds);
+                if (galleryOpen) DrawGallery();
+            }
+            catch { }
+        }
+        private void KeepLatestMoment()
+        {
+            if (raidMedia != null && (raidCollecting || raidWorker != null || history?.IsBusy != true))
+            { raidKeep = true; Notice("This raid memory will be kept if completed", false, true); return; }
+            if (history != null && history.IsBusy && encoding == null && raidWorker == null)
+            { pendingKeep = true; Notice("This memory will be kept", false, true); return; }
+            var entries = gallery?.Snapshot();
+            bool kept = entries != null && entries.Length > 0 && gallery.Pin(entries[0].Id);
+            Notice(kept ? "Memory kept" : "No local memory available", false, kept);
+        }
+        private void DrawGallery()
+        {
+            float w = Math.Min(820, Screen.width - 30), h = Math.Min(680, Screen.height - 30);
+            GUILayout.BeginArea(new Rect((Screen.width - w) / 2, (Screen.height - h) / 2, w, h), GUI.skin.box);
+            GUILayout.BeginHorizontal(); GUILayout.Label("VALHEIM MOMENTS — Your memories");
+            if (GUILayout.Button("Close (" + Value(galleryKey) + ")", GUILayout.Width(130))) { galleryOpen = false; ClearGalleryPreview(); }
+            GUILayout.EndHorizontal();
+            GUILayout.Label("Keep: " + Value(keepKey) + " • Uploaded originals expire after 30 seconds unless kept. Retries: at most 3, in the original session.");
+            if (gallery.Error != null) GUILayout.Label(gallery.Error);
+            if (galleryPreview != null) GUILayout.Label(galleryPreview, GUILayout.Width(256), GUILayout.Height(144));
+            galleryScroll = GUILayout.BeginScrollView(galleryScroll);
+            foreach (var e in gallery.Snapshot())
+            {
+                GUILayout.BeginVertical(GUI.skin.box);
+                GUILayout.Label(e.Kind.ToUpperInvariant() + " • " + e.Created.ToLocalTime().ToString("g") + " • " + e.Recorder);
+                GUILayout.Label(e.Status + (e.Busy ? " (working)" : "") + " • " + (e.Pinned ? "Kept permanently" : "Temporary") + " • " + (e.Bytes / 1048576.0).ToString("F2") + " MiB");
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Thumbnail") && previewLoad == null)
+                {
+                    string path = gallery.PreviewPath(e.Id);
+                    previewLoad = Task.Run(() => File.Exists(path) && new FileInfo(path).Length == 256 * 144 * 4 ? File.ReadAllBytes(path) : null);
+                }
+                bool available = e.Bytes > 0;
+                GUI.enabled = !e.Pinned && (available || e.Busy);
+                if (GUILayout.Button("Keep this moment")) gallery.Pin(e.Id);
+                GUI.enabled = available && !e.Busy;
+                if (GUILayout.Button("Open local animation")) OpenGalleryFile(gallery.PathFor(e));
+                GUI.enabled = MomentGallery.ValidLink(e.Link);
+                if (GUILayout.Button("Open Discord message")) Application.OpenURL(e.Link);
+                GUI.enabled = available && !e.Busy && e.Attempts < 3 && ReferenceEquals(e.Origin, ZNet.instance) && e.Origin != null &&
+                    (e.Status == "Failed" || e.Status == "Unknown" || e.Status == "Omitted") && DateTime.UtcNow >= e.Completed.AddSeconds(30 * Math.Pow(2, e.Attempts));
+                if (GUILayout.Button("Retry (" + e.Attempts + "/3)"))
+                { if (e.Status == "Unknown") retryConfirmation = e.Id; else RetryGallery(e.Id, false); }
+                GUI.enabled = true; GUILayout.EndHorizontal();
+                if (!available && !e.Busy) GUILayout.Label("Local footage has expired or is unavailable.");
+                if (retryConfirmation == e.Id)
+                {
+                    GUILayout.Label("Discord may already have received this memory. Retrying can post a duplicate.");
+                    GUILayout.BeginHorizontal();
+                    if (GUILayout.Button("Retry anyway")) { RetryGallery(e.Id, true); retryConfirmation = null; }
+                    if (GUILayout.Button("Cancel")) retryConfirmation = null;
+                    GUILayout.EndHorizontal();
+                }
+                GUILayout.EndVertical();
+            }
+            GUILayout.EndScrollView(); GUILayout.EndArea();
+        }
+        private void OpenGalleryFile(string file)
+        {
+            try { Process.Start(new ProcessStartInfo(file) { UseShellExecute = true }); }
+            catch { Notice("No application available to open WebP", false, false); }
+        }
+        private void ClearGalleryPreview() { if (galleryPreview != null) Destroy(galleryPreview); galleryPreview = null; }
+        private void RetryGallery(string id, bool confirmed)
+        {
+            if (!hostSettings.Ready || !Value(discordEnabled) || encoding != null || raidWorker != null || history?.IsBusy == true ||
+                upload != null || localInspection != null || highlightQueue?.Busy == true)
+            { Notice("Retry unavailable while capture or delivery is busy", false, false); return; }
+            var session = ZNet.instance;
+            var e = gallery.BeginRetry(id, session, session != null && session.IsServer(), confirmed);
+            if (e == null) { Notice("Retry unavailable or still cooling down", false, false); return; }
+            activeGallery = e; activeKind = e.Kind; activeMessage = e.Caption; activeRecorder = e.Recorder;
+            activeSession = session; activeAsHost = e.AsHost; activeBoss = null; activeDeath = null;
+            var deathTicket = e.Acknowledgement as DeathMoments.Ticket;
+            if (deathMoments.Reopen(deathTicket)) activeDeath = deathTicket;
+            activeEventId = null;
+            activeOutput = gallery.PathFor(e);
+            try { StartUpload(activeOutput); } catch { gallery.Complete(e, "Failed"); FinishMoment(activeDeath, activeSession, false, "Retry failed"); }
         }
         private void StopCapture()
         {
             if (stopped) return;
             stopped = true;
+            galleryOpen = false; ClearGalleryPreview(); gallery?.Flush();
+            GalleryInput.Open = null; galleryHarmony?.UnpatchSelf();
             CancelRaid(); RaidDetector.OnTransition = null; raidHarmony?.UnpatchSelf();
+            raidIdentityHarmony?.UnpatchSelf(); RaidIdentity.Clear();
             CancelCloseCall(); LocalDamageDetector.OnDamage = null; closeHarmony?.UnpatchSelf();
             notifications.Dispose(); deathMoments.Clear(); deathOffers.Clear();
             DiscoveryDetector.OnObserved = null; DiscoveryDetector.OnError = null; DiscoveryDetector.Clear();

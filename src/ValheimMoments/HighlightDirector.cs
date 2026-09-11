@@ -84,7 +84,7 @@ namespace ValheimMoments
             if (offer.Bytes > perFileBytes || offer.Bytes > perPostBytes) return HighlightAdmission.Oversized;
             // Only creature-death categories currently carry shared owner identity.
             // Personal/manual discoveries and missing metadata cannot merge by coincidence.
-            bool shared = offer.EventId != null && (offer.Kind == "boss" || offer.Kind == "special" || offer.Kind == "loot");
+            bool shared = offer.EventId != null && (offer.Kind == "boss" || offer.Kind == "special" || offer.Kind == "loot" || offer.Kind == "raid");
             string key = offer.Kind + ":" + (shared ? "event:" + offer.EventId : "clip:" + offer.PeerId + ":" + offer.ClipId);
             if (recent.Exists(item => item.Key == key)) return HighlightAdmission.Closed;
             var group = groups.Find(item => item.Key == key);

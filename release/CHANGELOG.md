@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.18.0
+
+- Personal gallery (F8), Keep this moment (F7), lazy thumbnails, local animation opening, and verified Discord message links where available. Both hotkeys are player configurable.
+- Central clip ownership protects active encodes/uploads from cleanup. Kept originals move to Gallery/Saved; unpinned confirmed uploads expire after a 30-second Keep grace. Bounded Gallery/Recovery defaults to 20 clips, 250 MiB and 24 hours; history defaults to 200 entries.
+- Deliberate retries are limited to three with backoff and the original session/host role. Unknown delivery requires a duplicate-post confirmation. No webhook secrets are persisted in gallery history.
+- Host-configurable close-call source/playback timing and raid opening/ending durations, with matching survival checks and memory fitting.
+- Authenticated host raid occurrence IDs allow compatible participant perspectives to share director posts. Unmatched identity stays personal. Raid ended still does not claim victory.
+- Restart cleanup removes only recognized old transient relay/raid files, preserving unrelated files and permanent Saved originals.
+- Final in-game gallery, timeline, raid grouping, dedicated-host and sustained performance acceptance remains pending. No automatic installation or Thunderstore submission.
+
 ## 0.17.0
 
 - Personal raid moments capture a four-second opening and six-second ending, combined through the default host Discord route. Host-owned Raids.Enabled defaults true.

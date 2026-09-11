@@ -1,11 +1,15 @@
 # Valheim Moments
 
+**0.18 adds the personal gallery:** F8 opens history, F7 keeps a memory, and thumbnails remain after temporary footage expires. Successful unpinned uploads get a 30-second Keep grace. Recovery defaults to 20 clips / 250 MiB / 24 hours; kept originals are permanent. Retry is limited to three attempts in the original session, with backoff and explicit duplicate confirmation for unknown delivery. Both keys and recovery limits are player controlled.
+
+Raid opening/ending and close-call source/playback durations are now host configurable. Exact host-issued raid identities support grouped participant perspectives; missing identity stays personal. Live gallery interaction, raid grouping, customized timelines and sustained performance still require the final gameplay pass.
+
 ![Valheim Moments icon](release/icon.png)
 
 Animated gameplay highlights for Valheim: manual captures, player deaths, boss kills
 and great loot, plus first discoveries and selected special enemies, with optional Epic Loot details and host-controlled Discord delivery.
 
-**Windows x64 beta - version 0.17.0.** Manual capture, deaths, boss/loot clips,
+**Windows x64 beta - version 0.18.0.** Manual capture, deaths, boss/loot clips,
 Epic Loot details, natural-loot acquisitions and host/client F10 delivery have passed
 user testing in earlier versions. This milestone connects the multiplayer director: compatible creature-death recordings can share one Discord post with up to three labeled perspectives. First discoveries and configurable special enemies from 0.14 are included. Settings/sizing, notifications and death-rate improvements from 0.12/0.13 are included. New exploration hooks, visual/audio paths and live co-op behavior remain to be verified.
 
@@ -18,7 +22,7 @@ performance testing remain on the documented acceptance checklists.
 
 0.17 adds personal raid clips: a four-second opening and six-second aftermath, delivered together as “Raid ended.” Leaving, dying, policy loss or capture reconfiguration abandons the attempt. Live raid acceptance remains pending.
 
-See the [development plan](docs/DEVELOPMENT-PLAN.md) for director refinements and the gallery.
+See the [development plan](docs/DEVELOPMENT-PLAN.md) for implementation history and acceptance gates.
 
 ## Build from source
 
@@ -36,7 +40,7 @@ the helper requires .NET Framework 4.8. No game or BepInEx assemblies are includ
 ```
 
 The first command restores pinned NuGet packages and builds/tests a local package.
-The second validates and creates `artifacts/Valheim_Moments-0.17.0.zip`, including
+The second validates and creates `artifacts/Valheim_Moments-0.18.0.zip`, including
 manifest, README, changelog, icon, plugin, encoder and license notices. It does not
 publish anything. Do not reupload changed contents under an already published version.
 

@@ -1,6 +1,6 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.17.0. Launch once to generate
+Applies to Valheim Moments 0.18.0. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
 Restart after editing the file. Configuration Manager edits apply in game; buffer
 changes wait for active GPU/encoder work. Defaults describe a new installation; upgrades preserve
@@ -10,16 +10,31 @@ existing settings. Never share a config containing webhook URLs.
 
 The host controls every setting except: Capture.Enabled, ManualCaptureKey,
 ToggleCaptureKey, Width, Height, FPS, WebPQuality, MemoryBudgetMiB, FlipVertically;
-Capture.SizePreset and Capture.SaveLocalCopy; all Notifications settings; and Debug.LogCaptureTiming.
+Capture.SizePreset and Capture.SaveLocalCopy; all Notifications and Gallery settings; and Debug.LogCaptureTiming.
 These personal controls remain editable on clients. All other settings are read-only
 while connected. Private Discord settings are hidden from joining players' UI.
 
 Host event rules apply in memory without replacing clients' saved settings. Returning
 to single-player restores their own preferences and editing access. Host and clients
-need matching 0.17.0 versions: client capture waits for host settings and
+need matching 0.18.0 versions: client capture waits for host settings and
 pauses if updates stop for ten seconds. No webhook URL or Discord Username is synced.
 
-## Director
+## Gallery (player controlled)
+
+| Key | Default | Behavior |
+| --- | --- | --- |
+| GalleryKey | F8 | Toggle the personal gallery. |
+| KeepMomentKey | F7 | Keep the collecting/encoding or latest available memory. |
+| RecoveryClips | 20 | Completed temporary clips, 1-100; active work and 30-second Keep grace excluded. |
+| RecoveryMiB | 250 | Temporary budget, 10-1024 MiB; permanent Saved clips excluded. |
+| RecoveryHours | 24 | Temporary expiry, 1-168 hours. |
+| IndexEntries | 200 | History entries, 20-1000; evicting history never deletes a saved original. |
+
+Gallery/Recovery contains temporary originals; Gallery/Saved contains permanent kept originals. Successful unpinned uploads expire after 30 seconds. Failed/omitted/unknown deliveries use recovery quotas. The old Clips folder is preserved; existing historical clips are not automatically imported or deleted. Thumbnails remain with bounded gallery history and load on demand. Open local animation uses your Windows WebP application only while footage exists. Discord message links appear when the verified response supplies a guild/message identity; no expiring attachment links are saved.
+
+Retries are deliberate, never automatic: maximum three, with 30/60/120-second backoff. Unknown delivery requires a duplicate-post confirmation. Original session and host/client role must still match; restarting or switching worlds disables retry for old records. Discord routes and usernames remain host controlled and are never stored in gallery metadata. Correct destination/authentication/size errors before retrying. Keep works while an encoder/upload owns the original; permanent moves wait for completion. Disk failures are shown in the gallery.
+
+## Director delivery
 
 Host-owned multiplayer collection is enabled by default. A confirmed creature-death occurrence ID groups boss, special-enemy and kill-loot perspectives. Manual, death, discovery and missing-ID clips remain individual and skip the collection delay, although a busy transfer/upload queue can still delay them. The host's own perspective is selected first when available, then connected peers in stable connection order; this is not visual-quality scoring. The primary selected perspective supplies the shared caption/loot summary; individual recorder names and first-kill status are listed separately.
 
@@ -32,7 +47,7 @@ Host-owned multiplayer collection is enabled by default. A confirmed creature-de
 
 Offers reserve at most 60 MiB across 16 queued perspectives before remote footage is transferred. At most one client transfer and one grouped upload run at a time. The per-file guard is the lower of Discord.MaxUploadMiB and 10 MiB while the director is enabled, including the host's own clip. Larger clips are omitted and retained; automatic re-encoding/tier detection are not implemented. The queue expires offers after 20 minutes and uses bounded wait heartbeats. Completed-event deduplication covers the latest 256 groups for up to 30 minutes within the same session.
 
-Only successfully included attachments receive Memory Uploaded and qualify for removal according to each player's SaveLocalCopy. Omitted/failed clips remain local. An uncertain confirmation says to check Discord before retrying. Cancellation preserves a host temporary file until any HTTP reader finishes; crash/access-failure orphan cleanup remains pending. Matching 0.17.0 host and client versions are required.
+Only successfully included attachments receive Memory Uploaded and qualify for removal according to each player's SaveLocalCopy. Omitted/failed clips remain local. An uncertain confirmation says to check Discord before retrying. Cancellation preserves a host temporary file until any HTTP reader finishes; crash/access-failure orphan cleanup remains pending. Matching 0.18.0 host and client versions are required.
 
 ## Capture
 
@@ -50,7 +65,7 @@ cannot submit through a different session.
 | Enabled | true | Enable recording; F9 temporarily pauses/resumes it. |
 | ManualCaptureKey | F10 | Manual capture key; also requires Triggers.ManualCapture. |
 | ToggleCaptureKey | F9 | Pause/resume key. |
-| SaveLocalCopy | false | Player-owned local saving independent of Discord. Old Discord.SaveLocalCopy migrates here. Successful uploads delete originals when false; failed delivery retains a recovery copy. |
+| SaveLocalCopy | false | Player-owned local saving independent of Discord. Old Discord.SaveLocalCopy migrates here. Successful unpinned uploads delete originals after a 30-second grace; failed delivery uses bounded recovery. |
 | SizePreset | Small | Tiny, Small, Medium, Balanced, Large, Ultra, or Custom. Six aspect-aware pixel budgets; 16:9 equivalents below. Old Width/Height migrate to Custom. |
 | PreEventSeconds | 5 | Host-controlled history duration, 1–30 seconds. |
 | PostEventSeconds | 2 | Host-controlled duration for manual clips and deaths, 0–30 seconds. |
@@ -81,14 +96,14 @@ WebP size varies with motion, detail, duration, FPS, dimensions and quality; qua
 
 Discord's current API source lists a 20 MiB base attachment limit; server boosts can affect destination allowances. Personal Nitro is not a webhook entitlement. MaxUploadMiB is a host guard, not automatic tier detection. Client relay remains capped at 10 MiB in this milestone. See [Discord's API reference](https://github.com/discord/discord-api-docs/blob/main/developers/reference.mdx#uploading-files).
 
-With Discord disabled, SaveLocalCopy=true records locally; both false suppress new triggers. With Discord enabled, SaveLocalCopy selects whether successful uploads keep a local original. Invalid destinations retain recovery files; bounded expiry and a gallery are planned, not yet implemented.
+With Discord disabled, SaveLocalCopy=true records locally; both false suppress new triggers. With Discord enabled, SaveLocalCopy selects whether successful uploads keep a local original. Invalid destinations retain recovery files; bounded expiry and gallery controls apply as described above.
 
 ## Discord
 
 In single-player these settings belong to the local player. In multiplayer, the host
 owns delivery, destinations and the bot name. Joining players' local webhook,
 Enabled and Username cannot override the host. Both sides need the mod and
-matching 0.17.0 settings protocol for client delivery. Discord.Enabled automatically gates relay and upload.
+matching 0.18.0 settings protocol for client delivery. Discord.Enabled automatically gates relay and upload.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -306,13 +321,19 @@ Event, encoder, upload and attribution diagnostics also use the BepInEx log.
 | RecoveryPercent | 20 | Must regain 16-100% health before rearming. |
 | RecoverySeconds | 10 | Hold recovery continuously for 1-120 seconds. |
 | CooldownSeconds | 120 | Minimum 0-3600 seconds between attempts; recovery is also required. |
+| FollowUpSeconds | 20 | Must survive 5-60 source seconds after the hit. |
+| SlowSourceSeconds | 1 | 0.5-3 source seconds ending at the hit; history expands if needed. |
+| SlowPlaybackSeconds | 3 | 1-5 playback seconds for the slow segment. |
+| PlaybackSeconds | 10 | 6-20 total playback seconds; the remaining time contains the sampled follow-up. |
 
-The timeline is currently fixed: one source second before the hit plays for three seconds; the next twenty source seconds play for seven. Death, pause, unavailable host policy, character/world change or capture reconfiguration cancels pending footage. Busy capture skips the attempt without later replay. Close calls reserve capacity for eight seconds of selected frames, which can reduce effective resolution/FPS under the existing memory budget. Other triggers wait while this clip collects; death cancels it first. No game timescale changes or interpolated slow-motion frames. Follow-up/playback duration settings remain planned.
+Defaults stretch one source second to three playback seconds, then sample twenty source seconds into seven playback seconds. The settings above customize this with independent safe ranges: slow playback is always shorter than total playback. Capture history expands for the slow source and memory fitting reserves the selected output frame budget. Death, pause, policy loss, character/world change or reconfiguration cancels pending footage. Recovery plus cooldown is still required after cancellation. No game timescale changes or generated frames.
 
 ## Raids (host controlled)
 
 | Key | Default | Behavior |
 | --- | --- | --- |
 | Enabled | true | Four-second opening plus six-second ending; personal default-route clip labeled Raid ended. |
+| OpeningSeconds | 4 | 1-10 seconds after local entry. |
+| EndingSeconds | 6 | 1-10 seconds after observed end. Total duration is the sum of both segments. |
 
-The timeline is fixed for this release. Leaving, death, pause, host-policy loss, character/session change or capture reconfiguration abandons the attempt. An opening expires after thirty minutes. Busy or missing segments skip delivery. Normal capture resumes after opening encoding; death can replace a collecting segment but cannot immediately reuse raw frames still owned by an encoder. Enablement reserves a six-second maximum post window in the normal memory fitting. Composition uses a second lossy encoding pass. Intermediate files are removed after workers finish on normal cancellation; process-crash restart cleanup remains pending. Raid perspectives are not grouped across players.
+Opening and ending durations are configurable. Leaving, death, pause, host-policy loss, character/session change or capture reconfiguration abandons the attempt. An opening expires after thirty minutes. Busy or missing segments skip delivery. Normal capture resumes after opening encoding; death can replace a collecting segment but cannot immediately reuse raw frames still owned by an encoder. Memory fitting reserves both the longest segment and the combined raw-equivalent composition budget. Composition uses a second lossy encoding pass. Intermediate files are removed after workers finish on normal cancellation; restart cleanup removes recognized transient files older than 24 hours. Host-issued occurrence IDs allow participant perspectives to share director posts; missing or unmatched identity remains personal.

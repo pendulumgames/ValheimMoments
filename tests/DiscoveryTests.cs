@@ -9,7 +9,7 @@ using ValheimMoments;
 
 namespace UnityEngine
 {
-    public struct Vector3 { public float x; public static float Distance(Vector3 a, Vector3 b) { return Math.Abs(a.x - b.x); } }
+    public struct Vector3 { public float x, y, z; public static float Distance(Vector3 a, Vector3 b) { return Math.Abs(a.x - b.x); } }
     public class Transform { public Vector3 position; }
     public partial class Component { public Transform transform = new Transform(); }
     public static class Mathf { public static float Clamp(float value, float min, float max) { return Math.Max(min, Math.Min(max, value)); } }

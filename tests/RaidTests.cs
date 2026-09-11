@@ -5,12 +5,14 @@ using HarmonyLib;
 using ValheimMoments;
 using ValheimMoments.Core;
 
-public class RandomEvent { public string Name; }
+public class RandomEvent { public string Name, m_name = "raid"; public float m_time; public UnityEngine.Vector3 m_pos; }
 public class RandEventSystem
 {
     public RandomEvent Current, Active;
     public RandomEvent GetCurrentRandomEvent() { return Current; }
     public RandomEvent GetActiveEvent() { return Active; }
+    [MethodImpl(MethodImplOptions.NoInlining)] public void SendCurrentRandomEvent() { }
+    [MethodImpl(MethodImplOptions.NoInlining)] public void RPC_SetEvent() { }
     [MethodImpl(MethodImplOptions.NoInlining)] public void SetActiveEvent(RandomEvent value, bool end)
     {
         // Inspected vanilla behavior: same-name active replacement returns early.

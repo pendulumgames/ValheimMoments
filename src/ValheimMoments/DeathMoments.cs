@@ -23,15 +23,17 @@ namespace ValheimMoments
         internal sealed class Ticket
         {
             internal long Number, Additional;
+            internal int Epoch;
         }
         private long observed, shared;
         private Ticket pending;
+        private int epoch;
         private readonly MomentRateLimit quota = new MomentRateLimit();
         internal void Observe() { if (observed < long.MaxValue) observed++; }
         internal Ticket Reserve()
         {
             if (pending != null || observed <= shared) return null;
-            pending = new Ticket { Number = observed, Additional = Math.Max(0, observed - shared - 1) };
+            pending = new Ticket { Number = observed, Additional = Math.Max(0, observed - shared - 1), Epoch = epoch };
             return pending;
         }
         internal bool TakeSlot(double now, int maximum, double window) { return quota.TryTake(now, maximum, window); }
@@ -41,7 +43,12 @@ namespace ValheimMoments
             if (delivered) shared = Math.Max(shared, ticket.Number);
             pending = null;
         }
-        internal void Clear() { observed = shared = 0; pending = null; quota.Clear(); }
+        internal bool Reopen(Ticket ticket)
+        {
+            if (ticket == null || pending != null || ticket.Epoch != epoch || ticket.Number <= shared || ticket.Number > observed) return false;
+            pending = ticket; return true;
+        }
+        internal void Clear() { observed = shared = 0; pending = null; quota.Clear(); epoch++; }
     }
 
     internal sealed class DeathFlavor

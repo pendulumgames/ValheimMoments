@@ -95,6 +95,20 @@ internal static class CloseCallTests
         segments.CancelPending();
         Check(segments.TryTrigger(7), "Death can replace pending segment");
         segments.CancelPending(); segments.ClearHistory();
+        foreach (double source in new[] { .5, 3.0 }) foreach (double follow in new[] { 5.0, 60.0 })
+        {
+            var custom = new CloseCallTimeline(source, follow, 1000, 20000);
+            var customBuffer = new CaptureBuffer(1, 1, 30, 5, 20, 20000);
+            for (int i = 0; i < 300; i++) customBuffer.AddFrame(pixel, i / 30.0);
+            Check(customBuffer.TryTriggerCloseCall(10, custom, 30), "Custom extreme timeline fits reserved frames");
+            for (int i = 300; i < (10 + follow) * 30; i++) customBuffer.AddFrame(pixel, i / 30.0);
+            var customClip = customBuffer.TryComplete(10 + follow);
+            Check(customClip != null && customClip.EndTime == 30 && customClip.GetTimestamp(0) == 10, "Custom exact total playback");
+            customClip.Release(); customBuffer.ClearHistory();
+            var customCall = new CloseCall(followUpSeconds: follow);
+            customCall.Damage(0, 10, 4, 100, 100, true);
+            Check(customCall.Observe(follow - .001, 4, 100, true) == CloseCallResult.None && customCall.Observe(follow, 4, 100, true) == CloseCallResult.Survived, "Custom follow-up survival boundary");
+        }
         Console.WriteLine("Close-call policy/timeline: " + checks + " assertions passed.");
     }
 }
