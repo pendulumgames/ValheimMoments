@@ -34,7 +34,7 @@ public class HitData
     public Character Attacker;
     public Character GetAttacker() { return Attacker; }
 }
-public class Player : Humanoid
+public partial class Player : Humanoid
 {
     public static Player m_localPlayer;
     public bool Dead;
@@ -57,6 +57,7 @@ internal static class DeathTests
         HostSettingsTests.Run();
         DeathMomentTests.Run();
         WorldLootTests.Run();
+        DiscoveryTests.Run();
         var harmony = new Harmony("valheimmoments.tests");
         int events = 0;
         int errors = 0;

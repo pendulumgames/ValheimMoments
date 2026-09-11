@@ -11,6 +11,7 @@ namespace ValheimMoments
         internal int BossNumber;
         internal bool FirstKill;
         internal bool Acquired;
+        internal bool Special;
         internal BossLoot Loot;
     }
 

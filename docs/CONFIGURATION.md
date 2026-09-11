@@ -1,6 +1,6 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.13.0. Launch once to generate
+Applies to Valheim Moments 0.14.0. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
 Restart after editing the file. Configuration Manager edits apply in game; buffer
 changes wait for active GPU/encoder work. Defaults describe a new installation; upgrades preserve
@@ -16,7 +16,7 @@ while connected. Private Discord settings are hidden from joining players' UI.
 
 Host event rules apply in memory without replacing clients' saved settings. Returning
 to single-player restores their own preferences and editing access. Host and clients
-need matching 0.13.0 versions: client capture waits for host settings and
+need matching 0.14.0 versions: client capture waits for host settings and
 pauses if updates stop for ten seconds. No webhook URL or Discord Username is synced.
 
 ## Capture
@@ -46,7 +46,7 @@ cannot submit through a different session.
 | MemoryBudgetMiB | 192 | Managed frame-pool budget, 48–512 MiB; excludes GPU and encoder memory. |
 | FlipVertically | false | Enable only if recordings appear upside down. |
 
-Bosses and ordinary loot use their own PostEventSeconds. Allocation uses the largest
+Bosses, ordinary loot, discoveries and special enemies use their own PostEventSeconds. Allocation uses the largest
 post-event duration, even if that trigger is disabled. History plus that duration
 must not exceed 60 seconds. The raw clip must fit 256 MiB and the whole frame pool
 must fit MemoryBudgetMiB. Numeric values are clamped in both UI and config file.
@@ -73,7 +73,7 @@ With Discord disabled, SaveLocalCopy=true records locally; both false suppress n
 In single-player these settings belong to the local player. In multiplayer, the host
 owns delivery, destinations and the bot name. Joining players' local webhook,
 Enabled and Username cannot override the host. Both sides need the mod and
-matching 0.13.0 settings protocol for client delivery. Discord.Enabled automatically gates relay and upload.
+matching 0.14.0 settings protocol for client delivery. Discord.Enabled automatically gates relay and upload.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -87,6 +87,7 @@ matching 0.13.0 settings protocol for client delivery. Discord.Enabled automatic
 | GoodLootWebhookURL | empty | Secret ordinary-loot destination. |
 | UsePlayerDeathWebhook | false | Enable separate death destination. |
 | PlayerDeathWebhookURL | empty | Secret death destination. |
+| DiscoveryWebhookURL | empty | Secret discovery destination. Blank uses WebhookURL; nonblank invalid URLs retain the clip instead of changing channels. No separate enable switch. |
 
 Disabled overrides use WebhookURL. An enabled override with a missing/invalid URL
 retains the clip locally instead of changing channels. Supported HTTPS Discord webhook
@@ -182,6 +183,40 @@ With filtering enabled and no first-kill bypass, missing qualifying data skips t
 clip at the metadata deadline. Epic Loot 0.14.2 provides Magic, Rare, Epic, Legendary,
 Mythic and Ancient; names/ranks are loaded from the adapter. Unknown names or
 unavailable Epic Loot cannot satisfy a named rarity threshold.
+
+## Discoveries
+
+All settings belong to the host. Physical exploration is observed on each recording client; a dedicated server has no personal discoveries or camera. These events use DiscoveryWebhookURL or the default route.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| Enabled | true | Capture first tracked discoveries per character per world. |
+| Biomes | true | Observe physical biome transitions, including raw alternate-biome identities. |
+| NamedLocations | true | Observe physical entry into a location with a game discovery label. Map-pin reveals do not count. |
+| Traders | true | Observe the local character entering an NPC trader's greeting range, bounded to 1-30 game units. |
+| PostEventSeconds | 3 | Recording time after a discovery group is accepted, 0-30 seconds. |
+| CooldownSeconds | 30 | Minimum seconds between accepted discovery captures, 0-3600. |
+| Message | 🧭 Discovered {discovery}! | Supports {discovery} (one or several names) and {player}; Recorded by appends at delivery. |
+
+Nearby discoveries group for 1.25 seconds, up to eight names. The ledger marks observations before capture eligibility: loading, warmup, disabled categories, pause, busy capture, cooldown and delivery failure do not replay discoveries. Warmup lasts at least five seconds or PreEventSeconds, whichever is longer. Existing character-wide exploration cannot reconstruct separate world histories; places visited before installation may qualify on their first tracked return outside warmup.
+
+History is stored locally in `ValheimMoments/State/Discoveries`, with numeric character/world filenames and atomic asynchronous saves. Preserve this folder across upgrades/profile moves. It is bounded to 256 discovery identities per context and 128 files; capacity or corrupt/unwritable history skips further affected discoveries instead of resetting them. It does not modify Valheim save data. Abrupt termination before a pending save completes can lose the most recent ledger update. Deleting this history resets tracking. Client histories are not a server anti-cheat mechanism.
+
+## Special Enemies
+
+All settings belong to the host. Special events use the default Discord route. No maintained enemy list or assumed miniboss flag is required.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| Enabled | true | Capture explicitly selected ordinary-enemy kill credits; empty EnemyKeys selects none. |
+| EnemyKeys | empty | Exact case-sensitive confirmed kill-credit/stat keys, comma/semicolon/newline separated. At most 64 keys, 128 characters each, 4096 total. No wildcards or prefab-name matching. |
+| FirstKillOnly | false | Require the character's first saved kill of that enemy across all worlds. Independent of the per-world discovery ledger. |
+| PostEventSeconds | 4 | Seconds after the credited kill, 0-30. Uses ordinary-loot display settings and metadata wait. |
+| CooldownSeconds | 60 | Seconds between accepted captures of the same key, 0-3600. Resets on session or selection changes. |
+| Message | ⚔ {enemy} defeated! | Supports {enemy}, {player}, {loot}, {item_count}; confirmed recording-character credit appends. |
+| LogEnemyKeys | false | Advanced diagnostic: log actual confirmed ordinary-enemy keys on recording clients. Copy the logged key into EnemyKeys; disable afterward. |
+
+Accepted special captures replace the ordinary loot capture for that credited death and bypass ordinary-loot rarity. When a special capture is ineligible, ordinary loot may still qualify normally. Normal bosses remain exclusive to Boss Kill rules. Special captions name the confirmed recording character; they do not claim a full attacker roster or final blow. Clients cannot override the host selection. Unknown identifiers simply do not match.
 
 ## Loot Capture
 

@@ -6,12 +6,12 @@ to qualify during testing; the shipped default is Legendary.
 
 ## Host setup
 
-For 0.13.0, install the matching build on host and recording clients. Older hosts do
+For 0.14.0, install the matching build on host and recording clients. Older hosts do
 not provide policy snapshots; newer clients wait rather than use their own event rules.
 
 Configure Discord.Enabled, WebhookURL and Username on the host. Optional Good Loot,
 Boss Kill and Player Death webhook overrides also belong to the host; disabled
-overrides use the default. Discord.Enabled controls host and client delivery. Capture.SaveLocalCopy is player-owned. Matching 0.13.0 settings protocol is required.
+overrides use the default. Discord.Enabled controls host and client delivery. Capture.SaveLocalCopy is player-owned. Matching 0.14.0 settings protocol is required.
 
 Clients never send a webhook URL or bot name. Their local Discord.Enabled, Username
 and webhook entries do not control relay delivery. The host syncs event,
@@ -61,7 +61,7 @@ No webhook is needed on the joining client. Do not share the host's secret confi
 5. Default captions should include a neutral cheeky line without immediate repeats; custom templates should retain their wording unless they contain {flavor}. Inspect the cause and recorded-by formatting.
 6. Settings/sizing checks from 0.12.0 remain pending if not already completed. Observe banner size/orientation, cue volume and whether the banner in footage is acceptable. No urgent test is needed during the current playing session.
 
-## Final boss-credit check - 0.13.0
+## Final boss-credit check - 0.14.0
 
 1. Both players contribute damage to a boss; keep a third non-attacking player nearby if available.
 2. With PlayerNameMode=Both, each successfully delivered clip should list both credited players, exclude the spectator, identify its own recorder, and show the separate final blow.
@@ -167,3 +167,18 @@ and the clips looked correct. Version 0.9.1's host/solo Recorded by change also 
 the user's live check.
 Dedicated-server behavior, automatic co-op events and broader Steam/PlayFab coverage
 still need live testing.
+
+## Discovery and special-enemy milestone (0.14.0)
+
+These checks can wait for the next convenient test session. Install matching 0.14.0 on the host and recording clients with Valheim closed. Preserve the plugin's State folder. The test package includes the configuration reference.
+
+1. Join a world, wait for host policy and at least five seconds of history. Login itself should not generate discovery clips. Enter a biome not yet tracked in this character/world; expect one discovery with Recorded by. Nearby labeled location/trader discoveries may group into the same caption.
+2. Leave and revisit, then quit/reload and revisit again: no repeat. With the same character in a second world, test an untracked destination after warmup. With another character in the first world, confirm its independent history. Existing exploration before installation can count as first tracked; do not interpret it as a migration failure.
+3. Physically approach a trader; another player's distant greeting and a remotely revealed map pin must not count. Check a real named-location banner; unlabeled dungeons are not promised. Change language and revisit a known biome: identity should stay the same.
+4. Disable a discovery category, visit a new place, then enable and revisit: no replay. Repeat while paused or within cooldown. Busy/failed captures are remembered too. Try two nearby discoveries for grouped names and two well-separated ones after cooldown.
+5. Leave DiscoveryWebhookURL blank to use the main channel. Set a valid dedicated destination on the host and confirm discovery routing. Nonblank invalid URLs must retain recovery clips, not post to the main channel. Joining clients cannot view/change URLs or event policy.
+6. On the host, enable Special Enemies.LogEnemyKeys in Advanced. Kill a candidate and copy the logged confirmed identifier into EnemyKeys. Disable the diagnostic. Repeat after capture warmup: expect a special clip without a rarity requirement, the recording character's kill credit, observed loot and the main Discord destination.
+7. Test a second configured key, a nonmatching enemy, the cooldown boundary, and FirstKillOnly using a genuinely new character/enemy statistic. A normal boss still follows Boss Kill rules. An accepted special kill must not also schedule an ordinary kill-loot clip for that death. Spectators should not gain a confirmed credit.
+8. Repeat a discovery and special kill as a joining client, then with a Windows dedicated host when available. Existing relay limits/busy rules apply; separate perspectives are not grouped yet. Confirm final upload feedback and SaveLocalCopy cleanup only after host success.
+
+Automated tests cover persistence, world/character separation, loading switches, corrupt and full histories, configured matching/cooldowns, hook scoping, routing and host policy. These are not substitutes for the in-game checks above. Previously deferred size/UI/audio/death-rate and final boss-credit checks remain applicable.

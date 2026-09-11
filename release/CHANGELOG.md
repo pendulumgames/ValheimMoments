@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.0
+
+- First tracked biome, labeled-location and trader discoveries, once per character per world. Bounded local history uses atomic asynchronous saves; startup visits are silent and suppressed visits are remembered.
+- Host-owned discovery category switches, cooldown, post-event duration and message. DiscoveryWebhookURL falls back to the main route only when blank.
+- Configurable special-enemy captures using exact confirmed kill-credit keys, with a diagnostic key logger, first-kill option and per-enemy cooldown. Bosses remain exclusive; accepted special captures replace ordinary kill-loot captures and use the main route.
+- Added discovery persistence, Harmony observation, routing and host-policy checks. Updated installer to preserve State during explicit folder migration and let the plugin generate current config defaults.
+- Matching 0.14.0 host/client settings required. Preserve State/Discoveries across upgrades. Old per-world exploration cannot be reconstructed; live discovery/co-op acceptance remains pending.
+
 ## 0.13.0
 
 - Brief themed recording, saved, captured and uploaded feedback. Optional original quiet cue with player-owned mode/volume; no audio is added to WebP files.

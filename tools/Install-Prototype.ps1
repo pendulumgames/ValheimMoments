@@ -58,24 +58,14 @@ if ($PreviousConfigPath) {
 if ($PreviousPluginDirectory) {
     $clips = Join-Path $PreviousPluginDirectory 'Clips'
     if (Test-Path -LiteralPath $clips) { Copy-Item -LiteralPath $clips -Destination $destination -Recurse }
+    $state = Join-Path $PreviousPluginDirectory 'State'
+    if (Test-Path -LiteralPath $state) { Copy-Item -LiteralPath $state -Destination $destination -Recurse }
     # Both absolute paths were checked before any recursive move. Preserve the whole
     # previous install outside the active profile so two plugin identities cannot load.
     Move-Item -LiteralPath $PreviousPluginDirectory -Destination (Join-Path $migration 'PreviousPlugin')
 }
 if ($PreviousConfigPath) { Move-Item -LiteralPath $PreviousConfigPath -Destination (Join-Path $migration 'PreviousConfig.cfg') }
 if ($migration) { Write-Output 'Migration complete: settings and clips preserved; previous install archived outside the profile.' }
-if ((Test-Path -LiteralPath $configPath) -and -not (Select-String -LiteralPath $configPath -Pattern '^\[Discord\]' -Quiet)) {
-    @'
-
-[Discord]
-# Enter your webhook locally. Do not share this configuration file.
-Enabled = false
-WebhookURL =
-Username = Valheim Moments
-UploadClips = true
-SaveLocalCopy = false
-MaxUploadMiB = 10
-'@ | Add-Content -LiteralPath $configPath -Encoding UTF8
-    Write-Output 'Added disabled Discord configuration; enter the webhook locally to test.'
-}
+# The plugin binds/migrates missing settings at startup. Do not inject legacy keys
+# or different defaults into an existing configuration from the installer.
 Write-Output 'Launch this profile modded, wait five seconds in-game, then press F10.'

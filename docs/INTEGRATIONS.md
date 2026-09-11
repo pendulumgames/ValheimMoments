@@ -1,6 +1,6 @@
 # Integration and validation notes
 
-This describes 0.13.0, not a guarantee of compatibility with future versions.
+This describes 0.14.0, not a guarantee of compatibility with future versions.
 Observers do not intentionally change damage, kill credit, rolls or saved statistics.
 
 ## Harmony patch inventory
@@ -160,7 +160,7 @@ settings exchange. This governs ordinary clients, not modified-client footage cl
 The in-memory overlay preserves client config files. Configuration Manager metadata
 makes host rules read-only, renders effective values and hides client-private Discord
 settings while connected. The installed manager's Advanced/ReadOnly/CustomDrawer tags
-and BuildSettingList method were inspected directly. In 0.13.0 the tag class uses the required ConfigurationManagerAttributes name; the old differently named object was not recognized. Category/Order place local controls first and custom dimensions below the preset. No manager DLL is bundled or required.
+and BuildSettingList method were inspected directly. In 0.14.0 the tag class uses the required ConfigurationManagerAttributes name; the old differently named object was not recognized. Category/Order place local controls first and custom dimensions below the preset. No manager DLL is bundled or required.
 
 [CaptureLimits](../src/ValheimMoments.Core/CaptureLimits.cs) constrains dimensions,
 FPS, quality and aspect ratio. Six presets derive a pixel budget from screen aspect. Fitting preserves ratio while reducing dimensions, then FPS; extreme minimum-budget cases use a padded 480 x 270 fallback. Padded rendering requires live verification. This fits frame-pool/raw-clip
@@ -218,8 +218,20 @@ live 0.9.2 boss-kill test; fire/poison still need live verification. Mixed/unkno
 tracking, ownership gaps, or unsupported damage paths can leave final blow unavailable.
 No last-direct-hit guess is used.
 
-## Death quota and optional feedback (0.13.0)
+## Death quota and optional feedback (introduced 0.13.0)
 
 DeathMoments keeps a monotonically numbered, session-scoped death ledger and one pending delivery ticket. Success acknowledges only that ticket's snapshot; concurrent later deaths survive. Failure/cancellation releases the ticket without consuming counts. A sliding bounded quota limits capture attempts; the host also bounds accepted death offers per connected peer. The host does not authenticate client-reported death counts from footage.
 
 ClipRelay.Offer accepts a structured completion observer, invoked once after a matching final result or failure/reset. Transferring all bytes alone cannot emit success. Plugin routes feedback only to the recorder's current session. MomentNotifications uses a single expiring IMGUI banner and lazily generated original 160ms PCM cue; it runs only with graphical capture initialized. Its AudioModule/TextRenderingModule references are game-provided, not bundled. Banners can be captured; WebP audio is unchanged (none).
+
+## Discoveries and special enemies (0.14.0)
+
+Installed assembly inspection is reproducible with `tools/Inspect-Discoveries.ps1 -GamePath ... -ProfilePath ...`. Player.UpdateBiome calls AddKnownBiome on biome-sector changes and AddKnownLocationName for physically occupied locations with m_discoverLabel. Their bodies deduplicate against character-wide known biomes/tutorials, but the calls still occur on revisits. The observer scopes the postfixes to UpdateBiome with a Harmony prefix/finalizer, excludes remote players and does not hook save restoration or remote map reveals.
+
+BiomeSector.GetName(false) still calls Localization.Localize. Persistent identity therefore uses the numeric biome and sorted, length-prefixed raw AltBiome.m_name identifiers; translated display text is separate. Location identity uses the raw discovery label. Trader.Update may greet the nearest player, so its global m_didGreet flag cannot establish local discovery. A weak per-trader tracker checks the actual local character's distance every 0.5 seconds and observes greeting-range entry. Minimap pins and Game.DiscoverClosestLocation RPCs are deliberately excluded because they can expose distant or other-player locations.
+
+DiscoveryHistory uses nonzero Player.GetPlayerID() and the instance ZNet.GetWorldUID(). Each numeric character/world filename contains a versioned bounded UTF-8 journal: 256 keys, 192 characters per key, 128-file context guard. Atomic snapshot saves run off-thread, with one I/O operation at a time and a bounded set of silent observations during load. Corrupt, unsupported, full or unwritable contexts fail closed. Warmup remembers initial observations without capture. Existing global history cannot establish old per-world visits; only tracked visits are guaranteed. Shutdown schedules a final snapshot; abrupt process termination can lose the last pending write. Preserve the State directory when updating.
+
+SpecialEnemies shares the inspected Game.RPC_RegisterKill before/after saved-stat check. The RPC provides an enemy stat/name key, not the prefab instance; matching exact stat keys avoids guessing from translated names or assuming a universal miniboss flag. The host config accepts at most 64 exact keys and exposes an Advanced logger for discovering them. A normal boss never enters this category. Successful special capture replaces ordinary kill-loot scheduling for that credit and uses the existing loot snapshot/display machinery. FirstKillOnly means the character-wide saved enemy statistic; cooldown is per configured key and resets with the session/selection. No damage, loot generation or kill credit is changed.
+
+The relay admits discovery and special event kinds. Host category enablement remains authoritative, discovery URLs are never synced, and blank discovery destination alone selects the main route. Special enemies use the main route. Existing single-transfer and 10 MiB limits remain; encounter grouping is a later milestone. Behavioral Harmony tests verify hook scoping and local observation, while the production build separately verifies installed API compatibility. Actual exploration and headless client delivery remain live acceptance items.

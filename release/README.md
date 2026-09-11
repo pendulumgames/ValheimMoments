@@ -6,11 +6,11 @@ Save the moments worth sharing: boss victories, rare drops, unfortunate deaths,
 and anything you catch with a hotkey. Valheim Moments turns recent gameplay into
 animated WebP clips and can send them to Discord.
 
-**Windows x64 beta - 0.13.0.** Manual capture, deaths, boss summaries, Epic Loot,
+**Windows x64 beta - 0.14.0.** Manual capture, deaths, boss summaries, Epic Loot,
 ordinary loot and natural acquisitions have passed user testing. Host and joining-player
 F10 clips have reached Discord, and the WebP clips were confirmed visually.
 
-This release adds themed capture/save/upload notifications, an optional quiet local cue, configurable death-rate limiting, and 20 cheeky death lines. Suppressed or unshared deaths are summarized on the next eligible death post. Settings/sizing improvements from 0.12.0 are included. Install **0.13.0 on the host and every recording client**. Automated checks cover the new rules and acknowledgements; visual/audio and live co-op acceptance remain pending.
+This release adds first tracked discoveries per character per world and configurable special-enemy captures. Settings, sizing, notifications and death-rate improvements from 0.12/0.13 are included. Install **0.14.0 on the host and every recording client**. Automated checks cover persistence, rules and hook behavior; in-game exploration, visual/audio and live co-op acceptance remain pending.
 
 ## Features
 
@@ -18,11 +18,23 @@ This release adds themed capture/save/upload notifications, an optional quiet lo
 * Automatic player-death clips with cause, configurable rate limit, intervening-death summary and optional cheeky captions.
 * Brief Recording Memory / Memory Saved / Memory Uploaded feedback, with player-controlled quiet sound.
 * Boss clips with first-kill rules, all credited players, final-blow attribution and loot.
+* First tracked biome, labeled-location and trader discoveries per character per world.
+* Host-configured special-enemy clips with exact kill-credit keys and per-enemy cooldowns.
 * Optional Epic Loot rarity, modifiers, sockets and unidentified-item display.
 * Ordinary-enemy loot plus tracked natural chest/world pickups, using a shared minimum rarity.
 * Independent boss and ordinary-loot display options, with Markdown headings and bullets.
 * Host-owned Discord channel routing and bot name. Clients relay footage to the host.
 * Local WebP files remain available when delivery fails.
+
+## Discoveries and special enemies
+
+Discoveries default on. Physically entering a new biome, a location with a game discovery label, or a trader's greeting range can capture a moment. Nearby discoveries group briefly into one caption. The host can disable categories and set the cooldown; `Discord.DiscoveryWebhookURL` uses the main webhook when blank.
+
+History lives in `ValheimMoments/State/Discoveries` beside the plugin, separately for each character/world pair. Keep this folder when updating. It remembers observations even while recording is paused, disabled or busy, so those visits are not replayed later. Initial loading/warmup is silent. Valheim's existing character history cannot reliably reconstruct exploration in each world: an older destination can count as a first **tracked** visit after installing this version. Revealed map pins alone do not count. Not every dungeon has a discovery label, and unsupported mod sources are skipped.
+
+Special enemies default to an empty selection. The host enables the Advanced `Special Enemies.LogEnemyKeys` diagnostic, kills a candidate, then copies its exact confirmed stat key from the BepInEx log into `Special Enemies.EnemyKeys`. Use commas or semicolons for multiple keys. These are case-sensitive kill-credit identifiers, not prefab names or translated display names; no wildcards are used. Turn the diagnostic off afterward.
+
+Special captures use the main Discord route, do not require rare loot, and show the recording character's confirmed kill credit plus observed loot. Their `FirstKillOnly` option uses existing character-wide kill statistics across worlds. Normal bosses always use Boss Kill rules; an accepted special capture replaces the ordinary loot capture for that credited death. Automatic multiplayer grouping is still planned.
 
 ## Natural treasure highlights
 
@@ -201,9 +213,9 @@ possible. Host configuration should control categories, filters, first-time rule
 cooldowns; avoid needing a new build just to add an enemy or achievement identifier.
 Game API changes can still require compatibility updates.
 
-* First biome and notable location/trader discoveries, detected from game discovery events.
+* Extend discovery coverage where additional reliable game events are available.
 * Selected achievement unlocks, driven by the game's achievement definitions rather than a hardcoded list.
-* Miniboss/special encounter clips: investigate game progression markers and configurable identifiers. No universal miniboss flag has been verified, so automatic coverage of every future enemy is not promised.
+* Multiplayer highlight director, survival-validated close calls, and a personal gallery with Keep and bounded retries.
 * Optional raid start/completion highlights, with per-event controls and cooldowns.
 * Group overlapping progression events to avoid duplicate posts for the same moment.
 

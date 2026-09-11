@@ -38,6 +38,12 @@ internal static class HostSettingsTests
         var clientDiscord = Add(clientPolicy, clientFile, "Discord", "Enabled", true, out unused);
         Add(hostPolicy, hostFile, "Capture", "SaveLocalCopy", false, out unused);
         var clientSave = Add(clientPolicy, clientFile, "Capture", "SaveLocalCopy", true, out unused);
+        Add(hostPolicy, hostFile, "Discord", "DiscoveryWebhookURL", "DISCOVERY_SECRET_SENTINEL", out unused);
+        Add(clientPolicy, clientFile, "Discord", "DiscoveryWebhookURL", "LOCAL_DISCOVERY_SECRET", out unused);
+        Add(hostPolicy, hostFile, "Discoveries", "Enabled", true, out unused);
+        var clientDiscoveries = Add(clientPolicy, clientFile, "Discoveries", "Enabled", false, out unused);
+        Add(hostPolicy, hostFile, "Special Enemies", "EnemyKeys", "$enemy_test", out unused);
+        var clientEnemies = Add(clientPolicy, clientFile, "Special Enemies", "EnemyKeys", "local_choice", out unused);
         double time = 0;
         Action tick = () => {
             time += 0.3; ZNet.instance = host; hostPolicy.Tick(time); hostRpc.Drain();
@@ -54,6 +60,8 @@ internal static class HostSettingsTests
             for (int i = 0; i < 12; i++) tick();
             Check(hostPolicy.PeerHasPolicy(hostRpc) && !hostPolicy.PeerHasPolicy(new ZRpc()), "Relay eligibility requires a recent settings exchange with the actual peer");
             Check(clientPolicy.Ready && clientPolicy.Get(localRule) && clientPolicy.Get(localPre) == 5, "Connected host policy applied with typed values");
+            Check(clientPolicy.Get(clientDiscoveries) && clientPolicy.Get(clientEnemies) == "$enemy_test", "Discovery and enemy rules use host policy");
+            Check(!HostConfiguration.IsLocal("Special Enemies", "LogEnemyKeys") && !HostConfiguration.IsLocal("Discoveries", "Enabled"), "New category controls and diagnostic remain host-owned");
             Check(!clientPolicy.Get(clientDiscord) && clientDiscord.Value && clientPolicy.Get(clientSave), "Host delivery off overrides client true; local saving remains independent");
             Check(string.CompareOrdinal(localTags.Category, ruleTags.Category) < 0, "Player category sorts ahead of host settings");
             Check(!localRule.Value && localPre.Value == 2 && clientPolicy.Get(localFPS) == 30, "Overlay preserves client originals and local performance choice");

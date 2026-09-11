@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.13.0")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.14.0")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -70,6 +70,15 @@ namespace ValheimMoments
         private DeathMoments.Ticket pendingDeath, activeDeath, uploadDeath;
         private ZNet deathOfferSession;
         private readonly Dictionary<ZRpc, MomentRateLimit> deathOffers = new Dictionary<ZRpc, MomentRateLimit>();
+        private ConfigEntry<bool> discoveryEnabled, discoverBiomes, discoverLocations, discoverTraders;
+        private ConfigEntry<string> discoveryWebhook, discoveryMessage, specialKeys, specialMessage;
+        private ConfigEntry<bool> specialEnabled, specialFirstOnly, logEnemyKeys;
+        private ConfigEntry<double> discoveryPostSetting, discoveryCooldown, specialPostSetting, specialCooldown;
+        private double discoveryPostSeconds, specialPostSeconds, discoveryStarted, discoveryDeadline, nextDiscovery, nextDiscoveryError;
+        private readonly List<string> discoveredNames = new List<string>();
+        private DiscoveryHistory discoveryHistory;
+        private Harmony discoveryHarmony;
+        private readonly SpecialEnemies specialEnemies = new SpecialEnemies();
         private Harmony deathHarmony;
         private Harmony bossHarmony;
         private ConfigEntry<bool> bossTrigger, bossEnabled;
@@ -232,6 +241,21 @@ namespace ValheimMoments
                 lootWebhook = Bind("Discord", "GoodLootWebhookURL", "", "Host-only secret: optional loot destination.");
                 useDeathWebhook = Bind("Discord", "UsePlayerDeathWebhook", false, "Host only: route death clips to PlayerDeathWebhookURL; when off, use WebhookURL.");
                 deathWebhook = Bind("Discord", "PlayerDeathWebhookURL", "", "Host-only secret: optional player-death destination.");
+                discoveryWebhook = Bind("Discord", "DiscoveryWebhookURL", "", "Host-only secret: discovery destination. Blank uses WebhookURL; a nonblank invalid URL keeps the clip locally.");
+                discoveryEnabled = Bind("Discoveries", "Enabled", true, "First tracked discoveries per character per world. Startup, disabled, cooldown and busy visits are remembered without replay. Past exploration cannot be reconstructed.");
+                discoverBiomes = Bind("Discoveries", "Biomes", true, "First game-provided biome/variant. Identity is independent of display language.");
+                discoverLocations = Bind("Discoveries", "NamedLocations", true, "First physical entry into a location with a game discovery label. Distant map pins do not count.");
+                discoverTraders = Bind("Discoveries", "Traders", true, "First approach to a Trader within its greeting range, capped at 30m; no hardcoded NPC list.");
+                discoveryPostSetting = Bind("Discoveries", "PostEventSeconds", 3.0, "Seconds after a discovery group. Nearby discoveries group for 1.25 seconds before capture.");
+                discoveryCooldown = Bind("Discoveries", "CooldownSeconds", 30.0, "Seconds between discovery captures, 0-3600. Initial warmup is at least five seconds.");
+                discoveryMessage = Bind("Discoveries", "Message", "\uD83E\uDDED Discovered {discovery}!", "Supports {discovery} (one name or grouped names) and {player}. Recorded by appends at delivery.");
+                specialEnabled = Bind("Special Enemies", "Enabled", true, "Capture selected ordinary-enemy kill credits. Empty EnemyKeys selects none. Normal bosses remain exclusive to Boss Kill.");
+                specialKeys = Bind("Special Enemies", "EnemyKeys", "", "Exact case-sensitive kill-credit keys separated by commas/semicolons; up to 64 keys/4096 characters. LogEnemyKeys shows actual identifiers. These are stat keys, not prefab or translated names. No wildcards.");
+                specialFirstOnly = Bind("Special Enemies", "FirstKillOnly", false, "Only this character's first saved kill of the selected enemy across worlds. Discovery history is independently per-world.");
+                specialPostSetting = Bind("Special Enemies", "PostEventSeconds", 4.0, "Seconds after the selected enemy kill to show aftermath and observed loot.");
+                specialCooldown = Bind("Special Enemies", "CooldownSeconds", 60.0, "Seconds between captures of the same enemy key, 0-3600.");
+                specialMessage = Bind("Special Enemies", "Message", "\u2694 {enemy} defeated!", "Supports {enemy}, {player}, {loot}, {item_count}. Credit names the recording character confirmed by Valheim.");
+                logEnemyKeys = Bind("Special Enemies", "LogEnemyKeys", false, new ConfigDescription("Log exact confirmed ordinary-enemy stat keys for configuring EnemyKeys. Host-controlled diagnostic.", null, "Advanced"));
                 uploadLimitMiB = Bind("Discord", "MaxUploadMiB", 10, "Per-file upload guard. Discord can impose its own limit. Allowed range 1–100.");
                 manualTrigger = Bind("Triggers", "ManualCapture", true, "Enable the manual hotkey independently of automatic events.");
                 deathTrigger = Bind("Triggers", "PlayerDeath", true, "Enable local player death captures.");
@@ -293,6 +317,7 @@ namespace ValheimMoments
                     ReceiveRelayedClip, message => Logger.LogInfo("[Relay] " + message), hostSettings.PeerHasPolicy, AcceptRelayedEvent);
                 encoderPath = Path.Combine(pluginDirectory, "Encoder", "ValheimMoments.Encoder.exe");
                 outputDirectory = Path.Combine(pluginDirectory, "Clips");
+                discoveryHistory = new DiscoveryHistory(Path.Combine(pluginDirectory, "State", "Discoveries"), message => Logger.LogWarning("[Discovery] " + message));
                 try
                 {
                     worldHarmony = new Harmony("local.valheimmoments.world.loot");
@@ -333,6 +358,19 @@ namespace ValheimMoments
                 initialized = true;
                 try
                 {
+                    discoveryHarmony = new Harmony("local.valheimmoments.discovery");
+                    DiscoveryDetector.OnObserved = OnDiscovery;
+                    DiscoveryDetector.OnError = () => {
+                        double now = clock.Elapsed.TotalSeconds;
+                        if (now < nextDiscoveryError) return;
+                        nextDiscoveryError = now + 60;
+                        Logger.LogWarning("[Discovery] Unsupported observation skipped.");
+                    };
+                    DiscoveryDetector.Install(discoveryHarmony);
+                }
+                catch (Exception error) { discoveryHarmony?.UnpatchSelf(); Logger.LogWarning("[Discovery] Observer unavailable: " + error.GetType().Name); }
+                try
+                {
                     deathHarmony = new Harmony("local.valheimmoments.death");
                     PlayerDeathDetector.OnLocalDeath = OnLocalDeath;
                     PlayerDeathDetector.OnError = () => Logger.LogWarning("[Death] Could not inspect local death; gameplay was left unchanged.");
@@ -344,10 +382,8 @@ namespace ValheimMoments
                 {
                     bossHarmony = new Harmony("local.valheimmoments.boss");
                     BossKillDetector.OnKill = OnBossKill;
-                    BossKillDetector.ObserveOrdinary = () => Value(lootTrigger) && Value(lootEnabled);
-                    BossKillDetector.OnLootKill = kill => {
-                        if (Value(captureEnabled) && !paused) lootHighlights.Add(kill, clock.Elapsed.TotalSeconds, Value(highlightWaitSeconds));
-                    };
+                    BossKillDetector.ObserveOrdinary = () => (Value(lootTrigger) && Value(lootEnabled)) || Value(specialEnabled) || Value(logEnemyKeys);
+                    BossKillDetector.OnLootKill = OnOrdinaryKill;
                     BossKillDetector.OnError = () => Logger.LogWarning("[Boss] Unable to verify character kill statistics; boss event skipped.");
                     BossKillDetector.Install(bossHarmony);
                     Logger.LogInfo("[Boss] Local kill-credit detector installed.");
@@ -401,13 +437,14 @@ namespace ValheimMoments
         {
             double pre = Value(preSetting), post = Value(postSetting);
             double bossPost = Value(bossPostSetting), lootPost = Value(lootPostSetting);
-            double maxPost = Math.Max(post, Math.Max(bossPost, lootPost));
+            double discoveryPost = Value(discoveryPostSetting), specialPost = Value(specialPostSetting);
+            double maxPost = Math.Max(Math.Max(discoveryPost, specialPost), Math.Max(post, Math.Max(bossPost, lootPost)));
             int requestedWidth, requestedHeight;
             CaptureSizes.Resolve(Value(sizePreset), Screen.width, Screen.height, Value(widthSetting), Value(heightSetting), out requestedWidth, out requestedHeight);
             sourceWidth = Screen.width; sourceHeight = Screen.height;
             var limits = CaptureLimits.Fit(requestedWidth, requestedHeight, Value(fpsSetting), Value(qualitySetting), Value(budgetSetting), pre, maxPost);
             if (history != null && width == limits.Width && height == limits.Height && fps == limits.FPS &&
-                appliedPre == pre && appliedPost == post && bossPostSeconds == bossPost && lootPostSeconds == lootPost)
+                appliedPre == pre && appliedPost == post && bossPostSeconds == bossPost && lootPostSeconds == lootPost && discoveryPostSeconds == discoveryPost && specialPostSeconds == specialPost)
             { quality = limits.Quality; captureSettingsDirty = false; return true; }
             // Let GPU requests and an existing encoder finish before replacing storage.
             if (pending.Count != 0 || encoding != null) return false;
@@ -423,6 +460,7 @@ namespace ValheimMoments
             allSlots.Clear(); free.Clear();
             width = limits.Width; height = limits.Height; fps = limits.FPS; quality = limits.Quality;
             appliedPre = pre; appliedPost = post; bossPostSeconds = bossPost; lootPostSeconds = lootPost;
+            discoveryPostSeconds = discoveryPost; specialPostSeconds = specialPost;
             history = new CaptureBuffer(width, height, fps, pre, post, limits.BudgetMiB * 1048576L, maxPost);
             captureSession = new CaptureSession(history);
             scratch = new byte[checked(width * height * 4)];
@@ -483,6 +521,13 @@ namespace ValheimMoments
                 }
                 SynchronizeCaptureSession();
                 DrainReadbacks();
+                UpdateDiscoveryContext(now); discoveryHistory.Tick();
+                if (discoveredNames.Count > 0 && now >= discoveryDeadline)
+                {
+                    string names = string.Join(", ", discoveredNames); discoveredNames.Clear();
+                    if (Value(discoveryEnabled) && now >= nextDiscovery && Trigger("discovery", EventMessages.Discovery(Value(discoveryMessage), names, Player.m_localPlayer?.GetPlayerName()), discoveryPostSeconds))
+                        nextDiscovery = now + Value(discoveryCooldown);
+                }
                 if (sourceWidth != Screen.width || sourceHeight != Screen.height)
                 { sourceWidth = Screen.width; sourceHeight = Screen.height; captureSettingsDirty = true; captureSettingsChangedAt = now; }
                 if (captureSettingsDirty && hostSettings.Ready && now - captureSettingsChangedAt >= 0.5) ApplyCaptureSettings();
@@ -713,8 +758,7 @@ namespace ValheimMoments
             }
             // Snapshot config on Unity's thread; perform all HTTP/file work on a worker.
             var options = new DiscordOptions {
-                WebhookUrl = DiscordRouting.Destination(activeKind, Value(webhookUrl),
-                    Value(useBossWebhook), Value(bossWebhook), Value(useLootWebhook), Value(lootWebhook), Value(useDeathWebhook), Value(deathWebhook)),
+                WebhookUrl = Destination(activeKind),
                 Username = Value(discordUsername),
                 Message = EventMessages.RecordedPost(activeBoss == null ? activeMessage : BossMessage(activeBoss), activeRecorder),
                 SaveLocalCopy = Value(saveLocalCopy),
@@ -733,7 +777,7 @@ namespace ValheimMoments
         private string Destination(string kind)
         {
             return DiscordRouting.Destination(kind, Value(webhookUrl), Value(useBossWebhook), Value(bossWebhook),
-                Value(useLootWebhook), Value(lootWebhook), Value(useDeathWebhook), Value(deathWebhook));
+                Value(useLootWebhook), Value(lootWebhook), Value(useDeathWebhook), Value(deathWebhook), Value(discoveryWebhook));
         }
         private bool CanRelay(string kind)
         {
@@ -742,6 +786,8 @@ namespace ValheimMoments
             if (kind == "boss" && (!Value(bossTrigger) || !Value(bossEnabled))) return false;
             if (kind == "loot" && (!Value(lootTrigger) || !Value(lootEnabled))) return false;
             if (kind == "death" && (!Value(deathTrigger) || !Value(deathEnabled))) return false;
+            if (kind == "discovery" && !Value(discoveryEnabled)) return false;
+            if (kind == "special" && !Value(specialEnabled)) return false;
             Uri endpoint;
             return RelayProtocol.ValidKind(kind) && DiscordWebhook.TryEndpoint(Destination(kind), out endpoint);
         }
@@ -787,6 +833,41 @@ namespace ValheimMoments
                 finally { try { if (File.Exists(file)) File.Delete(file); } catch { } }
             });
         }
+        private void OnOrdinaryKill(BossKill kill)
+        {
+            if (Value(logEnemyKeys)) Logger.LogInfo("[Special] Confirmed enemy key: " + EpicLootAdapter.Plain(kill.EnemyKey, 128));
+            if (!Value(captureEnabled) || paused) return;
+            specialEnemies.Configure(Value(specialKeys));
+            double now = clock.Elapsed.TotalSeconds;
+            if (Value(specialEnabled) && specialEnemies.Eligible(kill, Value(specialFirstOnly), now) && Trigger("special", "", specialPostSeconds))
+            {
+                kill.Special = true; pendingBoss = kill; lootDeadline = now + Value(highlightWaitSeconds);
+                specialEnemies.Captured(kill.EnemyKey, now, Value(specialCooldown)); return;
+            }
+            if (Value(lootTrigger) && Value(lootEnabled)) lootHighlights.Add(kill, now, Value(highlightWaitSeconds));
+        }
+        private void UpdateDiscoveryContext(double now)
+        {
+            long player = 0, world = 0;
+            try {
+                if (ZNet.instance != null && Player.m_localPlayer != null)
+                { player = Player.m_localPlayer.GetPlayerID(); world = ZNet.instance.GetWorldUID(); }
+            } catch { player = 0; world = 0; }
+            if (discoveryHistory.Use(player, world)) { discoveryStarted = now; discoveredNames.Clear(); nextDiscovery = 0; }
+        }
+        private void OnDiscovery(string kind, string identity, string name)
+        {
+            if (!initialized || stopped) return;
+            double now = clock.Elapsed.TotalSeconds; UpdateDiscoveryContext(now);
+            if (!discoveryHistory.Visit(kind + ":" + identity)) return;
+            if (now - discoveryStarted < Math.Max(5, Value(preSetting)) || !hostSettings.Ready || !Value(discoveryEnabled) ||
+                !Value(captureEnabled) || paused || now < nextDiscovery ||
+                (kind == "biome" && !Value(discoverBiomes)) || (kind == "location" && !Value(discoverLocations)) || (kind == "trader" && !Value(discoverTraders))) return;
+            string display = EpicLootAdapter.Plain(Localization.instance.Localize(name), 160);
+            if (string.IsNullOrWhiteSpace(display)) return;
+            if (discoveredNames.Count == 0) discoveryDeadline = now + 1.25;
+            if (discoveredNames.Count < 8 && !discoveredNames.Contains(display)) discoveredNames.Add(display);
+        }
         private void OnLootHighlight(BossKill kill)
         {
             if (!Trigger("loot", "", lootPostSeconds)) return;
@@ -823,12 +904,14 @@ namespace ValheimMoments
                     loot = EventMessages.Heading(Value(lootHeader), 2) + "\n" + (kill.Loot == null ? "unavailable" : kill.Loot.Display(Value(maxLootItems), Value(showLootQuantity), text => Localization.instance.Localize(text), Value(showRarity), Value(showModifiers), Value(showSockets), Value(showUnidentified)));
                 string count = kill.Loot != null && kill.Loot.Observed ? kill.Loot.Items.Count.ToString() : "unknown";
                 if (highlight && kill.Acquired) return EventMessages.FoundLoot(Value(pickupMessage), kill.EnemyKey, kill.PlayerName, loot, count);
+                if (kill.Special) return EventMessages.Boss(Value(specialMessage).Replace("{enemy}", "{boss}"), Localization.instance.Localize(kill.EnemyKey), kill.PlayerName, BossNameMode.KillCredit, loot: loot, itemCount: count);
                 if (highlight) return EventMessages.Loot(Value(highlightMessage), Localization.instance.Localize(kill.EnemyKey), kill.PlayerName, loot, count);
                 return EventMessages.Boss(Value(bossMessage), Localization.instance.Localize(kill.EnemyKey), BossAttribution.CreditLabel(kill.CreditNames, kill.PlayerName), Value(bossNameMode), kill.FinalBlowName, loot, count, kill.FirstKill);
             }
             catch
             {
                 Logger.LogWarning("[Loot] Message enrichment failed; sending boss names only.");
+                if (kill.Special) return EventMessages.Boss(Value(specialMessage).Replace("{enemy}", "{boss}"), kill.EnemyKey, kill.PlayerName, BossNameMode.KillCredit);
                 if (kill.Acquired) return EventMessages.FoundLoot(Value(pickupMessage), kill.EnemyKey, kill.PlayerName, "unavailable");
                 return kill.BossNumber <= 0 ? EventMessages.Loot(Value(highlightMessage), kill.EnemyKey, kill.PlayerName, "unavailable") : EventMessages.Boss(Value(bossMessage), kill.EnemyKey, BossAttribution.CreditLabel(kill.CreditNames, kill.PlayerName), Value(bossNameMode), kill.FinalBlowName, firstKill: kill.FirstKill);
             }
@@ -879,6 +962,8 @@ namespace ValheimMoments
         {
             if (!captureSession.Observe(ZNet.instance)) return;
             deathMoments.Clear(); pendingDeath = null; notifications.Clear();
+            discoveredNames.Clear(); specialEnemies.Clear(); DiscoveryDetector.Clear();
+            discoveryHistory?.Use(0, 0);
             waitingForLoot?.Release(); waitingForLoot = null;
             pendingBoss = null;
             lootHighlights.Clear(); acquisitions.Clear();
@@ -909,6 +994,10 @@ namespace ValheimMoments
             if (stopped) return;
             stopped = true;
             notifications.Dispose(); deathMoments.Clear(); deathOffers.Clear();
+            DiscoveryDetector.OnObserved = null; DiscoveryDetector.OnError = null; DiscoveryDetector.Clear();
+            discoveryHarmony?.UnpatchSelf();
+            var flush = discoveryHistory?.Flush();
+            if (flush != null) _ = flush.ContinueWith(task => { var ignored = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
             hostSettings?.Dispose();
             relay?.Dispose();
             PlayerDeathDetector.OnLocalDeath = null;

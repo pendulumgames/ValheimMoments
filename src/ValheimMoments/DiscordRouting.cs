@@ -14,8 +14,9 @@ namespace ValheimMoments
         }
 
         internal static string Destination(string kind, string fallback,
-            bool bossOverride, string boss, bool lootOverride, string loot, bool deathOverride, string death)
+            bool bossOverride, string boss, bool lootOverride, string loot, bool deathOverride, string death, string discovery = null)
         {
+            if (kind == "discovery" && !string.IsNullOrWhiteSpace(discovery)) return discovery;
             if (kind == "boss" && bossOverride) return boss;
             if (kind == "loot" && lootOverride) return loot;
             if (kind == "death" && deathOverride) return death;

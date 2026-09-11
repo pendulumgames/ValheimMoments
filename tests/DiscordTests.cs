@@ -34,7 +34,11 @@ internal static class DiscordTests
         Check(!DiscordRouting.CanSubmit(session, true, null, false), "Disconnected session rejects upload");
         Check(!DiscordRouting.CanSubmit(null, true, null, true), "Menu captures have no submission authority");
         Check(!DiscordRouting.CanSubmit(session, true, session, false), "Loss of host role cancels authority");
-        foreach (string kind in new[] { "boss", "loot", "death", "manual" })
+        Check(DiscordRouting.Destination("discovery", "default", false, "", false, "", false, "", "discoveries") == "discoveries", "Discovery override");
+        Check(DiscordRouting.Destination("discovery", "default", false, "", false, "", false, "", " ") == "default", "Blank discovery route falls back");
+        Check(DiscordRouting.Destination("discovery", "default", false, "", false, "", false, "", "invalid") == "invalid", "Invalid nonblank discovery destination never falls back");
+        Check(DiscordRouting.Destination("special", "default", true, "boss", true, "loot", true, "death", "discoveries") == "default", "Special enemies use default route");
+        foreach (string kind in new[] { "boss", "loot", "death", "manual", "discovery", "special" })
             Check(DiscordRouting.Destination(kind, "default", false, "boss", false, "loot", false, "death") == "default", "Disabled overrides use default: " + kind);
         Check(DiscordRouting.Destination("boss", "default", true, "boss", true, "loot", true, "death") == "boss", "Boss routing");
         Check(DiscordRouting.Destination("loot", "default", true, "boss", true, "loot", true, "death") == "loot", "Good loot routing");

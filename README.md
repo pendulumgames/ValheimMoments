@@ -3,18 +3,18 @@
 ![Valheim Moments icon](release/icon.png)
 
 Animated gameplay highlights for Valheim: manual captures, player deaths, boss kills
-and great loot, with optional Epic Loot details and host-controlled Discord delivery.
+and great loot, plus first discoveries and selected special enemies, with optional Epic Loot details and host-controlled Discord delivery.
 
-**Windows x64 beta - version 0.13.0.** Manual capture, deaths, boss/loot clips,
+**Windows x64 beta - version 0.14.0.** Manual capture, deaths, boss/loot clips,
 Epic Loot details, natural-loot acquisitions and host/client F10 delivery have passed
-user testing in earlier versions. This milestone adds capture/save/upload notifications, optional quiet sound, a host-controlled death rate limit and intervening-death summaries with optional cheeky captions. The 0.12.0 settings/sizing work is included. New visual/audio paths and live co-op behavior remain to be verified.
+user testing in earlier versions. This milestone adds first tracked discoveries per character per world and configurable special-enemy captures. Settings/sizing, notifications and death-rate improvements from 0.12/0.13 are included. New exploration hooks, visual/audio paths and live co-op behavior remain to be verified.
 
 See [player instructions and settings](release/README.md). The build produces a
 Thunderstore-ready archive; generating it does not publish or approve a listing.
 Dedicated hosting, detailed natural-loot edge cases, host-settings UI/sync and sustained
 performance testing remain on the documented acceptance checklists.
 
-See the [development plan](docs/DEVELOPMENT-PLAN.md) for upcoming discoveries, raid/close-call clips, the multiplayer director and gallery. These additions are not shipped in this milestone.
+See the [development plan](docs/DEVELOPMENT-PLAN.md) for upcoming raid/close-call clips, the multiplayer director and gallery. Those additions are not shipped in this milestone.
 
 ## Build from source
 
@@ -32,7 +32,7 @@ the helper requires .NET Framework 4.8. No game or BepInEx assemblies are includ
 ```
 
 The first command restores pinned NuGet packages and builds/tests a local package.
-The second validates and creates `artifacts/Valheim_Moments-0.13.0.zip`, including
+The second validates and creates `artifacts/Valheim_Moments-0.14.0.zip`, including
 manifest, README, changelog, icon, plugin, encoder and license notices. It does not
 publish anything. Do not reupload changed contents under an already published version.
 
@@ -126,9 +126,9 @@ possible. Host configuration should control categories, filters, first-time rule
 cooldowns; avoid needing a new build just to add an enemy or achievement identifier.
 Game API changes can still require compatibility updates.
 
-* First biome and notable location/trader discoveries, detected from game discovery events.
+* Extend discovery coverage where additional reliable game events are available.
 * Selected achievement unlocks, driven by the game's achievement definitions rather than a hardcoded list.
-* Miniboss/special encounter clips: investigate game progression markers and configurable identifiers. No universal miniboss flag has been verified, so automatic coverage of every future enemy is not promised.
+* Multiplayer highlight director, survival-validated close calls, and a personal gallery with Keep and bounded retries.
 * Optional raid start/completion highlights, with per-event controls and cooldowns.
 * Group overlapping progression events to avoid duplicate posts for the same moment.
 

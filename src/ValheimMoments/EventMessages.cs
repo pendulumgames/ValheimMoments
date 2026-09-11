@@ -39,6 +39,12 @@ namespace ValheimMoments
             return text.Substring(0, char.IsHighSurrogate(text[1999]) ? 1999 : 2000);
         }
 
+        internal static string Discovery(string template, string names, string player)
+        {
+            string pattern = string.IsNullOrWhiteSpace(template) ? "Discovered {discovery}!" : template;
+            string message = pattern.Replace("{discovery}", names ?? "a new place").Replace("{player}", player ?? "A player");
+            return message.Length <= 1900 ? message : message.Substring(0, char.IsHighSurrogate(message[1899]) ? 1899 : 1900);
+        }
         internal static string Loot(string template, string enemy, string player, string loot, string itemCount = "")
         {
             string pattern = string.IsNullOrWhiteSpace(template) ? "Great loot from {enemy}!" : template;

@@ -13,7 +13,7 @@ namespace UnityEngine
         public readonly Dictionary<Type, object> Components = new Dictionary<Type, object>();
         public T Attach<T>(T component) where T : Component { Components[typeof(T)] = component; component.gameObject = this; return component; }
     }
-    public class Component
+    public partial class Component
     {
         public GameObject gameObject = new GameObject();
         public T GetComponent<T>() where T : class { return gameObject.GetComponent<T>(); }

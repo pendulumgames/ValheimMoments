@@ -4,7 +4,16 @@ Updated: 2026-09-10. Baseline: 0.11.1.
 
 This is the implementation backlog for the user's September feature request. Existing 0.11.1 packages remain unchanged. Items are planned unless listed in the progress section below. Do not describe pending features as available in release READMEs.
 
-## Progress: 0.13.0 notifications and death milestone
+## Progress: 0.14.0 discoveries and special-enemy milestone
+
+Implemented first tracked biome, labeled-location and trader visits per character per world; host-owned categories, cooldown, message and optional private discovery webhook. A bounded journal with atomic worker saves preserves identity separately from localized display. Startup/loading visits are silent baselines. Disabled, paused, cooldown, busy and failed-delivery visits remain seen. Existing character-global exploration cannot reconstruct historical per-world discovery, so first tracked returns can qualify after installation.
+
+Implemented configured special-enemy captures using confirmed kill-credit/stat keys. Inspection showed that the kill-credit RPC exposes these keys rather than prefab instances; the plan's original prefab/wildcard proposal is replaced by exact keys and an Advanced diagnostic logger. This avoids ambiguous name-to-prefab guesses. The list is bounded to 64 keys; normal bosses are excluded, and an accepted special capture replaces ordinary kill-loot scheduling for that credit. FirstKillOnly uses existing character-global saved kills. Special events use the default webhook and do not require loot rarity.
+
+Observed game APIs were inspected directly: Player.UpdateBiome scopes physical biome/location observations; Trader.Update requires local distance checks because its greeting can target someone else. Remote minimap reveals are excluded. Production code compiles against installed game assemblies. Tests exercise persistence/isolation/corruption/capacity, callback scoping, matching/cooldowns, routing and host policy. Validation: 1,820 assertions passed (core 1,244; HTTP 49; boss 55; loot 45; filter 31; Epic 19; relay 30; periodic 23; host settings 65; death moments 139; natural loot 43; discovery/special 56; death/messages 21). Production and helper builds had zero warnings/errors. All 85 settings are documented; WebP decode/timing, package validation, native provenance and installed Configuration Manager contract passed. Artifact: artifacts/Valheim_Moments-0.14.0.zip, 525,741 bytes, SHA256 1E19A033F4683DD7CADF11FE1F5A254CB6F9AC5B26F4F0DD7D78E734590EA058.
+
+Matching 0.14.0 is required on host and recording clients. Preserve State/Discoveries across upgrades. Packaged separately for deferred testing; no installation while the user plays. Live discovery/co-op, earlier UI/audio/padding and final boss-credit checks remain pending in docs/RELAY-TEST.md. Multiplayer director is the next feature milestone; segmented raid/close-call capture, gallery/Keep/bounded retry and failed-file retention remain pending. Empirical gameplay size estimates are still outstanding.
+## Progress: 0.13.0 notifications and death milestone (included)
 
 User deferred live checks and authorized continued development. This build includes 0.12.0 unchanged in scope plus themed recording/save/upload feedback, optional original quiet cue, local notification settings, host-controlled death rate limits and 20 neutral cheeky captions. A structured relay completion callback ensures upload feedback occurs only after final host acknowledgement. Death counters acknowledge a particular pending snapshot, so later deaths and failed uploads are not lost. Host admission also bounds incoming death offers per connection.
 
@@ -189,7 +198,7 @@ Acceptance: burst deaths, rolling-window boundaries, failed sends, disconnects, 
 
 ### Special enemies
 
-- Host-owned enable switch, explicit prefab identifiers, optional carefully bounded wildcard patterns, first-only/repeat policy, cooldown and post-event duration.
+- Host-owned enable switch, exact confirmed kill-credit/stat identifiers (changed from prefab/wildcard proposal after API inspection), first-only/repeat policy, cooldown and post-event duration.
 - Clear config examples and an identifier inspection aid. Do not claim every enemy has a miniboss flag; none was found on current Character.
 - Use confirmed credited kills; retain roster/final-blow distinctions where available. Deduplicate against a normal boss or qualifying loot event for the same death.
 - Player-configurable means the person hosting/configuring their world can choose enemies. Joining clients cannot override host event policy.

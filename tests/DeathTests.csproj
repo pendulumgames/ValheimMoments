@@ -11,6 +11,10 @@
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(GamePath)/valheim_Data/Managed/UnityEngine.CoreModule.dll</HintPath><Aliases>RuntimeUnity</Aliases></Reference>
     <Compile Include="DeathTests.cs" />
     <Compile Include="DeathMomentTests.cs" />
+    <Compile Include="DiscoveryTests.cs" />
+    <Compile Include="../src/ValheimMoments/DiscoveryHistory.cs" Link="DiscoveryHistory.cs" />
+    <Compile Include="../src/ValheimMoments/DiscoveryDetector.cs" Link="DiscoveryDetector.cs" />
+    <Compile Include="../src/ValheimMoments/SpecialEnemies.cs" Link="SpecialEnemies.cs" />
     <Compile Include="../src/ValheimMoments/DeathMoments.cs" Link="DeathMoments.cs" />
     <Compile Include="WorldLootTests.cs" />
     <Compile Include="../src/ValheimMoments/WorldLootDetector.cs" Link="WorldLootDetector.cs" />

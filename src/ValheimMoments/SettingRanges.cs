@@ -19,6 +19,7 @@ namespace ValheimMoments
             if (section == "Player Death" && key == "CaptureLimit") return new AcceptableValueRange<int>(1, 20);
             if (section == "Player Death" && key == "WindowSeconds") return new FiniteRange(1, 3600, (double)fallback);
             if (section == "Notifications" && key == "Volume") return new FiniteRange(0, 1, (double)fallback);
+            if (key == "CooldownSeconds") return new FiniteRange(0, 3600, (double)fallback);
             if (section == "Capture")
             {
                 if (key == "Width") return new AcceptableValueRange<int>(480, 1920);
