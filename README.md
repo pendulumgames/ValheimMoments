@@ -5,7 +5,7 @@
 Animated gameplay highlights for Valheim: manual captures, player deaths, boss kills
 and great loot, plus first discoveries and selected special enemies, with optional Epic Loot details and host-controlled Discord delivery.
 
-**Windows x64 beta - version 0.16.0.** Manual capture, deaths, boss/loot clips,
+**Windows x64 beta - version 0.17.0.** Manual capture, deaths, boss/loot clips,
 Epic Loot details, natural-loot acquisitions and host/client F10 delivery have passed
 user testing in earlier versions. This milestone connects the multiplayer director: compatible creature-death recordings can share one Discord post with up to three labeled perspectives. First discoveries and configurable special enemies from 0.14 are included. Settings/sizing, notifications and death-rate improvements from 0.12/0.13 are included. New exploration hooks, visual/audio paths and live co-op behavior remain to be verified.
 
@@ -16,7 +16,9 @@ performance testing remain on the documented acceptance checklists.
 
 0.16 adds host-controlled close-call clips: survive twenty seconds after damage crosses the low-health threshold, then share a ten-second slow/fast animation. Death cancels the attempt. Automated collection/encoding checks pass; live close-call acceptance is pending.
 
-See the [development plan](docs/DEVELOPMENT-PLAN.md) for upcoming raid clips, director refinements and the gallery.
+0.17 adds personal raid clips: a four-second opening and six-second aftermath, delivered together as “Raid ended.” Leaving, dying, policy loss or capture reconfiguration abandons the attempt. Live raid acceptance remains pending.
+
+See the [development plan](docs/DEVELOPMENT-PLAN.md) for director refinements and the gallery.
 
 ## Build from source
 
@@ -34,7 +36,7 @@ the helper requires .NET Framework 4.8. No game or BepInEx assemblies are includ
 ```
 
 The first command restores pinned NuGet packages and builds/tests a local package.
-The second validates and creates `artifacts/Valheim_Moments-0.16.0.zip`, including
+The second validates and creates `artifacts/Valheim_Moments-0.17.0.zip`, including
 manifest, README, changelog, icon, plugin, encoder and license notices. It does not
 publish anything. Do not reupload changed contents under an already published version.
 

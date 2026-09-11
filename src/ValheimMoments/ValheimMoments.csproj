@@ -2,8 +2,8 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <LangVersion>latest</LangVersion>
-    <AssemblyVersion>0.16.0.0</AssemblyVersion>
-    <Version>0.16.0</Version>
+    <AssemblyVersion>0.17.0.0</AssemblyVersion>
+    <Version>0.17.0</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <Import Project="../../local.props" Condition="Exists('../../local.props')" />
@@ -16,6 +16,7 @@
     <Reference Include="assembly_utils"><HintPath>$(GamePath)/valheim_Data/Managed/assembly_utils.dll</HintPath><Private>false</Private><ExternallyResolved>true</ExternallyResolved></Reference>
     <Compile Include="../ValheimMoments.Core/CaptureBuffer.cs" Link="Core/CaptureBuffer.cs" />
     <Compile Include="../ValheimMoments.Core/CloseCall.cs" Link="Core/CloseCall.cs" />
+    <Compile Include="../ValheimMoments.Core/RaidMoment.cs" Link="Core/RaidMoment.cs" />
     <Compile Include="../ValheimMoments.Core/CloseCallTimeline.cs" Link="Core/CloseCallTimeline.cs" />
     <Compile Include="../ValheimMoments.Core/CaptureSession.cs" Link="Core/CaptureSession.cs" />
     <Compile Include="../ValheimMoments.Core/CaptureLimits.cs" Link="Core/CaptureLimits.cs" />

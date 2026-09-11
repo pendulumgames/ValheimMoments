@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.16.0")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.17.0")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -97,6 +97,16 @@ namespace ValheimMoments
         private double appliedCloseThreshold, appliedCloseRecovery, appliedCloseHold, appliedCloseCooldown;
         private bool closeCollecting, closeSurvived;
         private double appliedMaximumPost;
+        private ConfigEntry<bool> raidsEnabled;
+        private readonly RaidMoment raidMoment = new RaidMoment();
+        private RaidMedia raidMedia;
+        private Harmony raidHarmony;
+        private Task<string> raidWorker;
+        private CaptureBuffer.Clip raidClip;
+        private bool raidCollecting, raidEnding, raidComposing;
+        private Player raidPlayer;
+        private ZNet raidSession;
+        private string raidRecorder;
         private Harmony deathHarmony;
         private Harmony bossHarmony;
         private ConfigEntry<bool> bossTrigger, bossEnabled;
@@ -268,6 +278,7 @@ namespace ValheimMoments
                 discoveryCooldown = Bind("Discoveries", "CooldownSeconds", 30.0, "Seconds between discovery captures, 0-3600. Initial warmup is at least five seconds.");
                 discoveryMessage = Bind("Discoveries", "Message", "\uD83E\uDDED Discovered {discovery}!", "Supports {discovery} (one name or grouped names) and {player}. Recorded by appends at delivery.");
                 closeEnabled = Bind("Close Calls", "Enabled", true, "Capture a damage crossing only after surviving 20 seconds. One source second plays for three seconds; the follow-up plays for seven. Death cancels it. Uses the default Discord destination.");
+                raidsEnabled = Bind("Raids", "Enabled", true, "Record four seconds on local raid entry and six seconds after its observed end, combined into one personal clip using the default webhook. Leaving, dying, pausing or changing capture settings abandons it. Raid ended does not imply victory; resets also end raids. Opening expires after 30 minutes.");
                 closeThreshold = Bind("Close Calls", "ThresholdPercent", 5.0, "Health percentage crossed by actual damage, 1-15. Starting low or food changes alone do not trigger.");
                 closeRecovery = Bind("Close Calls", "RecoveryPercent", 20.0, "Health required before rearming, 16-100 percent, sustained for RecoverySeconds.");
                 closeHold = Bind("Close Calls", "RecoverySeconds", 10.0, "Continuous recovery observation before rearming, 1-120 seconds.");
@@ -405,6 +416,13 @@ namespace ValheimMoments
                 catch (Exception error) { closeHarmony?.UnpatchSelf(); LocalDamageDetector.OnDamage = null; Logger.LogWarning("[Close Call] Detector unavailable: " + error.GetType().Name); }
                 try
                 {
+                    raidHarmony = new Harmony("local.valheimmoments.raids");
+                    RaidDetector.OnTransition = OnRaidTransition;
+                    RaidDetector.Install(raidHarmony);
+                }
+                catch (Exception error) { raidHarmony?.UnpatchSelf(); RaidDetector.OnTransition = null; Logger.LogWarning("[Raid] Observer unavailable: " + error.GetType().Name); }
+                try
+                {
                     deathHarmony = new Harmony("local.valheimmoments.death");
                     PlayerDeathDetector.OnLocalDeath = OnLocalDeath;
                     PlayerDeathDetector.OnError = () => Logger.LogWarning("[Death] Could not inspect local death; gameplay was left unchanged.");
@@ -474,6 +492,7 @@ namespace ValheimMoments
             double discoveryPost = Value(discoveryPostSetting), specialPost = Value(specialPostSetting);
             double maxPost = Math.Max(Math.Max(discoveryPost, specialPost), Math.Max(post, Math.Max(bossPost, lootPost)));
             if (Value(closeEnabled)) maxPost = Math.Max(maxPost, Math.Max(0, 8 - pre));
+            if (Value(raidsEnabled)) maxPost = Math.Max(maxPost, 6);
             int requestedWidth, requestedHeight;
             CaptureSizes.Resolve(Value(sizePreset), Screen.width, Screen.height, Value(widthSetting), Value(heightSetting), out requestedWidth, out requestedHeight);
             sourceWidth = Screen.width; sourceHeight = Screen.height;
@@ -482,10 +501,11 @@ namespace ValheimMoments
                 appliedMaximumPost == maxPost && appliedPre == pre && appliedPost == post && bossPostSeconds == bossPost && lootPostSeconds == lootPost && discoveryPostSeconds == discoveryPost && specialPostSeconds == specialPost)
             { quality = limits.Quality; captureSettingsDirty = false; return true; }
             // Let GPU requests and an existing encoder finish before replacing storage.
-            if (pending.Count != 0 || encoding != null) return false;
+            if (pending.Count != 0 || encoding != null || raidWorker != null) return false;
             waitingForLoot?.Release(); waitingForLoot = null;
             CancelPendingDeath();
             CancelCloseCall();
+            CancelRaid();
             pendingBoss = null; lootHighlights.Clear(); acquisitions.Clear();
             history?.ClearHistory(); history = null; captureSession = null;
             foreach (var slot in allSlots)
@@ -575,6 +595,7 @@ namespace ValheimMoments
                 if (captureSettingsDirty && hostSettings.Ready && now - captureSettingsChangedAt >= 0.5) ApplyCaptureSettings();
                 bool active = Value(captureEnabled) && !paused && captureSession.HasSession && hostSettings.Ready && !captureSettingsDirty;
                 UpdateCloseCall(now, active);
+                UpdateRaid(now, active);
                 if (active && Value(lootTrigger) && Value(lootEnabled))
                 {
                     lootHighlights.Poll(now, Value(minimumLootRarity), OnLootHighlight);
@@ -604,13 +625,14 @@ namespace ValheimMoments
                     encodingClip.Release(); encodingClip = null; encoding = null;
                 }
                 // Oldest pending submission is a safe exclusive completion watermark.
-                if (active && encoding == null && (!closeCollecting || closeSurvived))
+                if (active && encoding == null && raidWorker == null && (!closeCollecting || closeSurvived))
                 {
                     var clip = history.TryComplete(pending.Count == 0 ? now : pending.Peek().Submitted);
                     if (clip != null)
                     {
                         closeCollecting = closeSurvived = false;
-                        if (clip.Count == 0) { clip.Release(); CancelPendingDeath(); Logger.LogWarning("[Capture] No frames available; clip discarded."); Notice("No frames available", false, false); }
+                        if (clip.Count == 0) { clip.Release(); if (raidCollecting) CancelRaid(); CancelPendingDeath(); Logger.LogWarning("[Capture] No frames available; clip discarded."); Notice("No frames available", false, false); }
+                        else if (raidCollecting) EncodeRaidSegment(clip);
                         else if (pendingBoss != null && pendingBoss.BossNumber > 0 && BossCaptureRules.UsesRarity(Value(bossCaptureMode))) waitingForLoot = clip;
                         else StartEncoding(clip);
                     }
@@ -916,6 +938,7 @@ namespace ValheimMoments
             if (kind == "discovery" && !Value(discoveryEnabled)) return false;
             if (kind == "special" && !Value(specialEnabled)) return false;
             if (kind == "closecall" && !Value(closeEnabled)) return false;
+            if (kind == "raid" && !Value(raidsEnabled)) return false;
             Uri endpoint;
             return RelayProtocol.ValidKind(kind) && DiscordWebhook.TryEndpoint(Destination(kind), out endpoint);
         }
@@ -1043,6 +1066,90 @@ namespace ValheimMoments
                 return kill.BossNumber <= 0 ? EventMessages.Loot(Value(highlightMessage), kill.EnemyKey, kill.PlayerName, "unavailable") : EventMessages.Boss(Value(bossMessage), kill.EnemyKey, BossAttribution.CreditLabel(kill.CreditNames, kill.PlayerName), Value(bossNameMode), kill.FinalBlowName, firstKill: kill.FirstKill);
             }
         }
+        private void CancelRaid()
+        {
+            raidMoment.Abandon();
+            if (raidCollecting) history?.CancelPending();
+            raidCollecting = false;
+            raidMedia?.Dispose(); raidMedia = null;
+        }
+        private void OnRaidTransition(RandomEvent occurrence, RaidTransition transition)
+        {
+            if (!initialized || stopped) return;
+            SynchronizeCaptureSession();
+            bool eligible = Value(raidsEnabled) && Value(captureEnabled) && !paused && hostSettings.Ready &&
+                !captureSettingsDirty && captureSession.HasSession && Player.m_localPlayer != null &&
+                !Player.m_localPlayer.IsDead() && (Value(discordEnabled) || Value(saveLocalCopy));
+            double now = clock.Elapsed.TotalSeconds;
+            if (transition == RaidTransition.Left) { CancelRaid(); return; }
+            if (transition == RaidTransition.Entered)
+            {
+                var result = raidMoment.Enter(ZNet.instance, occurrence, now, eligible,
+                    eligible && !history.IsBusy && raidWorker == null && raidMedia == null);
+                if (result == RaidMomentResult.Abandoned) { CancelRaid(); return; }
+                if (result != RaidMomentResult.Started) return;
+                raidMedia = new RaidMedia(Path.Combine(Path.GetDirectoryName(outputDirectory), "RaidTemp"));
+                raidPlayer = Player.m_localPlayer; raidSession = ZNet.instance; raidRecorder = raidPlayer.GetPlayerName();
+                raidEnding = raidComposing = false;
+                raidCollecting = history.TryTriggerSegment(now, 4);
+                if (!raidCollecting) CancelRaid();
+                else Notice("Recording raid opening", true, true);
+            }
+            else
+            {
+                var result = raidMoment.End(ZNet.instance, occurrence, now, eligible);
+                if (result == RaidMomentResult.Abandoned) { CancelRaid(); return; }
+                if (result != RaidMomentResult.Ended) return;
+                if (raidMedia == null || raidWorker != null || history.IsBusy || !eligible || !File.Exists(raidMedia.Opening))
+                { CancelRaid(); return; }
+                raidEnding = true; raidCollecting = history.TryTriggerSegment(now, 6);
+                if (!raidCollecting) CancelRaid();
+                else Notice("Recording raid ending", true, true);
+            }
+        }
+        private void EncodeRaidSegment(CaptureBuffer.Clip clip)
+        {
+            raidCollecting = false; raidClip = clip;
+            var media = raidMedia;
+            if (media == null) { clip.Release(); raidClip = null; return; }
+            string path = raidEnding ? media.Ending : media.Opening;
+            string helper = encoderPath; int w = width, h = height, q = quality; bool flipImage = Value(flip);
+            raidWorker = media.Start(token => EncoderClient.Encode(clip, helper, path, w, h, q, flipImage, token));
+        }
+        private void UpdateRaid(double now, bool active)
+        {
+            if (raidMedia != null)
+            {
+                bool valid = active && Value(raidsEnabled) && ReferenceEquals(raidSession, ZNet.instance) &&
+                    raidPlayer != null && raidPlayer == Player.m_localPlayer && !raidPlayer.IsDead();
+                if (!valid || (!raidEnding && raidMoment.Observe(ZNet.instance, now, true, true, true) == RaidMomentResult.Abandoned)) CancelRaid();
+            }
+            if (raidWorker == null || !raidWorker.IsCompleted) return;
+            bool success = false;
+            try { raidWorker.GetAwaiter().GetResult(); success = true; }
+            catch (Exception error) { if (raidMedia != null) Logger.LogWarning("[Raid] Segment failed: " + error.GetType().Name); }
+            raidWorker = null; raidClip?.Release(); raidClip = null;
+            if (!success || raidMedia == null) { CancelRaid(); return; }
+            var media = raidMedia;
+            if (!raidEnding) return; // Opening is encoded; normal capture may resume throughout the raid.
+            if (!raidComposing)
+            {
+                raidComposing = true;
+                string helper = encoderPath; int q = quality;
+                raidWorker = media.Start(token => EncoderClient.Compose(helper, media.Opening, media.Ending, media.Combined, q, token));
+                return;
+            }
+            string destination = Path.Combine(outputDirectory, "raid-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff") + "-" + Guid.NewGuid().ToString("N") + ".webp");
+            try
+            {
+                File.Move(media.Combined, destination);
+                activeKind = "raid"; activeMessage = "# Raid ended\nOpening and aftermath from this player's perspective.";
+                activeRecorder = raidRecorder; activeSession = raidSession; activeAsHost = raidSession.IsServer();
+                activeBoss = null; activeDeath = null; activeOutput = destination;
+                StartUpload(destination);
+            }
+            finally { CancelRaid(); }
+        }
         private void CancelCloseCall()
         {
             closeCall?.Cancel();
@@ -1082,6 +1189,7 @@ namespace ValheimMoments
         }
         private void OnLocalDeath(Player player, string cause)
         {
+            CancelRaid();
             CancelCloseCall();
             if (!Value(deathTrigger) || !Value(deathEnabled)) return;
             if (!initialized || stopped) return;
@@ -1102,6 +1210,7 @@ namespace ValheimMoments
 
         private bool Trigger(string kind, string message, double? postOverride = null, bool close = false)
         {
+            if (raidWorker != null) return false;
             if (!initialized || stopped || !Value(captureEnabled) || paused) return false;
             if (!hostSettings.Ready || captureSettingsDirty || (!Value(discordEnabled) && !Value(saveLocalCopy))) return false;
             SynchronizeCaptureSession();
@@ -1126,6 +1235,7 @@ namespace ValheimMoments
         private void SynchronizeCaptureSession()
         {
             if (!captureSession.Observe(ZNet.instance)) return;
+            CancelRaid(); raidMoment.Reset(ZNet.instance);
             CancelCloseCall(); closeCall?.Reset(); closePlayer = null;
             deathMoments.Clear(); pendingDeath = null; notifications.Clear();
             discoveredNames.Clear(); specialEnemies.Clear(); DiscoveryDetector.Clear();
@@ -1159,6 +1269,7 @@ namespace ValheimMoments
         {
             if (stopped) return;
             stopped = true;
+            CancelRaid(); RaidDetector.OnTransition = null; raidHarmony?.UnpatchSelf();
             CancelCloseCall(); LocalDamageDetector.OnDamage = null; closeHarmony?.UnpatchSelf();
             notifications.Dispose(); deathMoments.Clear(); deathOffers.Clear();
             DiscoveryDetector.OnObserved = null; DiscoveryDetector.OnError = null; DiscoveryDetector.Clear();

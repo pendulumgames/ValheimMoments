@@ -7,7 +7,7 @@ namespace ValheimMoments
     {
         internal const int ChunkBytes = 16384, MaxBytes = 10 * 1024 * 1024, MaxPacketChars = 24000;
         internal static bool ValidId(string id) { Guid parsed; return id != null && id.Length == 32 && Guid.TryParseExact(id, "N", out parsed); }
-        internal static bool ValidKind(string kind) { return kind == "manual" || kind == "boss" || kind == "loot" || kind == "death" || kind == "discovery" || kind == "special" || kind == "closecall"; }
+        internal static bool ValidKind(string kind) { return kind == "manual" || kind == "boss" || kind == "loot" || kind == "death" || kind == "discovery" || kind == "special" || kind == "closecall" || kind == "raid"; }
         internal static string Text(string value) { return Convert.ToBase64String(Encoding.UTF8.GetBytes(value)); }
         internal static string ReadText(string value)
         {

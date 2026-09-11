@@ -4,7 +4,17 @@ Updated: 2026-09-11. Baseline: 0.11.1.
 
 This is the implementation backlog for the user's September feature request. Existing 0.11.1 packages remain unchanged. Items are planned unless listed in the progress section below. Do not describe pending features as available in release READMEs.
 
-## In development: raid observation and lifecycle
+## Progress: 0.17.0 personal raid capture
+
+Plugin now registers the raid observer and drives opening capture, intermediate encoding, ending capture, composition and final local/Discord delivery. Host-owned Raids.Enabled defaults true. The fixed timeline is four source seconds at entry plus six after the observed end. Raw opening frames are released after encoding so normal capture can continue during the raid. The default host route and existing authenticated recorder labels apply; perspectives remain personal without guessed multiplayer occurrence IDs.
+
+Death/leave/pause, policy loss, session/character change, reconfiguration and thirty-minute expiry abandon attempts. Missing/busy opening or ending segments skip the pair. Death can replace a collecting segment; an encoder still holding raw frames must finish/cancel before the buffer is reusable. Intermediate cleanup waits for worker completion. A finalized clip is moved out of the intermediate workspace before normal upload/local-retention handling. “Raid ended” does not imply victory. Timeline customization, raid grouping and restart orphan sweeping remain future work.
+
+Live gameplay, dedicated-host/client behavior, visual quality across the second lossy encoding pass and sustained FPS are deferred to docs/RELAY-TEST.md. Nothing is installed or submitted to Thunderstore automatically.
+
+Validation: 2,443 assertions passed, plus encoder/composition full-decode/timing checks, 95 documented config entries, 19-entry ZIP validation, pinned native-binary provenance and the installed Configuration Manager attribute contract. Production/helper builds have zero warnings/errors. Artifacts: artifacts/Valheim_Moments-0.17.0.zip and artifacts/ValheimMoments-0.17.0-test.zip.
+
+## Earlier raid implementation checkpoints (included in 0.17.0)
 
 Media lifecycle checkpoint: added post-only fixed-pool segment collection, a cancellable hidden composition client, and RaidMedia's one-worker intermediate workspace. Cleanup waits for the current worker's file handles to close and removes only recognized owned filenames/partials without recursion; unknown files are preserved. Five segment assertions and five worker-lifecycle assertions pass, alongside existing event tests. Encoder tests exercise the actual composition client, exact combined timing and pre-cancelled invocation. Production builds with no warnings/errors. Plugin registration, opening/ending orchestration, final-output handoff and restart orphan sweeping still remain; released ZIPs are unchanged.
 

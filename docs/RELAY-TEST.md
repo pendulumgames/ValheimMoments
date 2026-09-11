@@ -209,3 +209,14 @@ Use matching 0.16.0 host and clients when convenient, with the game closed for i
 4. Pause capture, disconnect, or change capture settings during follow-up: no close-call post. Confirm subsequent manual/death capture still works.
 5. Confirm joining players cannot edit Close Calls policy and their local webhook cannot redirect delivery. Discord disabled plus SaveLocalCopy enabled should retain a local clip.
 6. Check smoothness, effective capture settings and FPS impact at your preferred resolution. Synthetic timing tests do not establish in-game performance.
+
+## Raid milestone (0.17.0)
+
+Install matching host/clients only with Valheim closed, when convenient.
+
+1. Participate in a random raid, remain alive/in range, and observe its end. Expect one ten-second opening/aftermath clip, labeled Raid ended, with Recorded by in the default host destination.
+2. Leave, die, pause capture, change capture settings, or disconnect during the attempt. No raid post should follow; later manual capture must work.
+3. Confirm ordinary captures work between the opening encode and raid ending. If the ending occurs while another clip is busy, the raid pair is skipped.
+4. Admin reset should say Raid ended, never raid victory. Forced boss ambience must not start a raid capture.
+5. Confirm the attempt's RaidTemp directory disappears after normal completion/cancellation. Test host-disabled Discord with SaveLocalCopy enabled for local output.
+6. Check join timing, visual quality and FPS. Grouped raid perspectives and restart orphan cleanup are not part of this release.

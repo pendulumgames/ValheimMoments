@@ -1,5 +1,7 @@
 # Raid capture integration findings
 
+0.17.0 integration status: Plugin now drives the observer, lifecycle, separate four/six-second captures, worker-owned media, composition and personal default-route delivery. The implementation checkpoints below preserve their earlier context. Gameplay wiring is complete for this fixed timeline; live acceptance, raid grouping, configurable timing and process-crash restart sweeping remain pending.
+
 Inspected the installed Valheim assembly on 2026-09-11 with `tools/Inspect-Raids.ps1` (read-only Mono.Cecil inspection). This document describes implementation evidence, not a shipped raid feature.
 
 ## Participation

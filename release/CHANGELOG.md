@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.0
+
+- Personal raid moments capture a four-second opening and six-second ending, combined through the default host Discord route. Host-owned Raids.Enabled defaults true.
+- Local random-event participation excludes forced boss ambience. Captions say Raid ended because timer expiry and administrative reset share ending semantics; no victory claim or multiplayer raid grouping.
+- Raw opening frames are released after encoding. Owned intermediate cleanup waits for workers to close and preserves unrelated files. Pause, death, leaving, policy loss, session/capture changes and thirty-minute expiry abandon the attempt. Busy/missing endings are skipped.
+- Composition enforces file, dimension, frame and timing budgets. Automated segment decode/timing, cancellation and cleanup checks pass. Live raid quality/performance remains pending. Restart orphan sweeping and gallery are still planned. Matching 0.17.0 host and clients required.
+
 ## 0.16.0
 
 - Close-call clips require surviving twenty seconds after an actual damage crossing. Death cancels the attempt and frees capture for the normal death event.
