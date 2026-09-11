@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.0
+
+- Multiplayer director groups compatible boss, special-enemy and kill-loot recordings into one post with up to three labeled perspectives. Shared owner-generated death IDs distinguish simultaneous kills; first-kill status remains personal.
+- Host controls collection duration, perspective count and combined post budget. Offers reserve bounded capacity before selected client transfers start; local host footage uses the same selection path. Late, duplicate and over-budget perspectives are omitted without being marked uploaded.
+- Disk-backed relay v2 uses bounded chunks and carries event metadata. Final outcomes distinguish uploaded, omitted, failed and unknown; originals are removed only after confirmed inclusion. Unknown delivery is not automatically retried.
+- Uploader validates bounded Discord receipts and retains message identifiers. Stale callbacks and interrupted transfers cannot acknowledge a newer clip. Per-file relay/director cap remains 10 MiB; tier detection, automatic fallback encoding and gallery links remain future work.
+- Matching 0.15.0 on host and recording clients is required. Automated three-player simulation passes; live co-op, notification/padding and earlier discovery acceptance checks remain pending. Nothing is installed automatically.
+
 ## 0.14.0
 
 - First tracked biome, labeled-location and trader discoveries, once per character per world. Bounded local history uses atomic asynchronous saves; startup visits are silent and suppressed visits are remembered.

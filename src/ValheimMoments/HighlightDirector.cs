@@ -94,7 +94,7 @@ namespace ValheimMoments
             if (group == null)
             {
                 if (groups.Count >= MaximumGroups) return HighlightAdmission.Capacity;
-                group = new Group { Key = key, EventId = shared ? offer.EventId : null, Kind = offer.Kind, Deadline = now + collectionSeconds };
+                group = new Group { Key = key, EventId = shared ? offer.EventId : null, Kind = offer.Kind, Deadline = shared ? now + collectionSeconds : now };
                 groups.Add(group);
             }
             if (group.Offers.Exists(item => item.PeerId == offer.PeerId)) return HighlightAdmission.Duplicate;

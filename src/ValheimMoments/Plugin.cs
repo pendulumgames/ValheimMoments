@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.14.0")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.15.0")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -54,6 +54,15 @@ namespace ValheimMoments
         private string activeKind;
         private CancellationTokenSource uploadCancellation;
         private ClipRelay relay;
+        private HostHighlightQueue highlightQueue;
+        private ConfigEntry<bool> directorEnabled;
+        private ConfigEntry<int> directorPerspectives, directorPostMiB;
+        private ConfigEntry<double> directorWindow;
+        private string directorSignature;
+        private ZNet directorSession;
+        private double nextDirectorCheck;
+        private Task<int> localInspection;
+        private Action<int> localInspected;
         private Action<RelayOutcome> relayCompletion;
         private string relayDirectory;
         private ConfigEntry<int> uploadLimitMiB;
@@ -257,6 +266,10 @@ namespace ValheimMoments
                 specialMessage = Bind("Special Enemies", "Message", "\u2694 {enemy} defeated!", "Supports {enemy}, {player}, {loot}, {item_count}. Credit names the recording character confirmed by Valheim.");
                 logEnemyKeys = Bind("Special Enemies", "LogEnemyKeys", false, new ConfigDescription("Log exact confirmed ordinary-enemy stat keys for configuring EnemyKeys. Host-controlled diagnostic.", null, "Advanced"));
                 uploadLimitMiB = Bind("Discord", "MaxUploadMiB", 10, "Per-file upload guard. Discord can impose its own limit. Allowed range 1–100.");
+                directorEnabled = Bind("Director", "Enabled", true, "Host collects perspectives of the same creature death into one Discord post. Manual and personal events remain separate.");
+                directorPerspectives = Bind("Director", "MaxPerspectives", 3, "Maximum perspectives per post, 1-3. Selection is deterministic, not a visual-quality ranking.");
+                directorPostMiB = Bind("Director", "MaxPostMiB", 20, "Combined attachment-byte budget per post, 1-30 MiB. Set for your Discord destination. Relay retains its 10 MiB per-file cap; oversize perspectives are omitted.");
+                directorWindow = Bind("Director", "CollectionSeconds", 10.0, "Wait 1-30 seconds after the first encoded offer for other players. Slower or late recordings may be omitted.");
                 manualTrigger = Bind("Triggers", "ManualCapture", true, "Enable the manual hotkey independently of automatic events.");
                 deathTrigger = Bind("Triggers", "PlayerDeath", true, "Enable local player death captures.");
                 deathEnabled = Bind("Player Death", "Enabled", true, "Enable this event. Triggers.PlayerDeath must also be enabled.");
@@ -483,8 +496,12 @@ namespace ValheimMoments
             try
             {
                 hostSettings?.Tick(clock.Elapsed.TotalSeconds);
+                UpdateDirector();
                 if (relay != null && !Value(discordEnabled)) relay.StopSending();
                 relay?.Tick(clock.Elapsed.TotalSeconds);
+                if (localInspection != null && localInspection.IsCompleted)
+                { int bytes = localInspection.GetAwaiter().GetResult(); localInspection = null; var inspected = localInspected; localInspected = null; inspected?.Invoke(bytes); }
+                highlightQueue?.Tick(ZNet.instance, clock.Elapsed.TotalSeconds);
                 if (uploadCancellation != null && upload != null && !upload.IsCompleted &&
                     (!Value(discordEnabled) || !DiscordRouting.CanSubmit(uploadSession, true, ZNet.instance, ZNet.instance != null && ZNet.instance.IsServer()) ||
                     (relayCompletion != null && (!Value(discordEnabled) || !relay.DeliveryPeerConnected))))
@@ -753,6 +770,12 @@ namespace ValheimMoments
                 return;
             }
             if (!Value(discordEnabled)) return;
+            if (Value(directorEnabled) && highlightQueue != null)
+            {
+                QueueHostClip(file);
+                return;
+            }
+            if (highlightQueue?.Busy == true) { FinishMoment(activeDeath, activeSession, false, "Upload busy - memory kept locally"); return; }
             if (upload != null)
             {
                 Logger.LogWarning("[Discord] Upload busy; new clip retained locally.");
@@ -776,6 +799,81 @@ namespace ValheimMoments
             upload = Task.Run(() => DiscordWebhook.UploadAsync(file, options, token));
         }
 
+        private void UpdateDirector()
+        {
+            if (relay == null) return;
+            double now = clock.Elapsed.TotalSeconds;
+            if (highlightQueue != null && ReferenceEquals(directorSession, ZNet.instance) && now < nextDirectorCheck) return;
+            nextDirectorCheck = now + 0.5;
+            string signature = Value(directorEnabled) + ":" + Value(directorPerspectives) + ":" + Value(directorPostMiB) + ":" + Value(directorWindow) + ":" + Value(uploadLimitMiB);
+            if (highlightQueue == null || (signature != directorSignature && !highlightQueue.Busy))
+            {
+                directorSignature = signature;
+                highlightQueue = new HostHighlightQueue(new HighlightDirector(Value(directorPerspectives),
+                    Math.Min(10, Value(uploadLimitMiB)) * 1048576L, Value(directorPostMiB) * 1048576L, Value(directorWindow)), 60L * 1048576, SendHighlightGroup);
+                highlightQueue.Reset(ZNet.instance);
+                highlightQueue.CanUpload = () => upload == null;
+            }
+            if (!ReferenceEquals(directorSession, ZNet.instance)) { directorSession = ZNet.instance; highlightQueue.Reset(directorSession); }
+            relay.Collect = Value(directorEnabled) ? CollectPerspective : null;
+        }
+
+        private bool CollectPerspective(RelayFile file, string recorder, long peer, Func<bool> connected,
+            Func<Action<string>, bool> transfer, Action<RelayOutcome> complete)
+        {
+            var origin = ZNet.instance;
+            var item = new QueuedPerspective {
+                Offer = new HighlightOffer(file.Id, file.EventId, file.Kind, peer, EpicLootAdapter.Plain(recorder, 80), file.Size, file.PersonalFirst),
+                Message = file.Message, Keep = true, Transfer = transfer, Complete = complete, Release = file.Dispose,
+                Eligible = () => Value(directorEnabled) && ReferenceEquals(origin, ZNet.instance) && connected() && CanRelay(file.Kind)
+            };
+            return highlightQueue.Offer(origin, item, clock.Elapsed.TotalSeconds) == HighlightAdmission.Accepted;
+        }
+
+        private void QueueHostClip(string file)
+        {
+            if (localInspection != null) { FinishMoment(activeDeath, activeSession, false, "Queue busy - memory kept locally"); return; }
+            var origin = activeSession; var ticket = activeDeath; string kind = activeKind;
+            string eventId = activeBoss?.EventId, recorder = EpicLootAdapter.Plain(activeRecorder, 80);
+            bool first = activeBoss?.FirstKill == true, keep = Value(saveLocalCopy);
+            string message = EventMessages.FormatPost(activeBoss == null ? activeMessage : BossMessage(activeBoss));
+            localInspected = bytes => {
+                var item = new QueuedPerspective {
+                    Offer = new HighlightOffer(Guid.NewGuid().ToString("N"), eventId, kind, long.MinValue, recorder, bytes, first),
+                    File = file, Keep = keep, Message = message,
+                    Eligible = () => Value(directorEnabled) && DiscordRouting.CanSubmit(origin, true, ZNet.instance, ZNet.instance != null && ZNet.instance.IsServer()) && CanRelay(kind),
+                    Complete = outcome => FinishMoment(ticket, origin, outcome == RelayOutcome.Uploaded,
+                        outcome == RelayOutcome.Uploaded ? "Memory Uploaded" : outcome == RelayOutcome.Unknown ? "Upload unconfirmed - check Discord" : "Perspective omitted - memory kept locally")
+                };
+                if (bytes == 0 || highlightQueue.Offer(origin, item, clock.Elapsed.TotalSeconds) != HighlightAdmission.Accepted) item.Complete(RelayOutcome.Omitted);
+            };
+            localInspection = RelayFile.Inspect(file);
+            Notice("Memory Captured", false, false);
+        }
+
+        private Task<UploadResult> SendHighlightGroup(QueuedPerspective[] items, CancellationToken token)
+        {
+            string message = items[0].Message;
+            if (items.Length == 1) message = EventMessages.RecordedPost(message, items[0].Offer.Recorder);
+            else
+            {
+                message = message.Replace("**First boss kill for this character!**\n", "").Replace("\n**First boss kill for this character!**", "");
+                if (message.Length > 1450) message = message.Substring(0, char.IsHighSurrogate(message[1449]) ? 1449 : 1450) + "…";
+                message += "\n## Perspectives";
+                for (int i = 0; i < items.Length; i++) message += "\n* " + (i + 1) + ". **Recorded by:** " + items[i].Offer.Recorder + (items[i].Offer.PersonalFirst ? " (first kill for this character)" : "");
+            }
+            var options = new DiscordOptions { WebhookUrl = Destination(items[0].Offer.Kind), Username = Value(discordUsername), Message = message,
+                MaxUploadBytes = Math.Min(10, Value(uploadLimitMiB)) * 1048576L };
+            long budget = Value(directorPostMiB) * 1048576L;
+            var clips = new DiscordClip[items.Length];
+            for (int i = 0; i < clips.Length; i++) clips[i] = new DiscordClip(items[i].File, items[i].Offer.Recorder, items[i].Keep);
+            return Task.Run(async () => {
+                var result = await DiscordWebhook.UploadManyAsync(clips, options, budget, token).ConfigureAwait(false);
+                if (!result.Success) Logger.LogWarning("[Director] " + result.Message);
+                return result;
+            });
+        }
+
         private void OnDestroy() { StopCapture(); }
         private string Destination(string kind)
         {
@@ -784,7 +882,7 @@ namespace ValheimMoments
         }
         private bool CanRelay(string kind)
         {
-            if (!Value(discordEnabled) || upload != null) return false;
+            if (!Value(discordEnabled) || (!Value(directorEnabled) && (upload != null || highlightQueue?.Busy == true))) return false;
             if (kind == "manual" && !Value(manualTrigger)) return false;
             if (kind == "boss" && (!Value(bossTrigger) || !Value(bossEnabled))) return false;
             if (kind == "loot" && (!Value(lootTrigger) || !Value(lootEnabled))) return false;
@@ -1001,6 +1099,7 @@ namespace ValheimMoments
             var flush = discoveryHistory?.Flush();
             if (flush != null) _ = flush.ContinueWith(task => { var ignored = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
             hostSettings?.Dispose();
+            highlightQueue?.Stop();
             relay?.Dispose();
             PlayerDeathDetector.OnLocalDeath = null;
             PlayerDeathDetector.OnError = null;

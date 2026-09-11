@@ -163,7 +163,7 @@ namespace ValheimMoments
                 session = current; remote = null; server = null; lastPayload = null;
                 registered.Clear(); nextReply.Clear(); nextRequest = 0;
                 UpdateManager(true); changed?.Invoke();
-                if (session != null && !session.IsServer()) log("Waiting for host settings; host and clients need matching 0.14.0 settings schema.");
+                if (session != null && !session.IsServer()) log("Waiting for host settings; host and clients need matching 0.15.0 settings schema.");
             }
             UpdateManager(false);
             if (session == null) return;

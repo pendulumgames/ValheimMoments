@@ -39,7 +39,7 @@ internal static class DirectorTests
         {
             director.Reset(session);
             director.Offer(session, Offer(1, 100, 1, kind: kind), 0); director.Offer(session, Offer(2, 100, 2, kind: kind), 0);
-            Check(director.Drain(session, 2).Length == 2, "Personal category never merges from claimed shared ID: " + kind);
+            Check(director.Drain(session, 0).Length == 2, "Personal category stays separate and bypasses collection delay: " + kind);
         }
         director.Reset(session);
         director.Offer(session, Offer(1, 0, 1), 0); director.Offer(session, Offer(2, 0, 2), 0);

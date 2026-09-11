@@ -14,6 +14,15 @@ namespace ValheimMoments
         private readonly Func<int> limit;
         private readonly Action<RelayFile, string, Action<RelayOutcome>> deliver;
         private readonly string directory;
+        internal Func<RelayFile, string, long, Func<bool>, Func<Action<string>, bool>, Action<RelayOutcome>, bool> Collect;
+        private sealed class Waiting
+        {
+            internal RelayFile File; internal ZRpc Peer; internal ZNet Origin;
+            internal double Deadline, Heartbeat; internal Action<string> Ready;
+        }
+        private readonly Dictionary<ZRpc, Waiting> waiting = new Dictionary<ZRpc, Waiting>();
+        private readonly Dictionary<ZRpc, long> peerIds = new Dictionary<ZRpc, long>();
+        private long nextPeerId;
         private readonly Action<string> log;
         private readonly Func<ZRpc, bool> allowPeer;
         private readonly Func<ZRpc, string, double, bool> acceptEvent;
@@ -35,7 +44,7 @@ namespace ValheimMoments
         private bool offeredFirst;
         private string outgoingId;
         private int sent, acknowledged;
-        private double now, incomingDeadline, incomingEnd, outgoingDeadline, nextSend, nextTick;
+        private double now, incomingDeadline, incomingEnd, outgoingDeadline, outgoingEnd, nextSend, nextTick;
         private bool delivering, awaitingOffer, waitingResult, disposed;
 
         internal ClipRelay(Func<string, bool> allow, Func<int> limit, Action<RelayFile, string, Action<RelayOutcome>> deliver, Action<string> log, Func<ZRpc, bool> allowPeer = null, Func<ZRpc, string, double, bool> acceptEvent = null, string directory = null)
@@ -56,19 +65,26 @@ namespace ValheimMoments
             {
                 if (!peer.IsReady() || !peer.m_rpc.IsConnected()) continue;
                 live.Add(peer.m_rpc);
+                if (!peerIds.ContainsKey(peer.m_rpc)) peerIds.Add(peer.m_rpc, ++nextPeerId);
                 if (registered.Add(peer.m_rpc)) peer.m_rpc.Register<string>(Rpc, Receive);
             }
             registered.RemoveWhere(rpc => !live.Contains(rpc));
             var stale = new List<ZRpc>();
             foreach (var entry in nextOffer) if (!live.Contains(entry.Key)) stale.Add(entry.Key);
             foreach (var rpc in stale) nextOffer.Remove(rpc);
+            foreach (var rpc in new List<ZRpc>(peerIds.Keys)) if (!live.Contains(rpc)) peerIds.Remove(rpc);
+            foreach (var entry in new List<Waiting>(waiting.Values))
+            {
+                if (!live.Contains(entry.Peer) || now >= entry.Deadline || !allowPeer(entry.Peer) || !allow(entry.File.Kind))
+                { FinishWaiting(entry, entry.File.Complete ? RelayOutcome.Unknown : RelayOutcome.Failed, true); continue; }
+                if (now >= entry.Heartbeat) { Send(entry.Peer, "W|" + entry.File.Id + "|0"); entry.Heartbeat = now + 5; }
+            }
             if (source != null && (!live.Contains(source) || now > incomingDeadline || now > incomingEnd))
             {
-                if (live.Contains(source) && incoming != null) Send(source, "R|" + incoming.Id + "|0");
-                incoming?.Dispose(); incoming = null; source = null;
+                RejectIncoming();
             }
             PollIncoming();
-            if (target != null && (!live.Contains(target) || now > outgoingDeadline)) EndInterrupted("Transfer ended or host unavailable; local clip retained.");
+            if (target != null && (!live.Contains(target) || now > outgoingDeadline || now > outgoingEnd)) EndInterrupted("Transfer ended or host unavailable; local clip retained.");
             if (preparation != null && preparation.IsCompleted)
             {
                 var ready = preparation; preparation = null;
@@ -114,6 +130,7 @@ namespace ValheimMoments
                 offeredKind = kind; offeredMessage = message;
                 offeredEventId = eventId; offeredFirst = personalFirst;
                 sent = acknowledged = 0; awaitingOffer = true; waitingResult = false; outgoingDeadline = now + 10;
+                outgoingEnd = now + 1230;
                 preparation = RelayFile.Inspect(file);
                 log("Offered clip to host; client webhook and bot-name settings are ignored.");
                 return true;
@@ -141,12 +158,31 @@ namespace ValheimMoments
                 if (nextOffer.TryGetValue(rpc, out next) && now < next) { Send(rpc, "R|" + p[1] + "|0"); return; }
                 nextOffer[rpc] = now + 15;
                 int size;
-                if (source != null || delivering || !allowPeer(rpc) || !RelayProtocol.ValidKind(p[2]) || !allow(p[2]) || !int.TryParse(p[3], out size)) { Send(rpc, "R|" + p[1] + "|0"); return; }
+                if ((Collect == null && (source != null || delivering)) || waiting.ContainsKey(rpc) || waiting.Count >= 16 || !allowPeer(rpc) || !RelayProtocol.ValidKind(p[2]) || !allow(p[2]) || !int.TryParse(p[3], out size)) { Send(rpc, "R|" + p[1] + "|0"); return; }
                 string message = RelayProtocol.ReadText(p[4]);
                 if (p[6] != "0" && p[6] != "1") { Send(rpc, "R|" + p[1] + "|0"); return; }
-                try { incoming = new RelayFile(directory, p[1], p[2], message, size, limit(), p[5] == "-" ? null : p[5], p[6] == "1"); }
+                RelayFile offered;
+                try { offered = new RelayFile(directory, p[1], p[2], message, size, limit(), p[5] == "-" ? null : p[5], p[6] == "1"); }
                 catch { Send(rpc, "R|" + p[1] + "|0"); return; }
-                if (!acceptEvent(rpc, p[2], now)) { incoming.Dispose(); incoming = null; Send(rpc, "R|" + p[1] + "|0"); return; }
+                if (!acceptEvent(rpc, p[2], now)) { offered.Dispose(); Send(rpc, "R|" + p[1] + "|0"); return; }
+                if (Collect != null)
+                {
+                    var entry = new Waiting { File = offered, Peer = rpc, Origin = session, Deadline = now + 1200 };
+                    waiting.Add(rpc, entry);
+                    string recorder = "Connected player";
+                    foreach (var peer in session.GetPeers()) if (ReferenceEquals(peer.m_rpc, rpc)) { recorder = peer.m_playerName; break; }
+                    bool accepted = false;
+                    try { accepted = Collect(offered, recorder, peerIds[rpc], () => IsWaiting(entry), ready => {
+                        if (!IsWaiting(entry) || source != null || delivering) return false;
+                        entry.Ready = ready; incoming = offered; source = rpc; incomingDeadline = now + 30;
+                        incomingEnd = now + 30 + Math.Ceiling(size / (double)RelayProtocol.ChunkBytes) * 0.5;
+                        Send(rpc, "A|" + offered.Id + "|0"); return true;
+                    }, outcome => FinishWaiting(entry, outcome)); } catch { }
+                    if (!accepted) FinishWaiting(entry, RelayOutcome.Omitted);
+                    else { Send(rpc, "W|" + offered.Id + "|0"); entry.Heartbeat = now + 5; }
+                    return;
+                }
+                incoming = offered;
                 source = rpc; incomingDeadline = now + 30;
                 incomingEnd = now + 30 + Math.Ceiling(size / (double)RelayProtocol.ChunkBytes) * 0.5;
                 Send(rpc, "A|" + p[1] + "|0");
@@ -155,7 +191,7 @@ namespace ValheimMoments
             {
                 int offset;
                 if (!allowPeer(rpc) || !allow(incoming.Kind) || !int.TryParse(p[2], out offset) || !incoming.BeginAdd(offset, Convert.FromBase64String(p[3])))
-                { Send(rpc, "R|" + p[1] + "|0"); incoming.Dispose(); incoming = null; source = null; }
+                { RejectIncoming(); }
             }
         }
         private void PollIncoming()
@@ -165,10 +201,17 @@ namespace ValheimMoments
             if (state == 0) return;
             var rpc = source;
             if (state < 0 || !allowPeer(rpc) || !allow(incoming.Kind))
-            { Send(rpc, "R|" + incoming.Id + "|0"); incoming.Dispose(); incoming = null; source = null; return; }
+            { RejectIncoming(); return; }
             incomingDeadline = now + 30;
             if (state == 1) { Send(rpc, "A|" + incoming.Id + "|" + incoming.Received); return; }
             var complete = incoming; incoming = null; source = null;
+            if (waiting.TryGetValue(rpc, out var collected) && ReferenceEquals(collected.File, complete))
+            {
+                Send(rpc, "A|" + complete.Id + "|" + complete.Received);
+                var ready = collected.Ready; collected.Ready = null;
+                try { ready?.Invoke(complete.FilePath); } catch { FinishWaiting(collected, RelayOutcome.Failed); }
+                return;
+            }
             delivering = true; deliveryPeer = rpc; delivery = complete;
             ZNet origin = session;
             string recorder = "Connected player";
@@ -184,6 +227,7 @@ namespace ValheimMoments
         private void ReceiveClient(string[] p)
         {
             if (outgoingSize == 0 || p.Length != 3) return;
+            if (p[0] == "W" && (awaitingOffer || waitingResult)) { outgoingDeadline = now + 30; return; }
             if (p[0] == "R")
             {
                 if (p[2] == "1")
@@ -213,6 +257,23 @@ namespace ValheimMoments
             else outgoingDeadline = now + 30;
         }
         private static void Send(ZRpc rpc, string packet) { rpc.Invoke(Rpc, new object[] { packet }); }
+        private void RejectIncoming()
+        {
+            if (source != null && waiting.TryGetValue(source, out var entry) && ReferenceEquals(entry.File, incoming))
+            { FinishWaiting(entry, RelayOutcome.Failed); return; }
+            if (source != null && source.IsConnected() && incoming != null) Send(source, "R|" + incoming.Id + "|0");
+            incoming?.Dispose(); incoming = null; source = null;
+        }
+        private bool IsWaiting(Waiting entry)
+        { return !disposed && ReferenceEquals(session, entry.Origin) && waiting.TryGetValue(entry.Peer, out var current) && ReferenceEquals(current, entry) && registered.Contains(entry.Peer) && entry.Peer.IsConnected(); }
+        private void FinishWaiting(Waiting entry, RelayOutcome outcome, bool abandoned = false)
+        {
+            if (IsWaiting(entry)) Send(entry.Peer, "R|" + entry.File.Id + "|" + (int)outcome);
+            if (waiting.TryGetValue(entry.Peer, out var current) && ReferenceEquals(current, entry)) waiting.Remove(entry.Peer);
+            if (ReferenceEquals(incoming, entry.File)) { incoming = null; source = null; }
+            var ready = entry.Ready; entry.Ready = null; ready?.Invoke(null);
+            if (!abandoned || !entry.File.Complete) entry.File.Dispose(); // Queue releases a completed file after any HTTP reader closes.
+        }
         internal bool DeliveryPeerConnected { get { return deliveryPeer != null && registered.Contains(deliveryPeer) && deliveryPeer.IsConnected(); } }
         internal void StopSending() { if (target != null) EndInterrupted("Client relay disabled; local clip retained."); }
         private void EndInterrupted(string reason)
@@ -229,6 +290,8 @@ namespace ValheimMoments
         private void Reset()
         {
             if (target != null) EndInterrupted("Session changed; local clip retained.");
+            foreach (var entry in new List<Waiting>(waiting.Values)) FinishWaiting(entry, RelayOutcome.Failed, true);
+            waiting.Clear(); peerIds.Clear(); nextPeerId = 0;
             incoming?.Dispose(); incoming = null; source = null; delivering = false; deliveryPeer = null; delivery = null; registered.Clear(); nextOffer.Clear();
         }
         public void Dispose() { disposed = true; Reset(); session = null; }

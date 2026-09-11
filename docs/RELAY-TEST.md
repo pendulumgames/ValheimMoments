@@ -6,12 +6,12 @@ to qualify during testing; the shipped default is Legendary.
 
 ## Host setup
 
-For 0.14.0, install the matching build on host and recording clients. Older hosts do
+For 0.15.0, install the matching build on host and recording clients. Older hosts do
 not provide policy snapshots; newer clients wait rather than use their own event rules.
 
 Configure Discord.Enabled, WebhookURL and Username on the host. Optional Good Loot,
 Boss Kill and Player Death webhook overrides also belong to the host; disabled
-overrides use the default. Discord.Enabled controls host and client delivery. Capture.SaveLocalCopy is player-owned. Matching 0.14.0 settings protocol is required.
+overrides use the default. Discord.Enabled controls host and client delivery. Capture.SaveLocalCopy is player-owned. Matching 0.15.0 settings/relay protocols are required.
 
 Clients never send a webhook URL or bot name. Their local Discord.Enabled, Username
 and webhook entries do not control relay delivery. The host syncs event,
@@ -141,26 +141,26 @@ a live dedicated-server check; no dedicated server is available in this workspac
 
 ## Transfer limits and current policy
 
-- One incoming transfer or relayed upload at a time on the host; one outgoing clip
-  per client. Host-local uploads share the same uploader. Busy submissions are
-  declined, not queued or replayed later.
+- One incoming transfer and one upload at a time on the host; one outgoing clip per
+  client. The director reserves bounded metadata/byte capacity before requesting selected
+  transfers. Host-local clips share the same queue. Excess offers are omitted.
 - Maximum 10 MiB per relayed clip, further restricted by the host's MaxUploadMiB.
   One 16 KiB chunk per acknowledgment, paced to at most 20 chunks/second. Networking
-  latency can lower throughput; a 4 MiB clip may take roughly 13 seconds to transfer
-  before Discord upload, plus acknowledgment latency.
-- Host receive deadline: 120 seconds. Client initial response/read deadline:
-  10 seconds; subsequent acknowledgment deadline: 15 seconds; final result wait:
-  90 seconds. At most one offer per connected client per 15 seconds is accepted for
-  consideration. Failed/timed-out offers are not automatically retried.
+  latency, worker disk I/O and tick pacing can substantially lower throughput.
+- Host transfer inactivity deadline: 30 seconds, with an absolute deadline of 30 seconds
+  plus 0.5 seconds per chunk. Initial client response/read deadline: 10 seconds;
+  subsequent acknowledgments: 30 seconds; final result wait: 90 seconds. Queue wait
+  heartbeats refresh a 30-second wait, bounded to 20 minutes at the host. At most one
+  offer per connected client per 15 seconds is considered. No automatic retry.
 - Size, offset, event type, caption length, GUID and RIFF chunk boundaries are
   validated. The host does not decode the media on the game thread. Transfers use
   direct peer RPCs, not client-supplied routed sender IDs.
-- File reads, host temporary-file writes and HTTP run on workers. Each side retains
-  at most one relay byte buffer up to 10 MiB. The host deletes its temporary file
+- File reads, host temporary-file writes and HTTP run on workers using bounded chunks,
+  rather than whole-clip relay byte arrays. The host deletes its temporary file
   after delivery/failure; clients delete originals after confirmed success when
   SaveLocalCopy=false. Failures retain originals. A crash can leave a host RelayTemp file.
-- Co-op perspectives are separate submissions. The first accepted transfer wins
-  while busy; there is no encounter-wide deduplication or queued alternate view.
+- Compatible creature-death perspectives group within the collection window. Late,
+  oversized and excess perspectives are omitted; missing metadata stays separate.
 
 Live co-op F10 delivery for both the host and a joining player passed on 2026-09-09,
 and the clips looked correct. Version 0.9.1's host/solo Recorded by change also passed
@@ -170,7 +170,7 @@ still need live testing.
 
 ## Discovery and special-enemy milestone (0.14.0)
 
-These checks can wait for the next convenient test session. Install matching 0.14.0 on the host and recording clients with Valheim closed. Preserve the plugin's State folder. The test package includes the configuration reference.
+These checks can wait for the next convenient test session. Install matching 0.15.0 on the host and recording clients with Valheim closed. Preserve the plugin's State folder. The test package includes the configuration reference.
 
 1. Join a world, wait for host policy and at least five seconds of history. Login itself should not generate discovery clips. Enter a biome not yet tracked in this character/world; expect one discovery with Recorded by. Nearby labeled location/trader discoveries may group into the same caption.
 2. Leave and revisit, then quit/reload and revisit again: no repeat. With the same character in a second world, test an untracked destination after warmup. With another character in the first world, confirm its independent history. Existing exploration before installation can count as first tracked; do not interpret it as a migration failure.
@@ -182,3 +182,19 @@ These checks can wait for the next convenient test session. Install matching 0.1
 8. Repeat a discovery and special kill as a joining client, then with a Windows dedicated host when available. Existing relay limits/busy rules apply; separate perspectives are not grouped yet. Confirm final upload feedback and SaveLocalCopy cleanup only after host success.
 
 Automated tests cover persistence, world/character separation, loading switches, corrupt and full histories, configured matching/cooldowns, hook scoping, routing and host policy. These are not substitutes for the in-game checks above. Previously deferred size/UI/audio/death-rate and final boss-credit checks remain applicable.
+
+## Multiplayer director milestone (0.15.0)
+
+Install matching 0.15.0 on the host and every recording client when convenient, with Valheim closed. This is the first live acceptance test of grouped delivery; earlier automated checks used simulated game/peer APIs.
+
+1. Use two or three credited players on one boss. Ensure generated clips satisfy boss rarity/first-kill rules. Expect one Discord post containing the selected perspectives and each recorder's label. If only one character has a first kill, that status must not apply to everyone.
+2. Confirm the host's perspective participates. Repeat with a dedicated host to verify client-only selection. No camera footage is expected from a headless server.
+3. Set MaxPerspectives=1, then 2/3. Excluded players should see an omission message and retain their originals. Included players should receive Memory Uploaded only after Discord confirms the post.
+4. Lower MaxPostMiB enough that fewer perspectives fit. Confirm omission without unchanged oversized retries. Raise the budget within your Discord destination allowance and retry a new event.
+5. Test two same-name bosses killed close together. Their shared occurrence IDs must keep their recordings separate. Manual F10, personal deaths and discoveries must remain separate posts.
+6. Verify Capture.SaveLocalCopy independently on each recorder. Successfully included clips follow that preference; omitted/failed/uncertain clips remain. Host RelayTemp files should disappear after delivery finishes.
+7. Disconnect a selected player during transfer, and switch/close the host world while HTTP is pending. No old clip may move into the next world's queue. Missing final confirmation should retain originals and warn to check Discord.
+8. Try a deliberately slow encoder/late offer, invalid webhook, and Director.Enabled=false. Late/failed offers must not announce an upload; disabling the director should restore individual delivery after pending grouped work cancels.
+9. Review Configuration Manager: Director controls are host-owned and locked on joining players. Confirm the four new settings are ordered/readable and changing them does not overwrite player preferences.
+
+Known limits: 10 MiB per-file director/relay cap; 60 MiB total queued reservation; at most 16 offered perspectives and eight pending selector groups; no visual-quality scoring, automatic re-encoding or tier detection. Primary perspective supplies the shared caption/loot summary. Collection starts after encoding, so different encoding times can cause late omission. Failed-file expiry/gallery/Keep remain pending.

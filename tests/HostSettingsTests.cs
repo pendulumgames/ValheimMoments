@@ -44,6 +44,8 @@ internal static class HostSettingsTests
         var clientDiscoveries = Add(clientPolicy, clientFile, "Discoveries", "Enabled", false, out unused);
         Add(hostPolicy, hostFile, "Special Enemies", "EnemyKeys", "$enemy_test", out unused);
         var clientEnemies = Add(clientPolicy, clientFile, "Special Enemies", "EnemyKeys", "local_choice", out unused);
+        Add(hostPolicy, hostFile, "Director", "MaxPerspectives", 3, out unused);
+        var clientPerspectives = Add(clientPolicy, clientFile, "Director", "MaxPerspectives", 1, out unused);
         double time = 0;
         Action tick = () => {
             time += 0.3; ZNet.instance = host; hostPolicy.Tick(time); hostRpc.Drain();
@@ -61,6 +63,9 @@ internal static class HostSettingsTests
             Check(hostPolicy.PeerHasPolicy(hostRpc) && !hostPolicy.PeerHasPolicy(new ZRpc()), "Relay eligibility requires a recent settings exchange with the actual peer");
             Check(clientPolicy.Ready && clientPolicy.Get(localRule) && clientPolicy.Get(localPre) == 5, "Connected host policy applied with typed values");
             Check(clientPolicy.Get(clientDiscoveries) && clientPolicy.Get(clientEnemies) == "$enemy_test", "Discovery and enemy rules use host policy");
+            Check(clientPolicy.Get(clientPerspectives) == 3 && clientPerspectives.Value == 1 && !HostConfiguration.IsLocal("Director", "MaxPerspectives"), "Director selection policy is host-owned and preserves client config");
+            Check((int)SettingRanges.For("Director", "MaxPerspectives", 3).Clamp(99) == 3 && (int)SettingRanges.For("Director", "MaxPostMiB", 20).Clamp(1000) == 30, "Director perspective and aggregate limits clamped");
+            Check((double)SettingRanges.For("Director", "CollectionSeconds", 10.0).Clamp(double.NaN) == 10, "Director collection window rejects nonfinite values");
             Check(!HostConfiguration.IsLocal("Special Enemies", "LogEnemyKeys") && !HostConfiguration.IsLocal("Discoveries", "Enabled"), "New category controls and diagnostic remain host-owned");
             Check(!clientPolicy.Get(clientDiscord) && clientDiscord.Value && clientPolicy.Get(clientSave), "Host delivery off overrides client true; local saving remains independent");
             Check(string.CompareOrdinal(localTags.Category, ruleTags.Category) < 0, "Player category sorts ahead of host settings");

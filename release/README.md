@@ -6,11 +6,11 @@ Save the moments worth sharing: boss victories, rare drops, unfortunate deaths,
 and anything you catch with a hotkey. Valheim Moments turns recent gameplay into
 animated WebP clips and can send them to Discord.
 
-**Windows x64 beta - 0.14.0.** Manual capture, deaths, boss summaries, Epic Loot,
+**Windows x64 beta - 0.15.0.** Manual capture, deaths, boss summaries, Epic Loot,
 ordinary loot and natural acquisitions have passed user testing. Host and joining-player
 F10 clips have reached Discord, and the WebP clips were confirmed visually.
 
-This release adds first tracked discoveries per character per world and configurable special-enemy captures. Settings, sizing, notifications and death-rate improvements from 0.12/0.13 are included. Install **0.14.0 on the host and every recording client**. Automated checks cover persistence, rules and hook behavior; in-game exploration, visual/audio and live co-op acceptance remain pending.
+This release adds grouped multiplayer highlights: compatible creature-death recordings share one Discord post with up to three labeled perspectives. Discoveries and configurable special-enemy captures from 0.14 are included. Settings, sizing, notifications and death-rate improvements from 0.12/0.13 are included. Install **0.15.0 on the host and every recording client**. Automated checks cover persistence, rules and hook behavior; in-game exploration, visual/audio and live co-op acceptance remain pending.
 
 ## Features
 
@@ -34,7 +34,7 @@ History lives in `ValheimMoments/State/Discoveries` beside the plugin, separatel
 
 Special enemies default to an empty selection. The host enables the Advanced `Special Enemies.LogEnemyKeys` diagnostic, kills a candidate, then copies its exact confirmed stat key from the BepInEx log into `Special Enemies.EnemyKeys`. Use commas or semicolons for multiple keys. These are case-sensitive kill-credit identifiers, not prefab names or translated display names; no wildcards are used. Turn the diagnostic off afterward.
 
-Special captures use the main Discord route, do not require rare loot, and show the recording character's confirmed kill credit plus observed loot. Their `FirstKillOnly` option uses existing character-wide kill statistics across worlds. Normal bosses always use Boss Kill rules; an accepted special capture replaces the ordinary loot capture for that credited death. Automatic multiplayer grouping is still planned.
+Special captures use the main Discord route, do not require rare loot, and show the recording character's confirmed kill credit plus observed loot. Their `FirstKillOnly` option uses existing character-wide kill statistics across worlds. Normal bosses always use Boss Kill rules; an accepted special capture replaces the ordinary loot capture for that credited death. Matching shared death IDs allow these perspectives to join the multiplayer director.
 
 ## Natural treasure highlights
 
@@ -192,14 +192,18 @@ Configuration Manager edits apply in game, with buffer changes waiting for activ
 
 ## Current limits
 
+The host's **Director** section defaults to Enabled=true, MaxPerspectives=3, MaxPostMiB=20 and CollectionSeconds=10. It reserves space before requesting selected footage. Host footage is primary when available; remaining selection follows connected-peer order. The main caption/loot summary comes from the primary perspective, with recorder labels and personal first-kill status listed separately. These are host-owned settings; each player keeps control of SaveLocalCopy.
+
+The director also applies the 10 MiB per-file cap to host footage. Oversized, late or excess perspectives are kept locally and omitted. No automatic quality reduction or server-tier detection is claimed. Discord can still reject a post below the configured guard. Unconfirmed delivery retains originals and asks you to check Discord before retrying.
+
 * Relay clips are limited to 10 MiB, also subject to the host's lower upload limit.
 * Relay transfers are paced and take time before Discord upload. The host accepts one
-  incoming transfer/upload at a time. Busy events are declined without automatic retry.
+  incoming transfer and one grouped upload at a time. The director reserves bounded queue capacity; excess/expired offers are omitted without automatic retry.
 * Successfully uploaded clips are deleted by default, including client originals after
   host confirmation. Set SaveLocalCopy=true on the recording player to keep them.
   Failed/skipped clips remain local. Host relay temp files are removed after delivery
   or failure; a process crash can leave a `RelayTemp` file behind.
-* Co-op perspectives are separate submissions, with no encounter-wide deduplication.
+* Compatible creature-death perspectives share a post when offered within the host collection window. Missing IDs, manual captures and personal discovery/death events remain separate.
 * Long ragdoll delays can put the killing blow outside an ordinary-loot clip's history.
 * Periodic damage can leave final-blow attribution unavailable. No guessed player is shown.
 * Discord may reject files according to its current limits; failed uploads retain footage.
@@ -215,7 +219,7 @@ Game API changes can still require compatibility updates.
 
 * Extend discovery coverage where additional reliable game events are available.
 * Selected achievement unlocks, driven by the game's achievement definitions rather than a hardcoded list.
-* Multiplayer highlight director, survival-validated close calls, and a personal gallery with Keep and bounded retries.
+* Director fallback encoding and larger transfer budgets, survival-validated close calls, and a personal gallery with Keep and bounded retries.
 * Optional raid start/completion highlights, with per-event controls and cooldowns.
 * Group overlapping progression events to avoid duplicate posts for the same moment.
 

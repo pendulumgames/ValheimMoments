@@ -1,6 +1,6 @@
 # Integration and validation notes
 
-This describes 0.14.0, not a guarantee of compatibility with future versions.
+This describes 0.15.0, not a guarantee of compatibility with future versions.
 Observers do not intentionally change damage, kill credit, rolls or saved statistics.
 
 ## Harmony patch inventory
@@ -174,10 +174,19 @@ the host adds the connected recorder's name. Clients delete successfully uploade
 originals after host confirmation unless SaveLocalCopy=true; host temporary
 relay files are removed after delivery/failure. Crashes can leave temporary files.
 
-One incoming relay transfer/delivery is allowed at a time, with a 10 MiB cap, timeouts
-and per-peer offer throttling. The host does not independently verify client captions,
-events or rarity. Perspectives are not deduplicated or queued; a busy host may decline
-one. See [relay checks](RELAY-TEST.md).
+Relay v2 includes shared occurrence and personal-first metadata, bounded disk chunks,
+queue wait heartbeats and distinct uploaded/omitted/failed/unknown outcomes. The host
+does not independently verify client captions, events or rarity. The director reserves
+up to 60 MiB across 16 offered perspectives before requesting selected transfers,
+one at a time. Per-file cap remains 10 MiB. See [relay checks](RELAY-TEST.md).
+
+[HostHighlightQueue](../src/ValheimMoments/HostHighlightQueue.cs) joins the host's own
+encoded clips with selected client perspectives, then calls the multi-attachment
+uploader once. Owner-generated occurrence IDs scope grouping to the same creature
+death; manual/personal events and missing IDs stay separate. Selection is deterministic,
+not visual scoring. Primary caption/loot facts come from the first selected perspective;
+recorder labels and first-kill state remain per perspective. Queue/session cancellation
+waits for an active HTTP reader to finish before releasing its remote temporary files.
 
 [DiscordWebhook](../src/ValheimMoments/DiscordWebhook.cs) uploads in the background
 with secret-safe errors, redirects and mentions disabled. Rate-limit retries are

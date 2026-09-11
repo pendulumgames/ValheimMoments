@@ -1,6 +1,6 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.14.0. Launch once to generate
+Applies to Valheim Moments 0.15.0. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
 Restart after editing the file. Configuration Manager edits apply in game; buffer
 changes wait for active GPU/encoder work. Defaults describe a new installation; upgrades preserve
@@ -16,8 +16,23 @@ while connected. Private Discord settings are hidden from joining players' UI.
 
 Host event rules apply in memory without replacing clients' saved settings. Returning
 to single-player restores their own preferences and editing access. Host and clients
-need matching 0.14.0 versions: client capture waits for host settings and
+need matching 0.15.0 versions: client capture waits for host settings and
 pauses if updates stop for ten seconds. No webhook URL or Discord Username is synced.
+
+## Director
+
+Host-owned multiplayer collection is enabled by default. A confirmed creature-death occurrence ID groups boss, special-enemy and kill-loot perspectives. Manual, death, discovery and missing-ID clips remain individual and skip the collection delay, although a busy transfer/upload queue can still delay them. The host's own perspective is selected first when available, then connected peers in stable connection order; this is not visual-quality scoring. The primary selected perspective supplies the shared caption/loot summary; individual recorder names and first-kill status are listed separately.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| Enabled | true | Collect compatible perspectives into one Discord post. Disable for individual delivery. |
+| MaxPerspectives | 3 | Select 1–3 distinct recorders per post. |
+| MaxPostMiB | 20 | Combined attachment bytes, clamped to 1–30 MiB; excludes multipart overhead. Set for your Discord destination. |
+| CollectionSeconds | 10 | Wait 1–30 seconds from the first encoded offer. Late perspectives can be omitted. |
+
+Offers reserve at most 60 MiB across 16 queued perspectives before remote footage is transferred. At most one client transfer and one grouped upload run at a time. The per-file guard is the lower of Discord.MaxUploadMiB and 10 MiB while the director is enabled, including the host's own clip. Larger clips are omitted and retained; automatic re-encoding/tier detection are not implemented. The queue expires offers after 20 minutes and uses bounded wait heartbeats. Completed-event deduplication covers the latest 256 groups for up to 30 minutes within the same session.
+
+Only successfully included attachments receive Memory Uploaded and qualify for removal according to each player's SaveLocalCopy. Omitted/failed clips remain local. An uncertain confirmation says to check Discord before retrying. Cancellation preserves a host temporary file until any HTTP reader finishes; crash/access-failure orphan cleanup remains pending. Matching 0.15.0 host and client versions are required.
 
 ## Capture
 
@@ -73,7 +88,7 @@ With Discord disabled, SaveLocalCopy=true records locally; both false suppress n
 In single-player these settings belong to the local player. In multiplayer, the host
 owns delivery, destinations and the bot name. Joining players' local webhook,
 Enabled and Username cannot override the host. Both sides need the mod and
-matching 0.14.0 settings protocol for client delivery. Discord.Enabled automatically gates relay and upload.
+matching 0.15.0 settings protocol for client delivery. Discord.Enabled automatically gates relay and upload.
 
 | Key | Default | Meaning |
 | --- | --- | --- |

@@ -3,6 +3,8 @@
   <Import Project="../local.props" />
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="0Harmony"><HintPath>$(ProfilePath)/BepInEx/core/0Harmony.dll</HintPath></Reference>
     <Reference Include="BepInEx"><HintPath>$(ProfilePath)/BepInEx/core/BepInEx.dll</HintPath></Reference>
     <!-- Runtime-only aliases: BepInEx's real TOML converters need Unity, while the
@@ -13,6 +15,10 @@
     <Compile Include="DeathMomentTests.cs" />
     <Compile Include="DiscoveryTests.cs" />
     <Compile Include="DirectorTests.cs" />
+    <Compile Include="QueueTests.cs" />
+    <Compile Include="GroupRelayTests.cs" />
+    <Compile Include="../src/ValheimMoments/HostHighlightQueue.cs" Link="HostHighlightQueue.cs" />
+    <Compile Include="../src/ValheimMoments/DiscordWebhook.cs" Link="DiscordWebhook.cs" />
     <Compile Include="../src/ValheimMoments/HighlightDirector.cs" Link="HighlightDirector.cs" />
     <Compile Include="../src/ValheimMoments/DiscoveryHistory.cs" Link="DiscoveryHistory.cs" />
     <Compile Include="../src/ValheimMoments/DiscoveryDetector.cs" Link="DiscoveryDetector.cs" />
