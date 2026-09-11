@@ -54,7 +54,7 @@ namespace ValheimMoments
         private string activeKind;
         private CancellationTokenSource uploadCancellation;
         private ClipRelay relay;
-        private Action<bool> relayCompletion;
+        private Action<RelayOutcome> relayCompletion;
         private string relayDirectory;
         private ConfigEntry<int> uploadLimitMiB;
         private ConfigEntry<bool> manualTrigger, deathTrigger, deathEnabled, includePlayerName, includeCause;
@@ -314,7 +314,7 @@ namespace ValheimMoments
                 string pluginDirectory = Path.GetDirectoryName(Info.Location);
                 relayDirectory = Path.Combine(pluginDirectory, "RelayTemp");
                 relay = new ClipRelay(CanRelay, () => Math.Max(1, Math.Min(10, Value(uploadLimitMiB))) * 1048576,
-                    ReceiveRelayedClip, message => Logger.LogInfo("[Relay] " + message), hostSettings.PeerHasPolicy, AcceptRelayedEvent);
+                    ReceiveRelayedClip, message => Logger.LogInfo("[Relay] " + message), hostSettings.PeerHasPolicy, AcceptRelayedEvent, relayDirectory);
                 encoderPath = Path.Combine(pluginDirectory, "Encoder", "ValheimMoments.Encoder.exe");
                 outputDirectory = Path.Combine(pluginDirectory, "Clips");
                 discoveryHistory = new DiscoveryHistory(Path.Combine(pluginDirectory, "State", "Discoveries"), message => Logger.LogWarning("[Discovery] " + message));
@@ -501,7 +501,7 @@ namespace ValheimMoments
                     if (completed == null) FinishMoment(uploadDeath, origin, result.Success, result.Success ? "Memory Uploaded" :
                         result.DeliveryUnknown ? "Upload unconfirmed - check Discord" : "Upload failed - memory kept locally");
                     uploadDeath = null;
-                    completed?.Invoke(result.Success);
+                    completed?.Invoke(result.Success ? RelayOutcome.Uploaded : result.DeliveryUnknown ? RelayOutcome.Unknown : RelayOutcome.Failed);
                 }
             }
             catch (Exception error) { Logger.LogWarning("[Relay] Delivery update failed: " + error.GetType().Name); }
@@ -735,8 +735,10 @@ namespace ValheimMoments
             {
                 string message = EventMessages.FormatPost(activeBoss == null ? activeMessage : BossMessage(activeBoss));
                 var ticket = activeDeath; var origin = activeSession;
-                if (!Value(discordEnabled) || !relay.Offer(activeSession, file, activeKind, message, Value(saveLocalCopy), success =>
-                    FinishMoment(ticket, origin, success, success ? "Memory Uploaded" : "Upload incomplete - memory kept locally")))
+                if (!Value(discordEnabled) || !relay.Offer(activeSession, file, activeKind, message, Value(saveLocalCopy), outcome =>
+                    FinishMoment(ticket, origin, outcome == RelayOutcome.Uploaded, outcome == RelayOutcome.Uploaded ? "Memory Uploaded" :
+                        outcome == RelayOutcome.Unknown ? "Upload unconfirmed - check Discord" :
+                        outcome == RelayOutcome.Omitted ? "Perspective omitted - memory kept locally" : "Upload incomplete - memory kept locally"), activeBoss?.EventId, activeBoss?.FirstKill == true))
                 {
                     Logger.LogInfo("[Relay] Clip retained locally: relay disabled, unavailable, busy or clip exceeds 10 MiB.");
                     FinishMoment(ticket, origin, false, "Upload unavailable - memory kept locally");
@@ -809,24 +811,21 @@ namespace ValheimMoments
             }
             return quota.TryTake(now, Value(deathCaptureLimit), Value(deathWindowSeconds));
         }
-        private void ReceiveRelayedClip(RelayBuffer clip, string recorder, Action<bool> completion)
+        private void ReceiveRelayedClip(RelayFile clip, string recorder, Action<RelayOutcome> completion)
         {
             var session = ZNet.instance;
-            if (session == null || !session.IsServer() || !CanRelay(clip.Kind)) { completion(false); return; }
+            if (session == null || !session.IsServer() || !CanRelay(clip.Kind)) { completion(RelayOutcome.Failed); return; }
             var options = new DiscordOptions { WebhookUrl = Destination(clip.Kind), Username = Value(discordUsername),
                 Message = EventMessages.RecordedPost(clip.Message, recorder), SaveLocalCopy = true,
                 MaxUploadBytes = Math.Max(1, Math.Min(10, Value(uploadLimitMiB))) * 1048576L };
             uploadSession = session; relayCompletion = completion;
             uploadCancellation = CancellationTokenSource.CreateLinkedTokenSource(shutdown.Token);
             var token = uploadCancellation.Token;
-            string file = Path.Combine(relayDirectory, Guid.NewGuid().ToString("N") + ".webp");
+            string file = clip.FilePath;
             upload = Task.Run(async () => {
                 try
                 {
                     token.ThrowIfCancellationRequested();
-                    Directory.CreateDirectory(relayDirectory);
-                    using (var stream = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None, 16384, true))
-                        await stream.WriteAsync(clip.Bytes, 0, clip.Bytes.Length, token).ConfigureAwait(false);
                     var result = await DiscordWebhook.UploadAsync(file, options, token).ConfigureAwait(false);
                     result.Message = result.Success ? "Client clip uploaded; success confirmation sent." :
                         result.DeliveryUnknown ? "Client clip delivery unknown; check Discord before retrying. Client retains original." : "Client clip delivery failed; client retains original.";

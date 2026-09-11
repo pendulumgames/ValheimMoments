@@ -26,6 +26,7 @@
     <Compile Include="EpicTests.cs" />
     <Compile Include="FilterTests.cs" />
     <Compile Include="RelayTests.cs" />
+    <Compile Include="RelayFileTests.cs" />
     <Compile Include="PeriodicTests.cs" />
     <Compile Include="HostSettingsTests.cs" />
     <Compile Include="../src/ValheimMoments/HostConfiguration.cs" Link="HostConfiguration.cs" />
@@ -34,6 +35,7 @@
     <Compile Include="../src/ValheimMoments/PeriodicAttribution.cs" Link="PeriodicAttribution.cs" />
     <Compile Include="../src/ValheimMoments/RelayBuffer.cs" Link="RelayBuffer.cs" />
     <Compile Include="../src/ValheimMoments/ClipRelay.cs" Link="ClipRelay.cs" />
+    <Compile Include="../src/ValheimMoments/RelayFile.cs" Link="RelayFile.cs" />
     <Compile Include="../src/ValheimMoments/LootHighlights.cs" Link="LootHighlights.cs" />
     <Compile Include="../src/ValheimMoments/BossLootFilter.cs" Link="BossLootFilter.cs" />
     <Compile Include="../src/ValheimMoments/EpicLootAdapter.cs" Link="EpicLootAdapter.cs" />

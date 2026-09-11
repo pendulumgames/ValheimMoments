@@ -53,6 +53,7 @@ internal static class DeathTests
         FilterTests.Run();
         EpicTests.Run();
         RelayTests.Run();
+        RelayFileTests.Run();
         PeriodicTests.Run();
         HostSettingsTests.Run();
         DeathMomentTests.Run();
