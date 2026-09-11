@@ -10,20 +10,23 @@ namespace ValheimMoments
     // client's ConfigFile: saving an unrelated hotkey must preserve local preferences.
     internal sealed class HostConfiguration : IDisposable
     {
-        private const string RpcName = "ValheimMoments_HostSettings_v1";
-        internal sealed class ManagerAttributes
+        private const string RpcName = "ValheimMoments_HostSettings_v2";
+        internal sealed class ConfigurationManagerAttributes
         {
             public bool? ReadOnly;
             public bool? Browsable;
             public Action<ConfigEntryBase> CustomDrawer;
+            public int? Order = 0;
+            public string Category;
         }
         private sealed class Entry
         {
             internal ConfigEntryBase Config;
-            internal ManagerAttributes Tags;
+            internal ConfigurationManagerAttributes Tags;
             internal bool Local, Shared;
             internal Action Unsubscribe;
             internal string Key;
+            internal Action<ConfigEntryBase> LocalDrawer;
         }
         private readonly Dictionary<string, Entry> entries = new Dictionary<string, Entry>();
         private readonly Dictionary<ConfigEntryBase, Entry> byConfig = new Dictionary<ConfigEntryBase, Entry>();
@@ -46,17 +49,18 @@ namespace ValheimMoments
         internal static bool IsLocal(string section, string key)
         {
             if (section == "Debug") return true;
-            if (section == "Discord") return key == "EnableClientRelay" || key == "SaveLocalCopy";
+            if (section == "Discord") return false;
             if (section != "Capture") return false;
             return key == "Enabled" || key == "ManualCaptureKey" || key == "ToggleCaptureKey" ||
-                key == "Width" || key == "Height" || key == "FPS" || key == "WebPQuality" || key == "MemoryBudgetMiB" || key == "FlipVertically";
+                key == "Width" || key == "Height" || key == "SizePreset" || key == "SaveLocalCopy" || key == "FPS" || key == "WebPQuality" || key == "MemoryBudgetMiB" || key == "FlipVertically";
         }
         private static string Key(ConfigEntryBase entry) { return entry.Definition.Section + "\n" + entry.Definition.Key; }
-        internal void Register<T>(ConfigEntry<T> entry, ManagerAttributes tags)
+        internal void Register<T>(ConfigEntry<T> entry, ConfigurationManagerAttributes tags)
         {
             bool local = IsLocal(entry.Definition.Section, entry.Definition.Key);
             var state = new Entry { Config = entry, Tags = tags, Local = local, Key = Key(entry),
-                Shared = !local && entry.Definition.Section != "Discord", Unsubscribe = () => entry.SettingChanged -= OnLocalChanged };
+                LocalDrawer = tags.CustomDrawer,
+                Shared = !local && (entry.Definition.Section != "Discord" || entry.Definition.Key == "Enabled"), Unsubscribe = () => entry.SettingChanged -= OnLocalChanged };
             entries.Add(state.Key, state); byConfig.Add(entry, state);
             entry.SettingChanged += OnLocalChanged;
         }
@@ -79,10 +83,11 @@ namespace ValheimMoments
         internal string Display(ConfigEntryBase entry)
         {
             object value;
-            if (entry.Definition.Section == "Discord") return "Host controlled; not shared with clients";
+            if (!byConfig[entry].Shared) return "Host controlled; not shared with clients";
             return remote != null && remote.TryGetValue(Key(entry), out value)
                 ? TomlTypeConverter.ConvertToString(value, entry.SettingType) : "Waiting for host settings";
         }
+        internal void RefreshPresentation() { UpdateManager(true); }
         private void UpdateManager(bool force)
         {
             bool locked = ZNet.instance != null && !ZNet.instance.IsServer();
@@ -91,8 +96,12 @@ namespace ValheimMoments
             foreach (var entry in entries.Values)
             {
                 entry.Tags.ReadOnly = locked && !entry.Local;
-                entry.Tags.Browsable = !(locked && entry.Config.Definition.Section == "Discord" && !entry.Local);
-                entry.Tags.CustomDrawer = locked && !entry.Local ? drawRemote : null;
+                entry.Tags.Browsable = !(locked && entry.Config.Definition.Section == "Discord" && !entry.Shared);
+                entry.Tags.CustomDrawer = locked && !entry.Local ? drawRemote : entry.LocalDrawer;
+                string section = entry.Config.Definition.Section;
+                entry.Tags.Category = entry.Local ? "01 - Your Capture" : section == "Discord" ? "02 - Discord (Host)" :
+                    section == "Capture" ? "03 - Capture Timing (Host)" : "04 - " + section + " (Host)";
+                if (section == "Debug") entry.Tags.Category = "99 - Advanced";
             }
             try { refresh?.Invoke(); } catch { }
         }
@@ -149,7 +158,7 @@ namespace ValheimMoments
                 session = current; remote = null; server = null; lastPayload = null;
                 registered.Clear(); nextReply.Clear(); nextRequest = 0;
                 UpdateManager(true); changed?.Invoke();
-                if (session != null && !session.IsServer()) log("Waiting for host settings; host and clients need matching versions (0.11.1 for natural loot settings).");
+                if (session != null && !session.IsServer()) log("Waiting for host settings; host and clients need matching 0.12.0 or compatible settings protocol.");
             }
             UpdateManager(false);
             if (session == null) return;

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.0
+
+- Six aspect-aware size presets plus Custom, preserving aspect under memory fitting and padding mismatched canvases.
+- Player capture settings appear before visibly locked host policy; custom dimensions follow the picker.
+- Discord defaults enabled for fresh configs. Relay/upload follow host enablement; redundant switches removed. Host Username remains Valheim Moments by default.
+- Capture.SaveLocalCopy supports local-only saving and migrates the old Discord value. Both delivery and local saving off suppress captures.
+- One boss CaptureMode supports first kill then qualifying rarity; all legacy combinations migrate. First boss kills receive an explicit caption line.
+- Settings protocol v2 requires matching host/client versions. This milestone does not increase the 10 MiB relay cap.
+- New UI and padded rendering require live testing; no gallery/discovery/director feature is included yet.
+
 ## 0.11.1 - complete boss kill credit
 
 * Boss Kill Credit now lists all players in Valheim's credited-attacker records, instead of only the recording character. Nearby spectators are excluded.

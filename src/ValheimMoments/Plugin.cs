@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.11.1")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.12.0")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -45,7 +45,7 @@ namespace ValheimMoments
         private CaptureBuffer.Clip encodingClip;
         private Task<string> encoding;
         private Task<UploadResult> upload;
-        private ConfigEntry<bool> discordEnabled, uploadClips, saveLocalCopy;
+        private ConfigEntry<bool> discordEnabled, saveLocalCopy;
         private ConfigEntry<string> webhookUrl, discordUsername;
         private ConfigEntry<bool> useBossWebhook, useLootWebhook, useDeathWebhook;
         private ConfigEntry<string> bossWebhook, lootWebhook, deathWebhook;
@@ -54,7 +54,6 @@ namespace ValheimMoments
         private string activeKind;
         private CancellationTokenSource uploadCancellation;
         private ClipRelay relay;
-        private ConfigEntry<bool> relayEnabled;
         private Action<bool> relayCompletion;
         private string relayDirectory;
         private ConfigEntry<int> uploadLimitMiB;
@@ -62,7 +61,7 @@ namespace ValheimMoments
         private ConfigEntry<string> deathMessage, playerNameOverride;
         private Harmony deathHarmony;
         private Harmony bossHarmony;
-        private ConfigEntry<bool> bossTrigger, bossEnabled, firstBossOnly;
+        private ConfigEntry<bool> bossTrigger, bossEnabled;
         private ConfigEntry<string> bossMessage;
         private double bossPostSeconds;
         private ConfigEntry<BossNameMode> bossNameMode;
@@ -80,8 +79,10 @@ namespace ValheimMoments
         private ConfigEntry<double> lootWaitSeconds;
         private double lootDeadline;
         private Harmony epicHarmony;
-        private ConfigEntry<bool> filterBossLoot;
-        private ConfigEntry<bool> firstKillBypassesRarity;
+        private ConfigEntry<BossCaptureMode> bossCaptureMode;
+        private ConfigEntry<CaptureSizePreset> sizePreset;
+        private int sourceWidth, sourceHeight;
+        private readonly Dictionary<ConfigEntryBase, string> dimensionDrafts = new Dictionary<ConfigEntryBase, string>();
         private ConfigEntry<string> minimumBossRarity;
         private CaptureBuffer.Clip waitingForLoot;
         private readonly LootHighlights lootHighlights = new LootHighlights();
@@ -143,12 +144,45 @@ namespace ValheimMoments
         }
         private ConfigEntry<T> Bind<T>(string section, string key, T value, ConfigDescription description)
         {
-            var tags = new HostConfiguration.ManagerAttributes();
+            var tags = new HostConfiguration.ConfigurationManagerAttributes { Order = SettingOrder(section, key) };
+            if (section == "Capture" && (key == "Width" || key == "Height")) tags.CustomDrawer = DrawCustomDimension;
             var allTags = new List<object>(description.Tags); allTags.Add(tags);
             var entry = Config.Bind(section, key, value, new ConfigDescription(description.Description,
                 SettingRanges.For(section, key, value) ?? description.AcceptableValues, allTags.ToArray()));
             hostSettings.Register(entry, tags);
             return entry;
+        }
+        private static int SettingOrder(string section, string key)
+        {
+            string[] order = { "Enabled", "ManualCaptureKey", "ToggleCaptureKey", "SaveLocalCopy", "SizePreset", "Width", "Height", "FPS", "WebPQuality", "MemoryBudgetMiB", "FlipVertically" };
+            int index = Array.IndexOf(order, key);
+            return section == "Capture" && index >= 0 ? 1000 - index : 0;
+        }
+        private void DrawHostSetting(ConfigEntryBase entry)
+        {
+            bool enabled = GUI.enabled;
+            try { GUI.enabled = false; GUILayout.Label("Host controlled: " + hostSettings.Display(entry)); }
+            finally { GUI.enabled = enabled; }
+        }
+        private void DrawCustomDimension(ConfigEntryBase entry)
+        {
+            if (sizePreset == null || Value(sizePreset) != CaptureSizePreset.Custom)
+            { GUILayout.Label("Preset selected; effective capture " + width + "x" + height + " at " + fps + " FPS"); return; }
+            var number = (ConfigEntry<int>)entry;
+            string draft;
+            if (!dimensionDrafts.TryGetValue(entry, out draft)) draft = number.Value.ToString();
+            GUILayout.BeginHorizontal();
+            try
+            {
+                draft = GUILayout.TextField(draft);
+                if (GUILayout.Button("Apply", GUILayout.Width(55)))
+                {
+                    int parsed;
+                    if (int.TryParse(draft, out parsed)) { number.Value = parsed; draft = number.Value.ToString(); }
+                }
+            }
+            finally { GUILayout.EndHorizontal(); }
+            dimensionDrafts[entry] = draft;
         }
         private T Value<T>(ConfigEntry<T> entry) { return hostSettings.Get(entry); }
         private void RefreshConfigurationManager()
@@ -165,7 +199,8 @@ namespace ValheimMoments
         {
             try
             {
-                hostSettings = new HostConfiguration(entry => GUILayout.Label(hostSettings.Display(entry)),
+                var migration = new ConfigurationMigration(Config.ConfigFilePath);
+                hostSettings = new HostConfiguration(DrawHostSetting,
                     RefreshConfigurationManager, () => { captureSettingsDirty = true; captureSettingsChangedAt = clock.Elapsed.TotalSeconds; }, message => Logger.LogInfo("[Settings] " + message));
                 captureEnabled = Bind("Capture", "Enabled", true, "Enable recording. F9 toggles recording for baseline comparison.");
                 captureKey = Bind("Capture", "ManualCaptureKey", KeyCode.F10, "Save recent gameplay plus post-event footage locally.");
@@ -173,10 +208,8 @@ namespace ValheimMoments
                 timing = Bind("Debug", "LogCaptureTiming", false,
                     new ConfigDescription("Troubleshooting: log aggregate CPU timing, readback latency and frame counts every 10 seconds.", null, "Advanced"));
                 flip = Bind("Capture", "FlipVertically", false, "Enable if the test WebP is upside down on your graphics backend.");
-                discordEnabled = Bind("Discord", "Enabled", false, "Host/single-player only: enable Discord delivery. Remote clients send clips to the host and never use local webhook settings.");
-                relayEnabled = Bind("Discord", "EnableClientRelay", true, "Host: accept clips from connected clients. Client: allow sending clips to the host. Both sides need this version. Host Discord.Enabled and event trigger switches also apply. Successful client uploads follow the recording player's SaveLocalCopy setting.");
-                uploadClips = Bind("Discord", "UploadClips", true, "Upload newly completed clips when Discord is enabled.");
-                saveLocalCopy = Bind("Discord", "SaveLocalCopy", false, "Keep successfully uploaded clips locally. When false, delete after Discord success or the host's successful relay confirmation. Failed/skipped uploads retain the clip. Applies to this recording player.");
+                discordEnabled = Bind("Discord", "Enabled", true, "Host/single-player only: enable Discord delivery. Remote clients send clips to the host and never use local webhook settings.");
+                saveLocalCopy = Bind("Capture", "SaveLocalCopy", migration.SaveLocalCopy, "Keep clips on this computer, including when host Discord delivery is disabled. When false, successful uploads are deleted; failed delivery retains a recovery copy. Both delivery and local saving off means no clip is recorded.");
                 webhookUrl = Bind("Discord", "WebhookURL", "", "Secret: enter locally, never share this config. HTTPS Discord webhook; optional thread_id query.");
                 discordUsername = Bind("Discord", "Username", "Valheim Moments", "Host/single-player only: bot display name, 1–80 characters. Remote client values are ignored.");
                 useBossWebhook = Bind("Discord", "UseBossKillWebhook", false, "Host only: route boss clips to BossKillWebhookURL; when off, use WebhookURL.");
@@ -196,10 +229,10 @@ namespace ValheimMoments
                 bossTrigger = Bind("Triggers", "BossKill", true, "Capture boss kills credited by Valheim to this character.");
                 bossEnabled = Bind("Boss Kill", "Enabled", true, "Enable boss capture; Triggers.BossKill must also be enabled.");
                 trackPeriodicSetting = Bind("Boss Kill", "TrackPeriodicDamage", true, "Track actual Spirit/fire/poison effects for final-blow attribution. Mixed or unknown sources remain unavailable. Requires the mod on the creature owner. Restart after changing.");
-                firstBossOnly = Bind("Boss Kill", "FirstKillOnly", false, "Only capture when this character has no previous kill of this boss in saved game statistics.");
+                bossCaptureMode = Bind("Boss Kill", "CaptureMode", migration.BossMode, "AllKills, FirstKillOnly, RarityOnly, or FirstKillThenRarity (always capture your first kill, then require MinimumLootRarity). FirstKillWithRarity preserves the legacy first-only AND rarity combination. Uses this character's saved boss history.");
                 bossMessage = Bind("Boss Kill", "Message", "\uD83C\uDFC6 {boss} defeated!", "Discord boss message. Supported placeholders: {boss}, {player}. Loot placeholders: {loot}, {item_count}.");
                 bossPostSetting = Bind("Boss Kill", "PostEventSeconds", 4.0, "Seconds to record after a credited boss kill, to show loot dropping. Restart after changing. Longer clips must fit Capture.MemoryBudgetMiB and the encoder's 256 MiB raw-frame limit.");
-                bossNameMode = Bind("Boss Kill", "PlayerNameMode", BossNameMode.Both, "KillCredit, FinalBlow or Both. Kill credit names this character; final blow names the last-hit player when available. Co-op final-blow sharing requires this version on the client owning the boss. Templates support {credit} and {killer}; selected names append when placeholders are absent.");
+                bossNameMode = Bind("Boss Kill", "PlayerNameMode", BossNameMode.Both, "KillCredit, FinalBlow or Both. Kill credit lists players credited by Valheim; final blow names the last-hit player when available. Co-op final-blow sharing requires this version on the client owning the boss. Templates support {credit} and {killer}; selected names append when placeholders are absent.");
                 showBossLoot = Bind("Boss Kill", "ShowLoot", true, "Show observed vanilla rolls and completed Epic Loot drops when its optional adapter is available.");
                 showLootQuantity = Bind("Boss Kill", "ShowQuantity", true, "Show item quantities in the boss loot summary.");
                 maxLootItems = Bind("Boss Kill", "MaxLootItemsShown", 5, "Maximum entries shown, 1-20; highest verified rarity first, then name. Distinct magic items stay separate.");
@@ -209,9 +242,7 @@ namespace ValheimMoments
                 showSockets = Bind("Boss Kill", "ShowItemSockets", true, "Show verified socket counts for identified items.");
                 showUnidentified = Bind("Boss Kill", "ShowUnidentifiedStatus", true, "Label unidentified items. Hidden modifiers are never exposed.");
                 lootWaitSeconds = Bind("Boss Kill", "LootWaitSeconds", 12.0, "Maximum seconds from boss kill to wait for delayed Epic Loot before upload, clamped 0-25. Recording duration remains PostEventSeconds.");
-                filterBossLoot = Bind("Boss Kill", "OnlyCaptureIfLootMeetsRarity", false, "Only encode/save/upload a boss clip when at least one observed item meets MinimumLootRarity. Preserve kill footage while awaiting drops. Missing/unknown qualifying data skips the clip at the wait deadline.");
                 minimumBossRarity = Bind("Boss Kill", "MinimumLootRarity", "Legendary", "None accepts all; otherwise an actual Epic Loot rarity name (0.14.2: Magic, Rare, Epic, Legendary, Mythic, Ancient). Used only when OnlyCaptureIfLootMeetsRarity=true. Unknown names or absent Epic Loot fail closed.");
-                firstKillBypassesRarity = Bind("Boss Kill", "FirstKillBypassesRarity", true, "Always keep this character's first recorded kill of each boss regardless of MinimumLootRarity. Repeat kills still use the rarity filter. FirstKillOnly separately excludes all repeat kills.");
                 lootTrigger = Bind("Triggers", "LootDrop", true, "Enable loot highlights. Loot Capture.Enabled must also be enabled; bosses use Boss Kill rules exclusively.");
                 lootEnabled = Bind("Loot Capture", "Enabled", true, "Capture qualifying ordinary kill loot and verified natural chest/world pickups. Epic Loot is optional when MinimumRarity=None. No crafting, player storage or gravestone triggers.");
                 chestPickups = Bind("Loot Capture", "CaptureChestPickups", true, "Host-controlled: capture first acquisition of tracked, naturally generated chest loot. Player chests, deposits, gravestones and untracked older contents are excluded.");
@@ -229,6 +260,7 @@ namespace ValheimMoments
                 highlightHeader = Bind("Loot Capture", "LootHeader", Value(lootHeader), "Header above generated loot in ordinary-loot posts.");
                 highlightWaitSeconds = Bind("Loot Capture", "LootWaitSeconds", 12.0, "Wait 0-25 seconds after credited kill for drops. Holds metadata only; up to 64 pending kills.");
                 lootPostSetting = Bind("Loot Capture", "PostEventSeconds", 4.0, "Seconds after observing qualifying drops or acquisitions. Uses rolling pre-event footage; long ragdoll delays may leave the kill outside the clip. Restart after changing.");
+                sizePreset = Bind("Capture", "SizePreset", migration.CustomSize ? CaptureSizePreset.Custom : CaptureSizePreset.Small, "Six aspect-aware sizes: Tiny 480x270, Small 640x360, Medium 854x480, Balanced 960x540, Large 1280x720, Ultra 1920x1080 at 16:9, plus Custom. Effective dimensions/FPS may reduce for memory. Motion, duration, resolution, FPS and quality affect file size. Discord allowance depends on destination/server boosts, not personal Nitro. Current client relay cap: 10 MiB. Measure actual file size; estimates cannot guarantee upload.");
                 widthSetting = Bind("Capture", "Width", 640, "Output pixel width, 480-1920. Aspect ratio and memory limits may reduce the effective dimensions.");
                 heightSetting = Bind("Capture", "Height", 360, "Output pixel height, 270-1080. Supported aspect ratios: 1:2 through 3:1.");
                 fpsSetting = Bind("Capture", "FPS", 15, "Capture sampling rate, 1-30. Missed samples are skipped.");
@@ -236,6 +268,8 @@ namespace ValheimMoments
                 preSetting = Bind("Capture", "PreEventSeconds", 5.0, "Host-controlled rolling history, 1-30 seconds.");
                 postSetting = Bind("Capture", "PostEventSeconds", 2.0, "Host-controlled manual/death post-event duration, 0-30 seconds.");
                 budgetSetting = Bind("Capture", "MemoryBudgetMiB", 192, "Managed frame-pool budget, 48-512 MiB. Effective resolution, then FPS, reduces when required to fit; dimensions never fall below 480x270.");
+                ConfigurationMigration.Retire(Config);
+                hostSettings.RefreshPresentation();
                 string pluginDirectory = Path.GetDirectoryName(Info.Location);
                 relayDirectory = Path.Combine(pluginDirectory, "RelayTemp");
                 relay = new ClipRelay(CanRelay, () => Math.Max(1, Math.Min(10, Value(uploadLimitMiB))) * 1048576,
@@ -351,7 +385,10 @@ namespace ValheimMoments
             double pre = Value(preSetting), post = Value(postSetting);
             double bossPost = Value(bossPostSetting), lootPost = Value(lootPostSetting);
             double maxPost = Math.Max(post, Math.Max(bossPost, lootPost));
-            var limits = CaptureLimits.Fit(Value(widthSetting), Value(heightSetting), Value(fpsSetting), Value(qualitySetting), Value(budgetSetting), pre, maxPost);
+            int requestedWidth, requestedHeight;
+            CaptureSizes.Resolve(Value(sizePreset), Screen.width, Screen.height, Value(widthSetting), Value(heightSetting), out requestedWidth, out requestedHeight);
+            sourceWidth = Screen.width; sourceHeight = Screen.height;
+            var limits = CaptureLimits.Fit(requestedWidth, requestedHeight, Value(fpsSetting), Value(qualitySetting), Value(budgetSetting), pre, maxPost);
             if (history != null && width == limits.Width && height == limits.Height && fps == limits.FPS &&
                 appliedPre == pre && appliedPost == post && bossPostSeconds == bossPost && lootPostSeconds == lootPost)
             { quality = limits.Quality; captureSettingsDirty = false; return true; }
@@ -390,11 +427,11 @@ namespace ValheimMoments
             try
             {
                 hostSettings?.Tick(clock.Elapsed.TotalSeconds);
-                if (relay != null && !Value(relayEnabled)) relay.StopSending();
+                if (relay != null && !Value(discordEnabled)) relay.StopSending();
                 relay?.Tick(clock.Elapsed.TotalSeconds);
                 if (uploadCancellation != null && upload != null && !upload.IsCompleted &&
-                    (!DiscordRouting.CanSubmit(uploadSession, true, ZNet.instance, ZNet.instance != null && ZNet.instance.IsServer()) ||
-                    (relayCompletion != null && (!Value(relayEnabled) || !Value(discordEnabled) || !Value(uploadClips) || !relay.DeliveryPeerConnected))))
+                    (!Value(discordEnabled) || !DiscordRouting.CanSubmit(uploadSession, true, ZNet.instance, ZNet.instance != null && ZNet.instance.IsServer()) ||
+                    (relayCompletion != null && (!Value(discordEnabled) || !relay.DeliveryPeerConnected))))
                     uploadCancellation.Cancel();
                 if (upload != null && upload.IsCompleted)
                 {
@@ -425,6 +462,8 @@ namespace ValheimMoments
                 }
                 SynchronizeCaptureSession();
                 DrainReadbacks();
+                if (sourceWidth != Screen.width || sourceHeight != Screen.height)
+                { sourceWidth = Screen.width; sourceHeight = Screen.height; captureSettingsDirty = true; captureSettingsChangedAt = now; }
                 if (captureSettingsDirty && hostSettings.Ready && now - captureSettingsChangedAt >= 0.5) ApplyCaptureSettings();
                 bool active = Value(captureEnabled) && !paused && captureSession.HasSession && hostSettings.Ready && !captureSettingsDirty;
                 if (active && Value(lootTrigger) && Value(lootEnabled))
@@ -462,14 +501,14 @@ namespace ValheimMoments
                     if (clip != null)
                     {
                         if (clip.Count == 0) { clip.Release(); Logger.LogWarning("[Capture] No frames available; clip discarded."); }
-                        else if (pendingBoss != null && pendingBoss.BossNumber > 0 && Value(filterBossLoot)) waitingForLoot = clip;
+                        else if (pendingBoss != null && pendingBoss.BossNumber > 0 && BossCaptureRules.UsesRarity(Value(bossCaptureMode))) waitingForLoot = clip;
                         else StartEncoding(clip);
                     }
                 }
                 if (waitingForLoot != null)
                 {
                     string reason;
-                    var decision = BossLootFilter.Evaluate(pendingBoss?.Loot, Value(filterBossLoot), pendingBoss != null && pendingBoss.FirstKill, Value(firstKillBypassesRarity), Value(minimumBossRarity), now >= lootDeadline, out reason);
+                    var decision = BossLootFilter.Evaluate(pendingBoss?.Loot, BossCaptureRules.UsesRarity(Value(bossCaptureMode)), pendingBoss != null && pendingBoss.FirstKill, BossCaptureRules.FirstBypasses(Value(bossCaptureMode)), Value(minimumBossRarity), now >= lootDeadline, out reason);
                     if (decision != LootDecision.Wait)
                     {
                         var clip = waitingForLoot; waitingForLoot = null;
@@ -529,7 +568,7 @@ namespace ValheimMoments
             ReadbackSlot slot = free.Peek();
             double started = clock.Elapsed.TotalMilliseconds;
             ScreenCapture.CaptureScreenshotIntoRenderTexture(screen);
-            Graphics.Blit(screen, slot.Target);
+            BlitCapture(screen, slot.Target);
             slot.Submitted = now;
             slot.SessionRevision = captureSession.Revision;
             slot.Request = AsyncGPUReadback.RequestIntoNativeArray(ref slot.Pixels, slot.Target, 0, TextureFormat.RGBA32);
@@ -538,6 +577,28 @@ namespace ValheimMoments
             submitMs += elapsed; maxSubmitMs = Math.Max(maxSubmitMs, elapsed); submitted++;
         }
 
+        private static void BlitCapture(RenderTexture source, RenderTexture target)
+        {
+            double ratio = (double)source.width / source.height;
+            if (Math.Abs(ratio - (double)target.width / target.height) < 0.005)
+            { Graphics.Blit(source, target); return; }
+            var previous = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = target;
+                GL.Clear(true, true, Color.black);
+                GL.PushMatrix();
+                try
+                {
+                    GL.LoadPixelMatrix(0, target.width, target.height, 0);
+                    float scale = Math.Min((float)target.width / source.width, (float)target.height / source.height);
+                    float w = source.width * scale, h = source.height * scale;
+                    Graphics.DrawTexture(new Rect((target.width - w) / 2, (target.height - h) / 2, w, h), source);
+                }
+                finally { GL.PopMatrix(); }
+            }
+            finally { RenderTexture.active = previous; }
+        }
         private void DrainReadbacks()
         {
             while (pending.Count > 0 && pending.Peek().Request.done)
@@ -593,10 +654,17 @@ namespace ValheimMoments
         private void StartUpload(string file)
         {
             var session = ZNet.instance;
+            if (ReferenceEquals(activeSession, session) && hostSettings.Ready && !Value(discordEnabled))
+            {
+                if (!Value(saveLocalCopy))
+                { try { File.Delete(file); } catch { Logger.LogWarning("[Capture] Temporary clip cleanup failed."); } }
+                else Logger.LogInfo("[Capture] Local copy saved; host Discord delivery is disabled.");
+                return;
+            }
             if (session != null && !session.IsServer() && !activeAsHost && ReferenceEquals(activeSession, session))
             {
                 string message = EventMessages.FormatPost(activeBoss == null ? activeMessage : BossMessage(activeBoss));
-                if (!Value(relayEnabled) || !relay.Offer(activeSession, file, activeKind, message, Value(saveLocalCopy)))
+                if (!Value(discordEnabled) || !relay.Offer(activeSession, file, activeKind, message, Value(saveLocalCopy)))
                     Logger.LogInfo("[Relay] Clip retained locally: relay disabled, unavailable, busy or clip exceeds 10 MiB.");
                 return;
             }
@@ -605,7 +673,7 @@ namespace ValheimMoments
                 Logger.LogInfo("[Discord] Local clip retained: changed or ended sessions cannot submit old clips.");
                 return;
             }
-            if (!Value(discordEnabled) || !Value(uploadClips)) return;
+            if (!Value(discordEnabled)) return;
             if (upload != null)
             {
                 Logger.LogWarning("[Discord] Upload busy; new clip retained locally.");
@@ -635,7 +703,7 @@ namespace ValheimMoments
         }
         private bool CanRelay(string kind)
         {
-            if (!Value(relayEnabled) || !Value(discordEnabled) || !Value(uploadClips) || upload != null) return false;
+            if (!Value(discordEnabled) || upload != null) return false;
             if (kind == "manual" && !Value(manualTrigger)) return false;
             if (kind == "boss" && (!Value(bossTrigger) || !Value(bossEnabled))) return false;
             if (kind == "loot" && (!Value(lootTrigger) || !Value(lootEnabled))) return false;
@@ -679,8 +747,8 @@ namespace ValheimMoments
         {
             if (!Value(bossTrigger) || !Value(bossEnabled)) return;
             Logger.LogInfo("[Boss] Kill credited; boss number=" + kill.BossNumber + ", first kill=" + kill.FirstKill);
-            Logger.LogInfo("[Boss] Capture rules: FirstKillOnly=" + Value(firstBossOnly) + ", rarity filter=" + Value(filterBossLoot) + ", minimum=" + Value(minimumBossRarity) + ", first-kill bypass=" + Value(firstKillBypassesRarity));
-            if (Value(firstBossOnly) && !kill.FirstKill)
+            Logger.LogInfo("[Boss] Capture rules: FirstKillOnly=" + BossCaptureRules.FirstOnly(Value(bossCaptureMode)) + ", rarity filter=" + BossCaptureRules.UsesRarity(Value(bossCaptureMode)) + ", minimum=" + Value(minimumBossRarity) + ", first-kill bypass=" + BossCaptureRules.FirstBypasses(Value(bossCaptureMode)));
+            if (BossCaptureRules.FirstOnly(Value(bossCaptureMode)) && !kill.FirstKill)
             {
                 Logger.LogInfo("[Boss] Repeat kill skipped by FirstKillOnly.");
                 return;
@@ -705,13 +773,13 @@ namespace ValheimMoments
                 string count = kill.Loot != null && kill.Loot.Observed ? kill.Loot.Items.Count.ToString() : "unknown";
                 if (highlight && kill.Acquired) return EventMessages.FoundLoot(Value(pickupMessage), kill.EnemyKey, kill.PlayerName, loot, count);
                 if (highlight) return EventMessages.Loot(Value(highlightMessage), Localization.instance.Localize(kill.EnemyKey), kill.PlayerName, loot, count);
-                return EventMessages.Boss(Value(bossMessage), Localization.instance.Localize(kill.EnemyKey), BossAttribution.CreditLabel(kill.CreditNames, kill.PlayerName), Value(bossNameMode), kill.FinalBlowName, loot, count);
+                return EventMessages.Boss(Value(bossMessage), Localization.instance.Localize(kill.EnemyKey), BossAttribution.CreditLabel(kill.CreditNames, kill.PlayerName), Value(bossNameMode), kill.FinalBlowName, loot, count, kill.FirstKill);
             }
             catch
             {
                 Logger.LogWarning("[Loot] Message enrichment failed; sending boss names only.");
                 if (kill.Acquired) return EventMessages.FoundLoot(Value(pickupMessage), kill.EnemyKey, kill.PlayerName, "unavailable");
-                return kill.BossNumber <= 0 ? EventMessages.Loot(Value(highlightMessage), kill.EnemyKey, kill.PlayerName, "unavailable") : EventMessages.Boss(Value(bossMessage), kill.EnemyKey, BossAttribution.CreditLabel(kill.CreditNames, kill.PlayerName), Value(bossNameMode), kill.FinalBlowName);
+                return kill.BossNumber <= 0 ? EventMessages.Loot(Value(highlightMessage), kill.EnemyKey, kill.PlayerName, "unavailable") : EventMessages.Boss(Value(bossMessage), kill.EnemyKey, BossAttribution.CreditLabel(kill.CreditNames, kill.PlayerName), Value(bossNameMode), kill.FinalBlowName, firstKill: kill.FirstKill);
             }
         }
         private void OnLocalDeath(Player player, string cause)
@@ -725,7 +793,7 @@ namespace ValheimMoments
         private bool Trigger(string kind, string message, double? postOverride = null)
         {
             if (!initialized || stopped || !Value(captureEnabled) || paused) return false;
-            if (!hostSettings.Ready || captureSettingsDirty) return false;
+            if (!hostSettings.Ready || captureSettingsDirty || (!Value(discordEnabled) && !Value(saveLocalCopy))) return false;
             SynchronizeCaptureSession();
             if (!captureSession.HasSession || Player.m_localPlayer == null) return false;
             if (!history.TryTrigger(clock.Elapsed.TotalSeconds, postOverride))

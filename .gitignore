@@ -29,5 +29,6 @@ docs/*
 !docs/CONFIGURATION.md
 !docs/INTEGRATIONS.md
 !docs/NATURAL-LOOT-TEST.md
+!docs/DEVELOPMENT-PLAN.md
 third-party/*
 !third-party/webp/

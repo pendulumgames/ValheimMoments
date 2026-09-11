@@ -1,6 +1,6 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.11.1. Launch once to generate
+Applies to Valheim Moments 0.12.0. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
 Restart after editing the file. Configuration Manager edits apply in game; buffer
 changes wait for active GPU/encoder work. Defaults describe a new installation; upgrades preserve
@@ -10,13 +10,13 @@ existing settings. Never share a config containing webhook URLs.
 
 The host controls every setting except: Capture.Enabled, ManualCaptureKey,
 ToggleCaptureKey, Width, Height, FPS, WebPQuality, MemoryBudgetMiB, FlipVertically;
-Discord.EnableClientRelay and SaveLocalCopy; and Debug.LogCaptureTiming.
+Capture.SizePreset and Capture.SaveLocalCopy; and Debug.LogCaptureTiming.
 These personal controls remain editable on clients. All other settings are read-only
 while connected. Private Discord settings are hidden from joining players' UI.
 
 Host event rules apply in memory without replacing clients' saved settings. Returning
 to single-player restores their own preferences and editing access. Host and clients
-need matching 0.11.1 versions: client capture waits for host settings and
+need matching 0.12.0 versions: client capture waits for host settings and
 pauses if updates stop for ten seconds. No webhook URL or Discord Username is synced.
 
 ## Capture
@@ -35,6 +35,8 @@ cannot submit through a different session.
 | Enabled | true | Enable recording; F9 temporarily pauses/resumes it. |
 | ManualCaptureKey | F10 | Manual capture key; also requires Triggers.ManualCapture. |
 | ToggleCaptureKey | F9 | Pause/resume key. |
+| SaveLocalCopy | false | Player-owned local saving independent of Discord. Old Discord.SaveLocalCopy migrates here. Successful uploads delete originals when false; failed delivery retains a recovery copy. |
+| SizePreset | Small | Tiny, Small, Medium, Balanced, Large, Ultra, or Custom. Six aspect-aware pixel budgets; 16:9 equivalents below. Old Width/Height migrate to Custom. |
 | PreEventSeconds | 5 | Host-controlled history duration, 1–30 seconds. |
 | PostEventSeconds | 2 | Host-controlled duration for manual clips and deaths, 0–30 seconds. |
 | FPS | 15 | Sampling rate, 1–30. Missed samples are skipped. |
@@ -48,29 +50,36 @@ Bosses and ordinary loot use their own PostEventSeconds. Allocation uses the lar
 post-event duration, even if that trigger is disabled. History plus that duration
 must not exceed 60 seconds. The raw clip must fit 256 MiB and the whole frame pool
 must fit MemoryBudgetMiB. Numeric values are clamped in both UI and config file.
-Extreme aspect ratios reduce the longer dimension. If the combination still exceeds
-memory limits, effective dimensions reduce to a floor of 480 x 270, then FPS reduces until it fits. The log reports the actual
+Capture preserves the source aspect ratio, padding mismatched/custom canvases. If the combination exceeds
+memory limits, effective dimensions reduce while preserving their ratio, then FPS reduces. Extreme long/portrait requests may need a padded 480 x 270 canvas at 1 FPS. The log reports the actual
 dimensions/FPS/allocation; stored resolution and FPS preferences are retained.
 
 Let P = ceil(PreEventSeconds × FPS) and Q = ceil(maximum post-event seconds × FPS).
 The frame pool occupies `Width × Height × 4 × (2P + Q + 1)` bytes: about 185.4 MiB
 at defaults. Increasing resolution, duration or FPS can substantially increase this.
 
+### Size presets and upload budgets
+
+At 16:9: Tiny 480x270, Small 640x360, Medium approximately 854x480, Balanced 960x540, Large 1280x720, Ultra 1920x1080. Other screens use their aspect ratio with similar pixel budgets. Minimums can make adjacent presets converge. Custom Width/Height appear directly below the picker; they are editable only in Custom mode. The log reports effective dimensions and FPS.
+
+WebP size varies with motion, detail, duration, FPS, dimensions and quality; quality is not a target bitrate. A representative gameplay benchmark for per-preset estimates remains pending; synthetic encoder checks are not reliable size estimates for combat. Check actual encoded file sizes.
+
+Discord's current API source lists a 20 MiB base attachment limit; server boosts can affect destination allowances. Personal Nitro is not a webhook entitlement. MaxUploadMiB is a host guard, not automatic tier detection. Client relay remains capped at 10 MiB in this milestone. See [Discord's API reference](https://github.com/discord/discord-api-docs/blob/main/developers/reference.mdx#uploading-files).
+
+With Discord disabled, SaveLocalCopy=true records locally; both false suppress new triggers. With Discord enabled, SaveLocalCopy selects whether successful uploads keep a local original. Invalid destinations retain recovery files; bounded expiry and a gallery are planned, not yet implemented.
+
 ## Discord
 
 In single-player these settings belong to the local player. In multiplayer, the host
 owns delivery, destinations and the bot name. Joining players' local webhook,
 Enabled and Username cannot override the host. Both sides need the mod and
-EnableClientRelay enabled for client delivery.
+matching 0.12.0 settings protocol for client delivery. Discord.Enabled automatically gates relay and upload.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| Enabled | false | Host/solo Discord delivery switch. |
-| UploadClips | true | Host/solo upload switch; also gates incoming relay delivery. |
-| EnableClientRelay | true | Host accepts client clips; client allows its own clips to be sent. |
+| Enabled | true | Host/solo Discord delivery switch, synchronized to clients without sharing secrets. Existing explicit false is preserved. |
 | WebhookURL | empty | Secret default destination, including manual clips. |
 | Username | Valheim Moments | Host-selected bot display name, 1–80 characters. |
-| SaveLocalCopy | false | Delete after successful Discord upload or host relay confirmation. Set true to keep clips. Applies locally to each recording player; failed/skipped uploads remain local. |
 | MaxUploadMiB | 10 | Local guard, clamped to 1–100 MiB. Relay limit is 10 MiB or the host's lower limit. Discord may reject a smaller file. |
 | UseBossKillWebhook | false | Enable separate boss destination. |
 | BossKillWebhookURL | empty | Secret boss destination. |
@@ -125,9 +134,7 @@ original weapon belonged to a player.
 | Key | Default | Meaning |
 | --- | --- | --- |
 | Enabled | true | Enable credited boss captures. |
-| FirstKillOnly | false | Exclude every repeat kill for this character. |
-| FirstKillBypassesRarity | true | Keep this character's first kill regardless of rarity. |
-| OnlyCaptureIfLootMeetsRarity | false | Require an observed item meeting MinimumLootRarity, except the first-kill bypass. |
+| CaptureMode | FirstKillThenRarity | Always capture first kill, then require rarity. Other modes: AllKills, FirstKillOnly, RarityOnly; FirstKillWithRarity preserves the old combined first-only AND rarity restriction. Existing policy migrates. |
 | MinimumLootRarity | Legendary | None accepts all; otherwise a verified Epic Loot rarity. |
 | Message | 🏆 {boss} defeated! | Supports {boss}, {player}, {credit}, {killer}, {loot}, {item_count}. |
 | PlayerNameMode | Both | KillCredit, FinalBlow or Both; selected names append if omitted. |
@@ -137,8 +144,7 @@ original weapon belonged to a player.
 | ShowLoot | true | Include loot in the post; does not change rarity eligibility. |
 
 First kill comes from the character's saved Valheim statistics, including kills before
-this mod was installed. It is not per world or per successful upload. FirstKillOnly
-takes precedence over every repeat-kill rarity outcome.
+this mod was installed. It is not per world or per successful upload. CaptureMode determines whether repeat kills need qualifying rarity or are excluded.
 
 In Both mode, {player} means kill credit; in FinalBlow mode it means final blow.
 Credit lists the connected players whose attacker records Valheim checks when awarding

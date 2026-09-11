@@ -6,13 +6,12 @@ to qualify during testing; the shipped default is Legendary.
 
 ## Host setup
 
-For 0.11.1, install the matching build on host and recording clients. Older hosts do
+For 0.12.0, install the matching build on host and recording clients. Older hosts do
 not provide policy snapshots; newer clients wait rather than use their own event rules.
 
 Configure Discord.Enabled, WebhookURL and Username on the host. Optional Good Loot,
 Boss Kill and Player Death webhook overrides also belong to the host; disabled
-overrides use the default. `Discord.EnableClientRelay = true` is the new default on
-both sides. The host's trigger enable switches apply to incoming event types.
+overrides use the default. Discord.Enabled controls host and client delivery. Capture.SaveLocalCopy is player-owned. Matching 0.12.0 settings protocol is required.
 
 Clients never send a webhook URL or bot name. Their local Discord.Enabled, Username
 and webhook entries do not control relay delivery. The host syncs event,
@@ -27,7 +26,7 @@ Before recording, check the new settings behavior:
 
 1. Give the client a different local boss rarity/template from the host, then join.
 2. In Configuration Manager, boss/loot/death rules should show host values read-only.
-   Hotkeys, capture on/off, relay opt-out, dimensions/FPS/quality, memory budget, flip,
+   Hotkeys, capture on/off, size preset, Custom dimensions/FPS/quality, memory budget, flip,
    local-copy retention and Advanced timing diagnostics should remain editable.
 3. Change a host rule. The client should follow within a few seconds. Webhook entries
    should be hidden on the joining client, and no webhook should appear in its config.
@@ -46,16 +45,14 @@ Then verify delivery:
    deletes its original; with true it keeps the WebP.
 4. Try a client boss/loot/death event after the first upload finishes. It should use
    the corresponding host destination (or host default if the override is off).
-5. Disable Discord.EnableClientRelay on the host, relaunch, and repeat client F10.
-   Expect a local client clip and a declined/unavailable log, with no client-webhook
-   fallback. Restore the host setting afterward.
+5. Disable Discord.Enabled on the host. On the client set Capture.SaveLocalCopy=true and press F10: expect a local clip and no relay. Set SaveLocalCopy=false too: F10 should produce no clip. Restore the host delivery setting and confirm client uploads resume.
 6. Optional disconnect test: leave during a transfer. No completed partial upload
    should occur; the client original stays local. An already accepted Discord post
    cannot be recalled by cancelling its request.
 
 No webhook is needed on the joining client. Do not share the host's secret config.
 
-## Final boss-credit check - 0.11.1
+## Final boss-credit check - 0.12.0
 
 1. Both players contribute damage to a boss; keep a third non-attacking player nearby if available.
 2. With PlayerNameMode=Both, each successfully delivered clip should list both credited players, exclude the spectator, identify its own recorder, and show the separate final blow.
@@ -86,7 +83,7 @@ working listen host.
    host's Loot Capture.MinimumRarity to None while closed, then relaunch. Expect
    an automatic clip only if an actual item drops, with Generated loot and their
    Recorded by name. Restore their preferred rarity afterward.
-5. Test a credited boss kill separately. FirstKillOnly and the recording player's
+5. Test a credited boss kill separately. CaptureMode and the recording player's
    boss rarity settings still apply. Expect boss loot and the selected credit/final
    blow lines. In 0.9.2, periodic damage from one tracked source can supply the final
    blow; mixed/unknown sources may still show unavailable.

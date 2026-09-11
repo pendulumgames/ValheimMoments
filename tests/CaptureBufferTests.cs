@@ -122,6 +122,22 @@ internal static class CaptureBufferTests
         Check(bounded.AllocatedPixelBytes == limits.PoolBytes, "Predicted bounded allocation matches actual frame pool");
         limits = CaptureLimits.Fit(640, 360, 15, 80, 192, 5, 4);
         Check(limits.Width == 640 && limits.Height == 360 && limits.FPS == 15, "Normal default capture remains unchanged");
+        foreach (var preset in new[] { CaptureSizePreset.Tiny, CaptureSizePreset.Small, CaptureSizePreset.Medium, CaptureSizePreset.Balanced, CaptureSizePreset.Large, CaptureSizePreset.Ultra })
+            foreach (var aspect in new[] { new[] { 1920, 1080 }, new[] { 3440, 1440 }, new[] { 1080, 1920 }, new[] { 10000, 100 }, new[] { 0, 0 } })
+            {
+                int w, h;
+                CaptureSizes.Resolve(preset, aspect[0], aspect[1], 1, 10000, out w, out h);
+                double ratio = aspect[1] == 0 ? 16.0 / 9 : Math.Max(0.5, Math.Min(3, (double)aspect[0] / aspect[1]));
+                Check(w >= 480 && h >= 270 && w <= 1920 && h <= 1080, "Preset dimensions have practical bounds");
+                Check(Math.Abs(w - h * ratio) <= ratio, "Preset preserves supported source aspect to pixel rounding");
+                limits = CaptureLimits.Fit(w, h, 30, 80, 192, 5, 4);
+                Check(Math.Abs(limits.Width - limits.Height * ratio) <= ratio && limits.PoolBytes <= 192 * 1048576L, "Memory fitting retains preset ratio");
+                limits = CaptureLimits.Fit(w, h, 30, 80, 48, 30, 30);
+                Check(limits.PoolBytes <= 48 * 1048576L && limits.ClipBytes <= 256 * 1048576L, "Extreme tall/wide presets stay within budgets using padded fallback if needed");
+            }
+        int customW, customH;
+        CaptureSizes.Resolve(CaptureSizePreset.Custom, 1920, 1080, 1000, 500, out customW, out customH);
+        Check(customW == 1000 && customH == 500, "Custom dimensions preserved for subsequent validation");
         Console.WriteLine("PASS: " + checks + " assertions (capture ownership, timing, bounded memory, cancellation)");
     }
 }

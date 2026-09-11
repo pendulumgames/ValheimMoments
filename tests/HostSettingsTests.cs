@@ -7,9 +7,9 @@ internal static class HostSettingsTests
 {
     private static int checks;
     private static void Check(bool pass, string label) { if (!pass) throw new Exception(label); checks++; }
-    private static ConfigEntry<T> Add<T>(HostConfiguration policy, ConfigFile file, string section, string key, T value, out HostConfiguration.ManagerAttributes tags)
+    private static ConfigEntry<T> Add<T>(HostConfiguration policy, ConfigFile file, string section, string key, T value, out HostConfiguration.ConfigurationManagerAttributes tags)
     {
-        tags = new HostConfiguration.ManagerAttributes();
+        tags = new HostConfiguration.ConfigurationManagerAttributes();
         var entry = file.Bind(section, key, value, new ConfigDescription("test", SettingRanges.For(section, key, value), tags));
         policy.Register(entry, tags); return entry;
     }
@@ -25,7 +25,7 @@ internal static class HostSettingsTests
         var clientPolicy = new HostConfiguration(e => { }, null, null, s => { });
         var hostFile = new ConfigFile(Path.Combine(folder, "host.cfg"), false);
         var clientFile = new ConfigFile(Path.Combine(folder, "client.cfg"), false);
-        HostConfiguration.ManagerAttributes unused, ruleTags, localTags, secretTags;
+        HostConfiguration.ConfigurationManagerAttributes unused, ruleTags, localTags, secretTags;
         var hostRule = Add(hostPolicy, hostFile, "Boss Kill", "FirstKillOnly", true, out unused);
         var localRule = Add(clientPolicy, clientFile, "Boss Kill", "FirstKillOnly", false, out ruleTags);
         Add(hostPolicy, hostFile, "Capture", "FPS", 15, out unused);
@@ -34,6 +34,10 @@ internal static class HostSettingsTests
         Add(clientPolicy, clientFile, "Discord", "WebhookURL", "CLIENT_PRIVATE_VALUE", out secretTags);
         var hostPre = Add(hostPolicy, hostFile, "Capture", "PreEventSeconds", 5.0, out unused);
         var localPre = Add(clientPolicy, clientFile, "Capture", "PreEventSeconds", 2.0, out unused);
+        var hostDiscord = Add(hostPolicy, hostFile, "Discord", "Enabled", false, out unused);
+        var clientDiscord = Add(clientPolicy, clientFile, "Discord", "Enabled", true, out unused);
+        Add(hostPolicy, hostFile, "Capture", "SaveLocalCopy", false, out unused);
+        var clientSave = Add(clientPolicy, clientFile, "Capture", "SaveLocalCopy", true, out unused);
         double time = 0;
         Action tick = () => {
             time += 0.3; ZNet.instance = host; hostPolicy.Tick(time); hostRpc.Drain();
@@ -41,6 +45,7 @@ internal static class HostSettingsTests
         };
         try
         {
+            MigrationChecks(folder);
             string exported = hostPolicy.Export();
             string payloadText = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(exported));
             Check(!payloadText.Contains("SECRET") && !payloadText.Contains("WebhookURL") && !payloadText.Contains("FPS"), "Secret and client-local entries never enter host policy");
@@ -49,24 +54,27 @@ internal static class HostSettingsTests
             for (int i = 0; i < 12; i++) tick();
             Check(hostPolicy.PeerHasPolicy(hostRpc) && !hostPolicy.PeerHasPolicy(new ZRpc()), "Relay eligibility requires a recent settings exchange with the actual peer");
             Check(clientPolicy.Ready && clientPolicy.Get(localRule) && clientPolicy.Get(localPre) == 5, "Connected host policy applied with typed values");
+            Check(!clientPolicy.Get(clientDiscord) && clientDiscord.Value && clientPolicy.Get(clientSave), "Host delivery off overrides client true; local saving remains independent");
+            Check(string.CompareOrdinal(localTags.Category, ruleTags.Category) < 0, "Player category sorts ahead of host settings");
             Check(!localRule.Value && localPre.Value == 2 && clientPolicy.Get(localFPS) == 30, "Overlay preserves client originals and local performance choice");
             localFPS.Value = 500;
             Check(localFPS.Value == 30, "BepInEx clamps excessive FPS on edit");
             clientFile.Save();
             Check(File.ReadAllText(clientFile.ConfigFilePath).Contains("FirstKillOnly = false"), "Saving client file never persists host rule over personal preference");
-            ZNet.instance = host; hostRule.Value = false; hostPre.Value = 7;
+            ZNet.instance = host; hostRule.Value = false; hostPre.Value = 7; hostDiscord.Value = true;
             for (int i = 0; i < 12; i++) tick();
             Check(!clientPolicy.Get(localRule) && clientPolicy.Get(localPre) == 7, "Host changes propagate during the session");
+            Check(clientPolicy.Get(clientDiscord), "Host delivery enablement propagates");
             // A non-server peer cannot install a different policy on the client.
             var stranger = new ZRpc { World = client }; stranger.Other = new ZRpc { World = host };
             client.Peers.Add(new ZNetPeer { m_rpc = stranger });
             ZNet.instance = host; hostRule.Value = true;
             string forged = "S|" + hostPolicy.Export();
             ZNet.instance = client; time += 0.3; clientPolicy.Tick(time);
-            stranger.Handlers["ValheimMoments_HostSettings_v1"](stranger, forged);
+            stranger.Handlers["ValheimMoments_HostSettings_v2"](stranger, forged);
             Check(!clientPolicy.Get(localRule), "Non-host peer cannot override rules");
             ZNet.instance = host;
-            hostRpc.Handlers["ValheimMoments_HostSettings_v1"](hostRpc, "S|" + clientPolicy.Export());
+            hostRpc.Handlers["ValheimMoments_HostSettings_v2"](hostRpc, "S|" + clientPolicy.Export());
             Check(hostPolicy.Get(hostRule), "Server ignores client-authored settings packets");
             ZNet.instance = client;
             bool rejected = false; try { clientPolicy.Apply("malformed!"); } catch { rejected = true; }
@@ -95,5 +103,41 @@ internal static class HostSettingsTests
             File.Delete(hostFile.ConfigFilePath); File.Delete(clientFile.ConfigFilePath); Directory.Delete(folder);
         }
         Console.WriteLine("PASS: " + checks + " host policy and BepInEx configuration assertions.");
+    }
+    private static void MigrationChecks(string folder)
+    {
+        string path = Path.Combine(folder, "migration.cfg");
+        try
+        {
+            Check(new ConfigurationMigration(path).BossMode == BossCaptureMode.FirstKillThenRarity, "New install defaults to first kill then rarity");
+            for (int flags = 0; flags < 8; flags++)
+            {
+                bool first = (flags & 1) != 0, filter = (flags & 2) != 0, bypass = (flags & 4) != 0;
+                File.WriteAllText(path, "[Boss Kill]\nFirstKillOnly = " + first + "\nOnlyCaptureIfLootMeetsRarity = " + filter + "\nFirstKillBypassesRarity = " + bypass);
+                var mode = new ConfigurationMigration(path).BossMode;
+                foreach (bool isFirst in new[] { false, true })
+                    foreach (bool qualifies in new[] { false, true })
+                    {
+                        bool oldAccept = (!first || isFirst) && (!filter || (isFirst && bypass) || qualifies);
+                        bool newAccept = (!BossCaptureRules.FirstOnly(mode) || isFirst) &&
+                            (!BossCaptureRules.UsesRarity(mode) || (isFirst && BossCaptureRules.FirstBypasses(mode)) || qualifies);
+                        Check(oldAccept == newAccept, "Every old filter combination preserves eligibility");
+                    }
+            }
+            File.WriteAllText(path, "[Discord]\nSaveLocalCopy = true\nUploadClips = true\nEnableClientRelay = true\n[Capture]\nWidth = 1280\n");
+            var migration = new ConfigurationMigration(path);
+            Check(migration.SaveLocalCopy && migration.CustomSize, "Existing save choice and custom dimensions detected");
+            var file = new ConfigFile(path, false);
+            var save = file.Bind("Capture", "SaveLocalCopy", migration.SaveLocalCopy);
+            ConfigurationMigration.Retire(file);
+            Check(save.Value && !File.ReadAllText(path).Contains("UploadClips") && !File.ReadAllText(path).Contains("EnableClientRelay"), "Retired bindings removed without losing retention choice");
+            save.Value = false; file.Save();
+            migration = new ConfigurationMigration(path);
+            var reloaded = new ConfigFile(path, false);
+            Check(!reloaded.Bind("Capture", "SaveLocalCopy", migration.SaveLocalCopy).Value, "New explicit value survives later migrations");
+            ConfigurationMigration.Retire(reloaded);
+            Check(!new ConfigFile(path, false).Bind("Capture", "SaveLocalCopy", true).Value, "Migration idempotent");
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
     }
 }

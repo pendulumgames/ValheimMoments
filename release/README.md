@@ -6,16 +6,11 @@ Save the moments worth sharing: boss victories, rare drops, unfortunate deaths,
 and anything you catch with a hotkey. Valheim Moments turns recent gameplay into
 animated WebP clips and can send them to Discord.
 
-**Windows x64 beta - 0.11.1.** Manual capture, deaths, boss summaries, Epic Loot,
+**Windows x64 beta - 0.12.0.** Manual capture, deaths, boss summaries, Epic Loot,
 ordinary loot and natural acquisitions have passed user testing. Host and joining-player
 F10 clips have reached Discord, and the WebP clips were confirmed visually.
 
-This release fixes boss **Kill Credit** to include every player Valheim credited for
-the fight. **Recorded by** identifies the clip's recorder; **Final Blow** identifies
-the finishing player when known. Install **0.11.1 on the host and every recording
-client** for the complete metadata. The new roster has automated coverage; its final
-live co-op check remains pending. Dedicated hosting, detailed loot edge cases,
-settings UI/sync and sustained performance checks remain documented test items.
+This release reorganizes host/player settings, adds six aspect-aware capture size presets, moves SaveLocalCopy to Capture, and replaces the boss filter switches with CaptureMode. Discord is enabled by default for new configs and controls relay automatically; the host-only Username still defaults to Valheim Moments. Existing settings migrate. Install **0.12.0 on the host and every recording client**. The new settings UI and padded capture path need live verification; prior feature tests do not establish those new paths.
 
 ## Features
 
@@ -96,9 +91,10 @@ Launch once, exit, then edit `BepInEx/config/local.valheimmoments.cfg` locally:
 Enabled = true
 WebhookURL = YOUR_DISCORD_WEBHOOK_URL
 Username = Valheim Moments
-UploadClips = true
+
+[Capture]
 SaveLocalCopy = false
-EnableClientRelay = true
+SizePreset = Small
 ```
 
 Create the webhook in the destination Discord server's integrations settings. Treat
@@ -121,29 +117,34 @@ override retains the clip locally. Manual clips always use the default destinati
 The host's `Username` is used for every destination.
 
 **Joining clients need no webhook.** Their local webhook and bot-name settings are
-ignored in multiplayer. `EnableClientRelay = false` on a client prevents it sending
-clips; on the host it disables incoming clip delivery. No host webhook credentials
-are sent to clients. Every post includes **Recorded by:** with the recording character's
+ignored in multiplayer. The host Discord.Enabled setting controls uploads and relay. No host webhook credentials or Username are sent to clients. Every post includes **Recorded by:** with the recording character's
 name. For joining players, the host takes this name from their connection; host and
 solo clips use the local character's name captured when the event triggers.
 Client event captions/rarity decisions are not independently verified by the host.
 
 The host owns automatic triggers, rarity/first-kill rules, timing and post formatting.
 These settings are read-only on clients in Configuration Manager and follow the host
-in memory. Clients keep hotkeys, capture/relay opt-out, performance, image flip,
+in memory. Clients keep hotkeys, capture opt-out, performance, image flip,
 local-copy retention and Advanced timing diagnostics editable. Their config files
 retain preferences for single-player. Client capture waits for host settings; older
 clients without the settings exchange cannot relay clips.
+
+## Capture sizes and saving
+
+Choose Tiny, Small, Medium, Balanced, Large or Ultra for an aspect-aware size, or Custom to edit Width and Height directly below the picker. At 16:9 these correspond to approximately 480x270, 640x360, 854x480, 960x540, 1280x720 and 1920x1080. Memory limits may reduce effective dimensions/FPS. Mismatched canvases are padded instead of stretched.
+
+Capture.SaveLocalCopy=true also works with host Discord disabled. With both off, new clip triggers are suppressed. With Discord on and saving off, confirmed uploads are deleted; failed uploads still remain for recovery. The planned gallery, Keep key and bounded failure expiry are not in this milestone.
+
+Discord upload allowance depends on the destination/server boost level. Personal Nitro does not establish the webhook allowance. This release retains its conservative 10 MiB client relay cap; check actual file sizes. Motion and detail make resolution/FPS/quality estimates uncertain.
 
 ## Boss and loot settings
 
 The [complete configuration reference](https://github.com/PendulumGames/ValheimMoments/blob/main/docs/CONFIGURATION.md)
 lists all settings, defaults, templates and host/client ownership.
 
-`[Boss Kill]` includes `FirstKillOnly`, `FirstKillBypassesRarity`,
-`OnlyCaptureIfLootMeetsRarity`, `MinimumLootRarity`, and `PlayerNameMode`
+`[Boss Kill]` includes `CaptureMode`, `MinimumLootRarity`, and `PlayerNameMode`
 (`KillCredit`, `FinalBlow`, or `Both`). First kill means the character's first recorded
-kill in Valheim's saved statistics, not its first uploaded clip.
+kill in Valheim's saved statistics, not its first uploaded clip. FirstKillThenRarity always captures that first kill and filters later kills by rarity. Existing rules migrate; new configs default to this mode.
 
 Kill Credit follows Valheim's credited-attacker records; simply being nearby does
 not add someone. Names are sorted, and the list is bounded for Discord. If complete

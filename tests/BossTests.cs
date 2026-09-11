@@ -117,6 +117,8 @@ internal static class BossTests
         Check(EventMessages.Boss("{credit}/{killer}", "Eikthyr", "Ragnar", BossNameMode.Both, "Astrid") == "Ragnar/Astrid", "Explicit placeholders without duplicate lines");
         Check(EventMessages.Boss("Boss", "Eikthyr", "Ragnar", BossNameMode.KillCredit, "Astrid") == "Boss\nKill credit: Ragnar", "Credit-only mode");
         Check(EventMessages.Boss("Boss", "Eikthyr", "Ragnar", BossNameMode.FinalBlow) == "Boss\nFinal blow: unavailable", "No guessed final blow");
+        Check(EventMessages.Boss("Boss", "Eikthyr", "Ragnar", BossNameMode.Both, "Astrid", "## Generated loot:\n* Stone", firstKill: true) ==
+            "Boss\nKill credit: Ragnar\nFinal blow: Astrid\n**First boss kill for this character!**\n## Generated loot:\n* Stone", "First victory explicitly labeled without a blank line before loot");
         var inbox = new AttributionInbox();
         inbox.Add(1, "boss", "Astrid", 0);
         Check(inbox.Take(2, "boss", 1) == null, "Metadata sender isolated");

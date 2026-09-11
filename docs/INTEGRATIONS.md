@@ -1,6 +1,6 @@
 # Integration and validation notes
 
-This describes 0.11.1, not a guarantee of compatibility with future versions.
+This describes 0.12.0, not a guarantee of compatibility with future versions.
 Observers do not intentionally change damage, kill credit, rolls or saved statistics.
 
 ## Harmony patch inventory
@@ -151,7 +151,7 @@ See [dependency licenses](DEPENDENCIES.md).
 ## Delivery boundaries
 
 [HostConfiguration](../src/ValheimMoments/HostConfiguration.cs) shares a bounded typed
-event-policy snapshot over direct peer RPC. Only the current server peer can install
+event-policy snapshot over direct peer RPC (HostSettings_v2). Discord.Enabled is the only shared Discord entry; URLs and Username remain private. Only the current server peer can install
 it; servers ignore client snapshots. Unknown/private keys, duplicates, invalid values
 and incompatible schemas are rejected atomically. Clients request updates every two
 seconds; absent refresh for ten seconds pauses capture. Relay requires a recent
@@ -160,10 +160,10 @@ settings exchange. This governs ordinary clients, not modified-client footage cl
 The in-memory overlay preserves client config files. Configuration Manager metadata
 makes host rules read-only, renders effective values and hides client-private Discord
 settings while connected. The installed manager's Advanced/ReadOnly/CustomDrawer tags
-and BuildSettingList method were inspected directly. No manager DLL is bundled or required.
+and BuildSettingList method were inspected directly. In 0.12.0 the tag class uses the required ConfigurationManagerAttributes name; the old differently named object was not recognized. Category/Order place local controls first and custom dimensions below the preset. No manager DLL is bundled or required.
 
 [CaptureLimits](../src/ValheimMoments.Core/CaptureLimits.cs) constrains dimensions,
-FPS, quality and aspect ratio, then reduces dimensions (minimum 480 x 270) followed by FPS to fit frame-pool/raw-clip
+FPS, quality and aspect ratio. Six presets derive a pixel budget from screen aspect. Fitting preserves ratio while reducing dimensions, then FPS; extreme minimum-budget cases use a padded 480 x 270 fallback. Padded rendering requires live verification. This fits frame-pool/raw-clip
 budgets. Buffer replacement waits for GPU and encoder work. These bounds apply
 regardless of which UI or file supplied the settings.
 

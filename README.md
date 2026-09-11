@@ -5,16 +5,16 @@
 Animated gameplay highlights for Valheim: manual captures, player deaths, boss kills
 and great loot, with optional Epic Loot details and host-controlled Discord delivery.
 
-**Windows x64 beta - version 0.11.1.** Manual capture, deaths, boss/loot clips,
+**Windows x64 beta - version 0.12.0.** Manual capture, deaths, boss/loot clips,
 Epic Loot details, natural-loot acquisitions and host/client F10 delivery have passed
-user testing. This release fixes boss Kill Credit to list every player Valheim
-credited, independently of Recorded by and Final Blow. The new roster has automated
-coverage; a live multi-player roster check remains to be confirmed.
+user testing in earlier versions. This milestone adds aspect-aware size presets, organized host/player settings, independent local saving and a single boss CaptureMode. Discord relay follows host enablement; Username remains host-owned. Existing configs migrate. The new UI/padded rendering path still needs live verification.
 
 See [player instructions and settings](release/README.md). The build produces a
 Thunderstore-ready archive; generating it does not publish or approve a listing.
 Dedicated hosting, detailed natural-loot edge cases, host-settings UI/sync and sustained
 performance testing remain on the documented acceptance checklists.
+
+See the [development plan](docs/DEVELOPMENT-PLAN.md) for upcoming discoveries, raid/close-call clips, the multiplayer director and gallery. These additions are not shipped in this milestone.
 
 ## Build from source
 
@@ -32,7 +32,7 @@ the helper requires .NET Framework 4.8. No game or BepInEx assemblies are includ
 ```
 
 The first command restores pinned NuGet packages and builds/tests a local package.
-The second validates and creates `artifacts/Valheim_Moments-0.11.1.zip`, including
+The second validates and creates `artifacts/Valheim_Moments-0.12.0.zip`, including
 manifest, README, changelog, icon, plugin, encoder and license notices. It does not
 publish anything. Do not reupload changed contents under an already published version.
 

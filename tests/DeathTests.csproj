@@ -21,6 +21,7 @@
     <Compile Include="PeriodicTests.cs" />
     <Compile Include="HostSettingsTests.cs" />
     <Compile Include="../src/ValheimMoments/HostConfiguration.cs" Link="HostConfiguration.cs" />
+    <Compile Include="../src/ValheimMoments/ConfigurationMigration.cs" Link="ConfigurationMigration.cs" />
     <Compile Include="../src/ValheimMoments/SettingRanges.cs" Link="SettingRanges.cs" />
     <Compile Include="../src/ValheimMoments/PeriodicAttribution.cs" Link="PeriodicAttribution.cs" />
     <Compile Include="../src/ValheimMoments/RelayBuffer.cs" Link="RelayBuffer.cs" />

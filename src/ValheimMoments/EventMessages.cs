@@ -54,7 +54,7 @@ namespace ValheimMoments
             if (loot != null && !pattern.Contains("{loot}")) message += "\n" + loot;
             return message.Length <= 2000 ? message : message.Substring(0, char.IsHighSurrogate(message[1999]) ? 1999 : 2000);
         }
-        internal static string Boss(string template, string boss, string player, BossNameMode? mode = null, string finalBlow = null, string loot = null, string itemCount = "")
+        internal static string Boss(string template, string boss, string player, BossNameMode? mode = null, string finalBlow = null, string loot = null, string itemCount = "", bool firstKill = false)
         {
             string pattern = string.IsNullOrWhiteSpace(template) ? "\uD83C\uDFC6 {boss} defeated!" : template;
             bool credit = mode == BossNameMode.KillCredit || mode == BossNameMode.Both;
@@ -70,6 +70,7 @@ namespace ValheimMoments
                 .Replace("{item_count}", loot == null ? "" : itemCount);
             if (credit && !pattern.Contains("{credit}") && !pattern.Contains("{player}")) message += "\nKill credit: " + creditName;
             if (killer && !pattern.Contains("{killer}") && !(mode == BossNameMode.FinalBlow && pattern.Contains("{player}"))) message += "\nFinal blow: " + killerName;
+            if (firstKill) message += "\n**First boss kill for this character!**";
             if (loot != null && !pattern.Contains("{loot}")) message += "\n" + loot;
             if (message.Length <= 2000) return message;
             return message.Substring(0, char.IsHighSurrogate(message[1999]) ? 1999 : 2000);

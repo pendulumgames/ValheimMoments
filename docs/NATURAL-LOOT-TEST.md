@@ -1,8 +1,8 @@
-# Natural loot acceptance — 0.11.1
+# Natural loot acceptance — 0.12.0
 
 Automated provenance/transfer tests pass, and the user confirmed the broader loot
 feature works in 0.11.0. Individual edge cases below still require explicit confirmation.
-Install 0.11.1 on the host and every recording client. Use a separate test profile.
+Install 0.12.0 on the host and every recording client. Use a separate test profile.
 The source owner needs this version when loot is generated; an update cannot prove
 the origin of old chest contents. Use newly explored treasure or a fresh test world.
 
