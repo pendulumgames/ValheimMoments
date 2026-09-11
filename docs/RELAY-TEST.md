@@ -198,3 +198,14 @@ Install matching 0.15.0 on the host and every recording client when convenient, 
 9. Review Configuration Manager: Director controls are host-owned and locked on joining players. Confirm the four new settings are ordered/readable and changing them does not overwrite player preferences.
 
 Known limits: 10 MiB per-file director/relay cap; 60 MiB total queued reservation; at most 16 offered perspectives and eight pending selector groups; no visual-quality scoring, automatic re-encoding or tier detection. Primary perspective supplies the shared caption/loot summary. Collection starts after encoding, so different encoding times can cause late omission. Failed-file expiry/gallery/Keep remain pending.
+
+## Close-call milestone (0.16.0)
+
+Use matching 0.16.0 host and clients when convenient, with the game closed for installation. No test is required during the current play session.
+
+1. Take damage crossing the configured health threshold, survive twenty seconds, and confirm a ten-second slow/fast clip with Recorded by in the default host Discord destination.
+2. Repeat with periodic damage. Health oscillating below the recovery percentage must not produce repeated captures. Recover for the configured hold and wait out cooldown before the next qualifying crossing.
+3. Die during follow-up, including near its end: no close-call post; the ordinary death clip follows its existing quota rules.
+4. Pause capture, disconnect, or change capture settings during follow-up: no close-call post. Confirm subsequent manual/death capture still works.
+5. Confirm joining players cannot edit Close Calls policy and their local webhook cannot redirect delivery. Discord disabled plus SaveLocalCopy enabled should retain a local clip.
+6. Check smoothness, effective capture settings and FPS impact at your preferred resolution. Synthetic timing tests do not establish in-game performance.

@@ -1,6 +1,6 @@
 {
   "name": "Valheim_Moments",
-  "version_number": "0.15.0",
+  "version_number": "0.16.0",
   "website_url": "https://github.com/PendulumGames/ValheimMoments",
   "description": "Capture deaths, boss kills and great loot as animated WebP clips. Discord delivery controlled by the host, with optional Epic Loot details. Windows x64 beta.",
   "dependencies": ["denikson-BepInExPack_Valheim-5.4.2333"]

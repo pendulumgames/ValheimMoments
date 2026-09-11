@@ -96,6 +96,42 @@ internal static class EncoderSmokeTests
             Check(process.ExitCode != 0 && !File.Exists(invalidOutput), "Truncated input was accepted");
             Console.WriteLine("PASS: truncated input safely rejected: " + error.Trim());
         }
+        var sampled = new CaptureBuffer(16, 16, 15, 5, 3, 1024 * 1024);
+        var sample = new byte[16 * 16 * 4];
+        for (int f = 0; f < 450; f++)
+        {
+            if (f == 150) Check(sampled.TryTriggerCloseCall(10, new CloseCallTimeline(), 15), "Sampled trigger failed");
+            for (int p = 0; p < sample.Length; p += 4)
+            { sample[p] = (byte)f; sample[p + 1] = (byte)(f / 256 * 120); sample[p + 3] = 255; }
+            sampled.AddFrame(sample, f / 15.0);
+        }
+        var sampledClip = sampled.TryComplete(30);
+        string sampledOutput = output + ".close-call.webp";
+        try { EncoderClient.Encode(sampledClip, exe, sampledOutput, 16, 16, 100, false, CancellationToken.None); }
+        finally { sampledClip.Release(); }
+        using (var reader = new BinaryReader(File.OpenRead(sampledOutput)))
+        {
+            reader.BaseStream.Position = 12;
+            int duration = 0;
+            while (reader.BaseStream.Position < reader.BaseStream.Length)
+            {
+                string tag = Encoding.ASCII.GetString(reader.ReadBytes(4));
+                uint length = reader.ReadUInt32();
+                long next = reader.BaseStream.Position + length + (length & 1);
+                if (tag == "ANMF")
+                { byte[] header = reader.ReadBytes(16); duration += header[12] | header[13] << 8 | header[14] << 16; }
+                reader.BaseStream.Position = next;
+            }
+            Check(duration == 10000, "Sampled close-call duration was " + duration);
+        }
+        info = new ProcessStartInfo(exe, "--verify \"" + sampledOutput + "\"")
+        { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden, RedirectStandardOutput = true };
+        using (var process = Process.Start(info))
+        {
+            string decoded = process.StandardOutput.ReadToEnd(); process.WaitForExit();
+            Check(process.ExitCode == 0 && decoded.Contains("width=16 height=16"), "Sampled decode failed: " + decoded);
+        }
+        Console.WriteLine("PASS: sampled close-call WebP fully decoded, exact 10000ms RIFF duration");
         return 0;
     }
 }

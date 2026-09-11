@@ -6,13 +6,15 @@ Save the moments worth sharing: boss victories, rare drops, unfortunate deaths,
 and anything you catch with a hotkey. Valheim Moments turns recent gameplay into
 animated WebP clips and can send them to Discord.
 
-**Windows x64 beta - 0.15.0.** Manual capture, deaths, boss summaries, Epic Loot,
+**Windows x64 beta - 0.16.0.** Manual capture, deaths, boss summaries, Epic Loot,
 ordinary loot and natural acquisitions have passed user testing. Host and joining-player
 F10 clips have reached Discord, and the WebP clips were confirmed visually.
 
-This release adds grouped multiplayer highlights: compatible creature-death recordings share one Discord post with up to three labeled perspectives. Discoveries and configurable special-enemy captures from 0.14 are included. Settings, sizing, notifications and death-rate improvements from 0.12/0.13 are included. Install **0.15.0 on the host and every recording client**. Automated checks cover persistence, rules and hook behavior; in-game exploration, visual/audio and live co-op acceptance remain pending.
+This release adds grouped multiplayer highlights: compatible creature-death recordings share one Discord post with up to three labeled perspectives. Discoveries and configurable special-enemy captures from 0.14 are included. Settings, sizing, notifications and death-rate improvements from 0.12/0.13 are included. Install **0.16.0 on the host and every recording client**. Automated checks cover persistence, rules and hook behavior; in-game exploration, visual/audio and live co-op acceptance remain pending.
 
 ## Features
+
+* **Close calls:** enabled by default. Actual damage crossing 5% health starts a pending memory; survive twenty seconds to finish it. One source second plays for three seconds, followed by twenty source seconds compressed to seven. No game slowdown or generated frames. Host controls threshold, recovery and cooldown; the clip uses the main webhook and stays personal. Death cancels it and takes capture priority. Live acceptance is pending.
 
 * **F10** captures recent gameplay. **F9** pauses/resumes recording.
 * Automatic player-death clips with cause, configurable rate limit, intervening-death summary and optional cheeky captions.

@@ -16,6 +16,7 @@ internal static class CaptureBufferTests
     }
     public static void Main()
     {
+        CloseCallTests.Run();
         var buffer = new CaptureBuffer(1, 1, 15, 5, 2, 4096);
         byte[] pixels = new byte[4];
         for (int i = 0; i < 150; i++)

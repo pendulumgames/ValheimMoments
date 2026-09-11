@@ -16,6 +16,9 @@ namespace ValheimMoments
         }
         internal static AcceptableValueBase For(string section, string key, object fallback)
         {
+            if (section == "Close Calls" && key == "ThresholdPercent") return new FiniteRange(1, 15, (double)fallback);
+            if (section == "Close Calls" && key == "RecoveryPercent") return new FiniteRange(16, 100, (double)fallback);
+            if (section == "Close Calls" && key == "RecoverySeconds") return new FiniteRange(1, 120, (double)fallback);
             if (section == "Director" && key == "MaxPerspectives") return new AcceptableValueRange<int>(1, 3);
             if (section == "Director" && key == "MaxPostMiB") return new AcceptableValueRange<int>(1, 30);
             if (section == "Director" && key == "CollectionSeconds") return new FiniteRange(1, 30, (double)fallback);

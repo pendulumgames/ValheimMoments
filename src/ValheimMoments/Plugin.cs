@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.15.0")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.16.0")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -88,6 +88,15 @@ namespace ValheimMoments
         private DiscoveryHistory discoveryHistory;
         private Harmony discoveryHarmony;
         private readonly SpecialEnemies specialEnemies = new SpecialEnemies();
+        private ConfigEntry<bool> closeEnabled;
+        private ConfigEntry<double> closeThreshold, closeRecovery, closeHold, closeCooldown;
+        private CloseCall closeCall;
+        private readonly CloseCallTimeline closeTimeline = new CloseCallTimeline();
+        private Harmony closeHarmony;
+        private Player closePlayer;
+        private double appliedCloseThreshold, appliedCloseRecovery, appliedCloseHold, appliedCloseCooldown;
+        private bool closeCollecting, closeSurvived;
+        private double appliedMaximumPost;
         private Harmony deathHarmony;
         private Harmony bossHarmony;
         private ConfigEntry<bool> bossTrigger, bossEnabled;
@@ -258,6 +267,11 @@ namespace ValheimMoments
                 discoveryPostSetting = Bind("Discoveries", "PostEventSeconds", 3.0, "Seconds after a discovery group. Nearby discoveries group for 1.25 seconds before capture.");
                 discoveryCooldown = Bind("Discoveries", "CooldownSeconds", 30.0, "Seconds between discovery captures, 0-3600. Initial warmup is at least five seconds.");
                 discoveryMessage = Bind("Discoveries", "Message", "\uD83E\uDDED Discovered {discovery}!", "Supports {discovery} (one name or grouped names) and {player}. Recorded by appends at delivery.");
+                closeEnabled = Bind("Close Calls", "Enabled", true, "Capture a damage crossing only after surviving 20 seconds. One source second plays for three seconds; the follow-up plays for seven. Death cancels it. Uses the default Discord destination.");
+                closeThreshold = Bind("Close Calls", "ThresholdPercent", 5.0, "Health percentage crossed by actual damage, 1-15. Starting low or food changes alone do not trigger.");
+                closeRecovery = Bind("Close Calls", "RecoveryPercent", 20.0, "Health required before rearming, 16-100 percent, sustained for RecoverySeconds.");
+                closeHold = Bind("Close Calls", "RecoverySeconds", 10.0, "Continuous recovery observation before rearming, 1-120 seconds.");
+                closeCooldown = Bind("Close Calls", "CooldownSeconds", 120.0, "Minimum seconds between attempts, 0-3600. Sustained recovery is also required.");
                 specialEnabled = Bind("Special Enemies", "Enabled", true, "Capture selected ordinary-enemy kill credits. Empty EnemyKeys selects none. Normal bosses remain exclusive to Boss Kill.");
                 specialKeys = Bind("Special Enemies", "EnemyKeys", "", "Exact case-sensitive kill-credit keys separated by commas/semicolons; up to 64 keys/4096 characters. LogEnemyKeys shows actual identifiers. These are stat keys, not prefab or translated names. No wildcards.");
                 specialFirstOnly = Bind("Special Enemies", "FirstKillOnly", false, "Only this character's first saved kill of the selected enemy across worlds. Discovery history is independently per-world.");
@@ -384,6 +398,13 @@ namespace ValheimMoments
                 catch (Exception error) { discoveryHarmony?.UnpatchSelf(); Logger.LogWarning("[Discovery] Observer unavailable: " + error.GetType().Name); }
                 try
                 {
+                    closeHarmony = new Harmony("local.valheimmoments.closecall");
+                    LocalDamageDetector.OnDamage = OnLocalDamage;
+                    LocalDamageDetector.Install(closeHarmony);
+                }
+                catch (Exception error) { closeHarmony?.UnpatchSelf(); LocalDamageDetector.OnDamage = null; Logger.LogWarning("[Close Call] Detector unavailable: " + error.GetType().Name); }
+                try
+                {
                     deathHarmony = new Harmony("local.valheimmoments.death");
                     PlayerDeathDetector.OnLocalDeath = OnLocalDeath;
                     PlayerDeathDetector.OnError = () => Logger.LogWarning("[Death] Could not inspect local death; gameplay was left unchanged.");
@@ -452,17 +473,19 @@ namespace ValheimMoments
             double bossPost = Value(bossPostSetting), lootPost = Value(lootPostSetting);
             double discoveryPost = Value(discoveryPostSetting), specialPost = Value(specialPostSetting);
             double maxPost = Math.Max(Math.Max(discoveryPost, specialPost), Math.Max(post, Math.Max(bossPost, lootPost)));
+            if (Value(closeEnabled)) maxPost = Math.Max(maxPost, Math.Max(0, 8 - pre));
             int requestedWidth, requestedHeight;
             CaptureSizes.Resolve(Value(sizePreset), Screen.width, Screen.height, Value(widthSetting), Value(heightSetting), out requestedWidth, out requestedHeight);
             sourceWidth = Screen.width; sourceHeight = Screen.height;
             var limits = CaptureLimits.Fit(requestedWidth, requestedHeight, Value(fpsSetting), Value(qualitySetting), Value(budgetSetting), pre, maxPost);
             if (history != null && width == limits.Width && height == limits.Height && fps == limits.FPS &&
-                appliedPre == pre && appliedPost == post && bossPostSeconds == bossPost && lootPostSeconds == lootPost && discoveryPostSeconds == discoveryPost && specialPostSeconds == specialPost)
+                appliedMaximumPost == maxPost && appliedPre == pre && appliedPost == post && bossPostSeconds == bossPost && lootPostSeconds == lootPost && discoveryPostSeconds == discoveryPost && specialPostSeconds == specialPost)
             { quality = limits.Quality; captureSettingsDirty = false; return true; }
             // Let GPU requests and an existing encoder finish before replacing storage.
             if (pending.Count != 0 || encoding != null) return false;
             waitingForLoot?.Release(); waitingForLoot = null;
             CancelPendingDeath();
+            CancelCloseCall();
             pendingBoss = null; lootHighlights.Clear(); acquisitions.Clear();
             history?.ClearHistory(); history = null; captureSession = null;
             foreach (var slot in allSlots)
@@ -473,6 +496,7 @@ namespace ValheimMoments
             allSlots.Clear(); free.Clear();
             width = limits.Width; height = limits.Height; fps = limits.FPS; quality = limits.Quality;
             appliedPre = pre; appliedPost = post; bossPostSeconds = bossPost; lootPostSeconds = lootPost;
+            appliedMaximumPost = maxPost;
             discoveryPostSeconds = discoveryPost; specialPostSeconds = specialPost;
             history = new CaptureBuffer(width, height, fps, pre, post, limits.BudgetMiB * 1048576L, maxPost);
             captureSession = new CaptureSession(history);
@@ -550,6 +574,7 @@ namespace ValheimMoments
                 { sourceWidth = Screen.width; sourceHeight = Screen.height; captureSettingsDirty = true; captureSettingsChangedAt = now; }
                 if (captureSettingsDirty && hostSettings.Ready && now - captureSettingsChangedAt >= 0.5) ApplyCaptureSettings();
                 bool active = Value(captureEnabled) && !paused && captureSession.HasSession && hostSettings.Ready && !captureSettingsDirty;
+                UpdateCloseCall(now, active);
                 if (active && Value(lootTrigger) && Value(lootEnabled))
                 {
                     lootHighlights.Poll(now, Value(minimumLootRarity), OnLootHighlight);
@@ -579,11 +604,12 @@ namespace ValheimMoments
                     encodingClip.Release(); encodingClip = null; encoding = null;
                 }
                 // Oldest pending submission is a safe exclusive completion watermark.
-                if (active && encoding == null)
+                if (active && encoding == null && (!closeCollecting || closeSurvived))
                 {
                     var clip = history.TryComplete(pending.Count == 0 ? now : pending.Peek().Submitted);
                     if (clip != null)
                     {
+                        closeCollecting = closeSurvived = false;
                         if (clip.Count == 0) { clip.Release(); CancelPendingDeath(); Logger.LogWarning("[Capture] No frames available; clip discarded."); Notice("No frames available", false, false); }
                         else if (pendingBoss != null && pendingBoss.BossNumber > 0 && BossCaptureRules.UsesRarity(Value(bossCaptureMode))) waitingForLoot = clip;
                         else StartEncoding(clip);
@@ -889,6 +915,7 @@ namespace ValheimMoments
             if (kind == "death" && (!Value(deathTrigger) || !Value(deathEnabled))) return false;
             if (kind == "discovery" && !Value(discoveryEnabled)) return false;
             if (kind == "special" && !Value(specialEnabled)) return false;
+            if (kind == "closecall" && !Value(closeEnabled)) return false;
             Uri endpoint;
             return RelayProtocol.ValidKind(kind) && DiscordWebhook.TryEndpoint(Destination(kind), out endpoint);
         }
@@ -1016,8 +1043,46 @@ namespace ValheimMoments
                 return kill.BossNumber <= 0 ? EventMessages.Loot(Value(highlightMessage), kill.EnemyKey, kill.PlayerName, "unavailable") : EventMessages.Boss(Value(bossMessage), kill.EnemyKey, BossAttribution.CreditLabel(kill.CreditNames, kill.PlayerName), Value(bossNameMode), kill.FinalBlowName, firstKill: kill.FirstKill);
             }
         }
+        private void CancelCloseCall()
+        {
+            closeCall?.Cancel();
+            if (closeCollecting) history?.CancelPending();
+            closeCollecting = closeSurvived = false;
+        }
+        private void UpdateCloseCall(double now, bool active)
+        {
+            double threshold = Value(closeThreshold), recovery = Value(closeRecovery), hold = Value(closeHold), cooldown = Value(closeCooldown);
+            if (closeCall == null || threshold != appliedCloseThreshold || recovery != appliedCloseRecovery ||
+                hold != appliedCloseHold || cooldown != appliedCloseCooldown || closePlayer != Player.m_localPlayer)
+            {
+                CancelCloseCall(); closePlayer = Player.m_localPlayer;
+                appliedCloseThreshold = threshold; appliedCloseRecovery = recovery; appliedCloseHold = hold; appliedCloseCooldown = cooldown;
+                closeCall = new CloseCall(threshold / 100, recovery / 100, hold, cooldown);
+            }
+            if (!active || !Value(closeEnabled) || closePlayer == null)
+            { CancelCloseCall(); return; }
+            var result = closeCall.Observe(now, closePlayer.GetHealth(), closePlayer.GetMaxHealth(), !closePlayer.IsDead());
+            if (result == CloseCallResult.Cancelled) CancelCloseCall();
+            if (result == CloseCallResult.Survived) closeSurvived = true;
+        }
+        private void OnLocalDamage(Player player, float before, float after, float maximumBefore, float maximumAfter, bool alive)
+        {
+            if (!initialized || stopped) return;
+            SynchronizeCaptureSession();
+            bool active = Value(captureEnabled) && !paused && captureSession.HasSession && hostSettings.Ready && !captureSettingsDirty;
+            double now = clock.Elapsed.TotalSeconds;
+            UpdateCloseCall(now, active);
+            if (!active || !Value(closeEnabled)) return;
+            var result = closeCall.Damage(now, before, after, maximumBefore, maximumAfter, alive);
+            if (result == CloseCallResult.Cancelled) { CancelCloseCall(); return; }
+            if (result != CloseCallResult.Started) return;
+            if (Trigger("closecall", "# Barely survived!\nSurvived 20 seconds after a critical hit.", close: true))
+            { closeCollecting = true; closeSurvived = false; }
+            else closeCall.Cancel();
+        }
         private void OnLocalDeath(Player player, string cause)
         {
+            CancelCloseCall();
             if (!Value(deathTrigger) || !Value(deathEnabled)) return;
             if (!initialized || stopped) return;
             SynchronizeCaptureSession();
@@ -1035,13 +1100,13 @@ namespace ValheimMoments
             else deathMoments.Complete(ticket, false);
         }
 
-        private bool Trigger(string kind, string message, double? postOverride = null)
+        private bool Trigger(string kind, string message, double? postOverride = null, bool close = false)
         {
             if (!initialized || stopped || !Value(captureEnabled) || paused) return false;
             if (!hostSettings.Ready || captureSettingsDirty || (!Value(discordEnabled) && !Value(saveLocalCopy))) return false;
             SynchronizeCaptureSession();
             if (!captureSession.HasSession || Player.m_localPlayer == null) return false;
-            if (!history.TryTrigger(clock.Elapsed.TotalSeconds, postOverride))
+            if (!(close ? history.TryTriggerCloseCall(clock.Elapsed.TotalSeconds, closeTimeline, fps) : history.TryTrigger(clock.Elapsed.TotalSeconds, postOverride)))
             {
                 Logger.LogInfo("[Capture] " + kind + " trigger ignored: a clip is collecting or encoding.");
                 if (kind == "manual") Notice("Memory capture busy", false, false);
@@ -1061,6 +1126,7 @@ namespace ValheimMoments
         private void SynchronizeCaptureSession()
         {
             if (!captureSession.Observe(ZNet.instance)) return;
+            CancelCloseCall(); closeCall?.Reset(); closePlayer = null;
             deathMoments.Clear(); pendingDeath = null; notifications.Clear();
             discoveredNames.Clear(); specialEnemies.Clear(); DiscoveryDetector.Clear();
             discoveryHistory?.Use(0, 0);
@@ -1093,6 +1159,7 @@ namespace ValheimMoments
         {
             if (stopped) return;
             stopped = true;
+            CancelCloseCall(); LocalDamageDetector.OnDamage = null; closeHarmony?.UnpatchSelf();
             notifications.Dispose(); deathMoments.Clear(); deathOffers.Clear();
             DiscoveryDetector.OnObserved = null; DiscoveryDetector.OnError = null; DiscoveryDetector.Clear();
             discoveryHarmony?.UnpatchSelf();

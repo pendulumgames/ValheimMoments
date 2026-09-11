@@ -1,6 +1,6 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.15.0. Launch once to generate
+Applies to Valheim Moments 0.16.0. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
 Restart after editing the file. Configuration Manager edits apply in game; buffer
 changes wait for active GPU/encoder work. Defaults describe a new installation; upgrades preserve
@@ -16,7 +16,7 @@ while connected. Private Discord settings are hidden from joining players' UI.
 
 Host event rules apply in memory without replacing clients' saved settings. Returning
 to single-player restores their own preferences and editing access. Host and clients
-need matching 0.15.0 versions: client capture waits for host settings and
+need matching 0.16.0 versions: client capture waits for host settings and
 pauses if updates stop for ten seconds. No webhook URL or Discord Username is synced.
 
 ## Director
@@ -32,7 +32,7 @@ Host-owned multiplayer collection is enabled by default. A confirmed creature-de
 
 Offers reserve at most 60 MiB across 16 queued perspectives before remote footage is transferred. At most one client transfer and one grouped upload run at a time. The per-file guard is the lower of Discord.MaxUploadMiB and 10 MiB while the director is enabled, including the host's own clip. Larger clips are omitted and retained; automatic re-encoding/tier detection are not implemented. The queue expires offers after 20 minutes and uses bounded wait heartbeats. Completed-event deduplication covers the latest 256 groups for up to 30 minutes within the same session.
 
-Only successfully included attachments receive Memory Uploaded and qualify for removal according to each player's SaveLocalCopy. Omitted/failed clips remain local. An uncertain confirmation says to check Discord before retrying. Cancellation preserves a host temporary file until any HTTP reader finishes; crash/access-failure orphan cleanup remains pending. Matching 0.15.0 host and client versions are required.
+Only successfully included attachments receive Memory Uploaded and qualify for removal according to each player's SaveLocalCopy. Omitted/failed clips remain local. An uncertain confirmation says to check Discord before retrying. Cancellation preserves a host temporary file until any HTTP reader finishes; crash/access-failure orphan cleanup remains pending. Matching 0.16.0 host and client versions are required.
 
 ## Capture
 
@@ -88,7 +88,7 @@ With Discord disabled, SaveLocalCopy=true records locally; both false suppress n
 In single-player these settings belong to the local player. In multiplayer, the host
 owns delivery, destinations and the bot name. Joining players' local webhook,
 Enabled and Username cannot override the host. Both sides need the mod and
-matching 0.15.0 settings protocol for client delivery. Discord.Enabled automatically gates relay and upload.
+matching 0.16.0 settings protocol for client delivery. Discord.Enabled automatically gates relay and upload.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -296,3 +296,15 @@ existing preferences; existing true values are not reset during upgrade.
 | LogCaptureTiming | false | Aggregate capture timing, readback latency and frame counts every ten seconds. |
 
 Event, encoder, upload and attribution diagnostics also use the BepInEx log.
+
+## Close Calls (host controlled)
+
+| Key | Default | Behavior |
+| --- | --- | --- |
+| Enabled | true | Actual damage crossing followed by twenty seconds alive; personal clip, main webhook. |
+| ThresholdPercent | 5 | Crossing from above to at/below this health percentage; 1-15. |
+| RecoveryPercent | 20 | Must regain 16-100% health before rearming. |
+| RecoverySeconds | 10 | Hold recovery continuously for 1-120 seconds. |
+| CooldownSeconds | 120 | Minimum 0-3600 seconds between attempts; recovery is also required. |
+
+The timeline is currently fixed: one source second before the hit plays for three seconds; the next twenty source seconds play for seven. Death, pause, unavailable host policy, character/world change or capture reconfiguration cancels pending footage. Busy capture skips the attempt without later replay. Close calls reserve capacity for eight seconds of selected frames, which can reduce effective resolution/FPS under the existing memory budget. Other triggers wait while this clip collects; death cancels it first. No game timescale changes or interpolated slow-motion frames. Follow-up/playback duration settings remain planned.

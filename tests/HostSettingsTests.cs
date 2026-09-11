@@ -15,6 +15,11 @@ internal static class HostSettingsTests
     }
     internal static void Run()
     {
+        Check(!HostConfiguration.IsLocal("Close Calls", "Enabled"), "Close-call policy is host owned");
+        Check((double)SettingRanges.For("Close Calls", "ThresholdPercent", 5.0).Clamp(500.0) == 15, "Threshold bounded below recovery floor");
+        Check((double)SettingRanges.For("Close Calls", "RecoveryPercent", 20.0).Clamp(0.0) == 16, "Recovery exceeds threshold ceiling");
+        Check((double)SettingRanges.For("Close Calls", "RecoverySeconds", 10.0).Clamp(double.NaN) == 10, "Recovery duration finite");
+        Check(RelayProtocol.ValidKind("closecall"), "Personal close-call relay supported");
         string folder = Path.Combine(Path.GetTempPath(), "valheim-settings-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
         var host = new ZNet { Server = true }; var client = new ZNet();

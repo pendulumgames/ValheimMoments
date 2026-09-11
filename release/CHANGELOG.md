@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.0
+
+- Close-call clips require surviving twenty seconds after an actual damage crossing. Death cancels the attempt and frees capture for the normal death event.
+- Bounded sampling produces a ten-second WebP: one source second slowed to three, then twenty source seconds compressed to seven. Existing memory fitting accounts for selected frames; no full twenty-second raw recording is retained.
+- Host controls enable, health threshold, recovery threshold/hold and cooldown. Periodic oscillation cannot repeatedly rearm. Pausing, policy loss, session/character changes and reconfiguration abandon pending captures.
+- Close calls remain personal and use the default host webhook. Matching 0.16.0 host/clients required. Automated timing/encoding and event checks pass; in-game acceptance remains pending. Raid clips and gallery are still planned.
+
 ## 0.15.0
 
 - Multiplayer director groups compatible boss, special-enemy and kill-loot recordings into one post with up to three labeled perspectives. Shared owner-generated death IDs distinguish simultaneous kills; first-kill status remains personal.

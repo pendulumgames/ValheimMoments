@@ -21,7 +21,11 @@ public class Character : UnityEngine.Component
     public void SetHit(HitData hit) { m_lastHit = hit; }
     public Action<HitData> DamageAction;
     [MethodImpl(MethodImplOptions.NoInlining)] public void RPC_Damage(long sender, HitData hit) { DamageAction?.Invoke(hit); }
-    [MethodImpl(MethodImplOptions.NoInlining)] public void ApplyDamage(HitData hit, bool show, bool trigger, HitData.DamageModifier modifier) { m_lastHit = hit; }
+    public float Health = 100, MaximumHealth = 100;
+    public float GetHealth() { return Health; }
+    public float GetMaxHealth() { return MaximumHealth; }
+    public Action ApplyAction;
+    [MethodImpl(MethodImplOptions.NoInlining)] public void ApplyDamage(HitData hit, bool show, bool trigger, HitData.DamageModifier modifier) { m_lastHit = hit; ApplyAction?.Invoke(); }
 }
 public class HitData
 {
@@ -62,6 +66,7 @@ internal static class DeathTests
         DirectorTests.Run();
         QueueTests.Run();
         GroupRelayTests.Run();
+        LocalDamageTests.Run();
         var harmony = new Harmony("valheimmoments.tests");
         int events = 0;
         int errors = 0;

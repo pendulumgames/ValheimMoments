@@ -12,6 +12,8 @@
     <Reference Include="UnityEngine"><HintPath>$(GamePath)/valheim_Data/Managed/UnityEngine.dll</HintPath><Aliases>RuntimeUnityFacade</Aliases></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(GamePath)/valheim_Data/Managed/UnityEngine.CoreModule.dll</HintPath><Aliases>RuntimeUnity</Aliases></Reference>
     <Compile Include="DeathTests.cs" />
+    <Compile Include="LocalDamageTests.cs" />
+    <Compile Include="../src/ValheimMoments/LocalDamageDetector.cs" Link="LocalDamageDetector.cs" />
     <Compile Include="DeathMomentTests.cs" />
     <Compile Include="DiscoveryTests.cs" />
     <Compile Include="DirectorTests.cs" />
