@@ -49,6 +49,7 @@ namespace ValheimMoments
         internal static bool IsLocal(string section, string key)
         {
             if (section == "Debug") return true;
+            if (section == "Notifications") return true;
             if (section == "Discord") return false;
             if (section != "Capture") return false;
             return key == "Enabled" || key == "ManualCaptureKey" || key == "ToggleCaptureKey" ||
@@ -64,7 +65,11 @@ namespace ValheimMoments
             entries.Add(state.Key, state); byConfig.Add(entry, state);
             entry.SettingChanged += OnLocalChanged;
         }
-        private void OnLocalChanged(object sender, EventArgs args) { changed?.Invoke(); }
+        private void OnLocalChanged(object sender, EventArgs args)
+        {
+            if (sender is ConfigEntryBase entry && entry.Definition.Section == "Notifications") return;
+            changed?.Invoke();
+        }
         internal bool PeerHasPolicy(ZRpc rpc)
         {
             double next;
@@ -99,8 +104,8 @@ namespace ValheimMoments
                 entry.Tags.Browsable = !(locked && entry.Config.Definition.Section == "Discord" && !entry.Shared);
                 entry.Tags.CustomDrawer = locked && !entry.Local ? drawRemote : entry.LocalDrawer;
                 string section = entry.Config.Definition.Section;
-                entry.Tags.Category = entry.Local ? "01 - Your Capture" : section == "Discord" ? "02 - Discord (Host)" :
-                    section == "Capture" ? "03 - Capture Timing (Host)" : "04 - " + section + " (Host)";
+                entry.Tags.Category = section == "Notifications" ? "02 - Your Notifications" : entry.Local ? "01 - Your Capture" : section == "Discord" ? "03 - Discord (Host)" :
+                    section == "Capture" ? "04 - Capture Timing (Host)" : "05 - " + section + " (Host)";
                 if (section == "Debug") entry.Tags.Category = "99 - Advanced";
             }
             try { refresh?.Invoke(); } catch { }
@@ -158,7 +163,7 @@ namespace ValheimMoments
                 session = current; remote = null; server = null; lastPayload = null;
                 registered.Clear(); nextReply.Clear(); nextRequest = 0;
                 UpdateManager(true); changed?.Invoke();
-                if (session != null && !session.IsServer()) log("Waiting for host settings; host and clients need matching 0.12.0 or compatible settings protocol.");
+                if (session != null && !session.IsServer()) log("Waiting for host settings; host and clients need matching 0.13.0 settings schema.");
             }
             UpdateManager(false);
             if (session == null) return;

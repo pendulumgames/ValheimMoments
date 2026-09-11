@@ -15,7 +15,7 @@ using ValheimMoments.Core;
 
 namespace ValheimMoments
 {
-    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.12.0")]
+    [BepInPlugin("local.valheimmoments", "Valheim Moments", "0.13.0")]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -59,6 +59,17 @@ namespace ValheimMoments
         private ConfigEntry<int> uploadLimitMiB;
         private ConfigEntry<bool> manualTrigger, deathTrigger, deathEnabled, includePlayerName, includeCause;
         private ConfigEntry<string> deathMessage, playerNameOverride;
+        private ConfigEntry<int> deathCaptureLimit;
+        private ConfigEntry<double> deathWindowSeconds, notificationVolume;
+        private ConfigEntry<bool> cheekyDeaths, notificationsEnabled;
+        private ConfigEntry<MomentSoundMode> notificationSound;
+        private readonly MomentNotifications notifications = new MomentNotifications();
+        private readonly DeathMoments deathMoments = new DeathMoments();
+        private readonly DeathFlavor deathFlavor = new DeathFlavor();
+        private readonly System.Random flavorRandom = new System.Random();
+        private DeathMoments.Ticket pendingDeath, activeDeath, uploadDeath;
+        private ZNet deathOfferSession;
+        private readonly Dictionary<ZRpc, MomentRateLimit> deathOffers = new Dictionary<ZRpc, MomentRateLimit>();
         private Harmony deathHarmony;
         private Harmony bossHarmony;
         private ConfigEntry<bool> bossTrigger, bossEnabled;
@@ -205,6 +216,9 @@ namespace ValheimMoments
                 captureEnabled = Bind("Capture", "Enabled", true, "Enable recording. F9 toggles recording for baseline comparison.");
                 captureKey = Bind("Capture", "ManualCaptureKey", KeyCode.F10, "Save recent gameplay plus post-event footage locally.");
                 toggleKey = Bind("Capture", "ToggleCaptureKey", KeyCode.F9, "Pause/resume recording to compare game performance.");
+                notificationsEnabled = Bind("Notifications", "Enabled", true, "Show brief themed recording, save and delivery feedback on this player's screen. Disabling also mutes notification cues. The banner can appear in recorded footage.");
+                notificationSound = Bind("Notifications", "SoundMode", MomentSoundMode.OnCapture, "Quiet local cue: Off, OnCapture, OnCompletion, or Both. Never changes game speed or adds audio to WebP clips.");
+                notificationVolume = Bind("Notifications", "Volume", 0.35, "Local notification cue volume, 0-1. The cue itself is deliberately quiet.");
                 timing = Bind("Debug", "LogCaptureTiming", false,
                     new ConfigDescription("Troubleshooting: log aggregate CPU timing, readback latency and frame counts every 10 seconds.", null, "Advanced"));
                 flip = Bind("Capture", "FlipVertically", false, "Enable if the test WebP is upside down on your graphics backend.");
@@ -222,6 +236,9 @@ namespace ValheimMoments
                 manualTrigger = Bind("Triggers", "ManualCapture", true, "Enable the manual hotkey independently of automatic events.");
                 deathTrigger = Bind("Triggers", "PlayerDeath", true, "Enable local player death captures.");
                 deathEnabled = Bind("Player Death", "Enabled", true, "Enable this event. Triggers.PlayerDeath must also be enabled.");
+                deathCaptureLimit = Bind("Player Death", "CaptureLimit", 1, "Host-controlled maximum death captures per player within WindowSeconds, 1-20. Further deaths are summarized on the next eligible death post. At most one death clip can await delivery per recording player.");
+                deathWindowSeconds = Bind("Player Death", "WindowSeconds", 60.0, "Host-controlled sliding death capture window in seconds, 1-3600. Counts clear on world/session change. Failed delivery preserves unreported deaths for the next eligible clip.");
+                cheekyDeaths = Bind("Player Death", "CheekyMessages", true, "Add one of 20 neutral cheeky lines to the default death caption, without immediate repeats. Custom templates opt in with {flavor}. {extra_deaths} places the suppressed/unshared death count.");
                 deathMessage = Bind("Player Death", "Message", "\uD83D\uDC80 {player} died!", "Discord death message. Placeholders: {player}, {cause}. Cause appends automatically when enabled and no placeholder is present.");
                 includeCause = Bind("Player Death", "IncludeCause", true, "Include the recorded attacker or environmental cause; unknown when unavailable.");
                 includePlayerName = Bind("Player Death", "IncludePlayerName", true, "Replace {player} with the character name/override; otherwise use A player.");
@@ -273,7 +290,7 @@ namespace ValheimMoments
                 string pluginDirectory = Path.GetDirectoryName(Info.Location);
                 relayDirectory = Path.Combine(pluginDirectory, "RelayTemp");
                 relay = new ClipRelay(CanRelay, () => Math.Max(1, Math.Min(10, Value(uploadLimitMiB))) * 1048576,
-                    ReceiveRelayedClip, message => Logger.LogInfo("[Relay] " + message), hostSettings.PeerHasPolicy);
+                    ReceiveRelayedClip, message => Logger.LogInfo("[Relay] " + message), hostSettings.PeerHasPolicy, AcceptRelayedEvent);
                 encoderPath = Path.Combine(pluginDirectory, "Encoder", "ValheimMoments.Encoder.exe");
                 outputDirectory = Path.Combine(pluginDirectory, "Clips");
                 try
@@ -395,6 +412,7 @@ namespace ValheimMoments
             // Let GPU requests and an existing encoder finish before replacing storage.
             if (pending.Count != 0 || encoding != null) return false;
             waitingForLoot?.Release(); waitingForLoot = null;
+            CancelPendingDeath();
             pendingBoss = null; lootHighlights.Clear(); acquisitions.Clear();
             history?.ClearHistory(); history = null; captureSession = null;
             foreach (var slot in allSlots)
@@ -439,8 +457,11 @@ namespace ValheimMoments
                     if (result.Success) Logger.LogInfo("[Discord] " + result.Message);
                     else Logger.LogWarning("[Discord] " + result.Message);
                     upload = null;
+                    var origin = uploadSession;
                     uploadCancellation?.Dispose(); uploadCancellation = null; uploadSession = null;
                     var completed = relayCompletion; relayCompletion = null;
+                    if (completed == null) FinishMoment(uploadDeath, origin, result.Success, result.Success ? "Memory Uploaded" : "Upload failed - memory kept locally");
+                    uploadDeath = null;
                     completed?.Invoke(result.Success);
                 }
             }
@@ -474,7 +495,7 @@ namespace ValheimMoments
                 else { lootHighlights.Clear(); acquisitions.Clear(); }
                 if (!active)
                 {
-                    if (!historyCleared && pending.Count == 0) { history.ClearHistory(); historyCleared = true; }
+                    if (!historyCleared && pending.Count == 0) { history.ClearHistory(); CancelPendingDeath(); historyCleared = true; }
                 }
                 else
                 {
@@ -491,7 +512,7 @@ namespace ValheimMoments
                         Logger.LogInfo("[WebP] " + encoding.GetAwaiter().GetResult() + "; saved " + activeOutput);
                         StartUpload(activeOutput);
                     }
-                    catch (Exception error) { Logger.LogWarning("[WebP] Clip failed: " + error.Message); }
+                    catch (Exception error) { Logger.LogWarning("[WebP] Clip failed: " + error.Message); FinishMoment(activeDeath, activeSession, false, "Memory capture failed"); }
                     encodingClip.Release(); encodingClip = null; encoding = null;
                 }
                 // Oldest pending submission is a safe exclusive completion watermark.
@@ -500,7 +521,7 @@ namespace ValheimMoments
                     var clip = history.TryComplete(pending.Count == 0 ? now : pending.Peek().Submitted);
                     if (clip != null)
                     {
-                        if (clip.Count == 0) { clip.Release(); Logger.LogWarning("[Capture] No frames available; clip discarded."); }
+                        if (clip.Count == 0) { clip.Release(); CancelPendingDeath(); Logger.LogWarning("[Capture] No frames available; clip discarded."); Notice("No frames available", false, false); }
                         else if (pendingBoss != null && pendingBoss.BossNumber > 0 && BossCaptureRules.UsesRarity(Value(bossCaptureMode))) waitingForLoot = clip;
                         else StartEncoding(clip);
                     }
@@ -517,6 +538,7 @@ namespace ValheimMoments
                         {
                             clip.Release(); pendingBoss = null;
                             Logger.LogInfo("[Loot] Boss clip skipped: " + reason);
+                            Notice("Memory skipped - loot below threshold", false, false);
                         }
                     }
                 }
@@ -635,6 +657,7 @@ namespace ValheimMoments
             activeRecorder = pendingRecorder;
             activeKind = pendingKind; activeSession = pendingSession; activeAsHost = pendingAsHost;
             activeBoss = pendingBoss; pendingBoss = null;
+            activeDeath = pendingDeath; pendingDeath = null;
             activeOutput = Path.Combine(outputDirectory, pendingKind + "-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff") + "-" + Guid.NewGuid().ToString("N").Substring(0, 6) + ".webp");
             string destination = activeOutput;
             bool flipImage = Value(flip);
@@ -659,24 +682,33 @@ namespace ValheimMoments
                 if (!Value(saveLocalCopy))
                 { try { File.Delete(file); } catch { Logger.LogWarning("[Capture] Temporary clip cleanup failed."); } }
                 else Logger.LogInfo("[Capture] Local copy saved; host Discord delivery is disabled.");
+                FinishMoment(activeDeath, activeSession, Value(saveLocalCopy), Value(saveLocalCopy) ? "Memory Saved" : "Memory discarded - saving disabled");
                 return;
             }
             if (session != null && !session.IsServer() && !activeAsHost && ReferenceEquals(activeSession, session))
             {
                 string message = EventMessages.FormatPost(activeBoss == null ? activeMessage : BossMessage(activeBoss));
-                if (!Value(discordEnabled) || !relay.Offer(activeSession, file, activeKind, message, Value(saveLocalCopy)))
+                var ticket = activeDeath; var origin = activeSession;
+                if (!Value(discordEnabled) || !relay.Offer(activeSession, file, activeKind, message, Value(saveLocalCopy), success =>
+                    FinishMoment(ticket, origin, success, success ? "Memory Uploaded" : "Upload incomplete - memory kept locally")))
+                {
                     Logger.LogInfo("[Relay] Clip retained locally: relay disabled, unavailable, busy or clip exceeds 10 MiB.");
+                    FinishMoment(ticket, origin, false, "Upload unavailable - memory kept locally");
+                }
+                else Notice("Memory Captured", false, false);
                 return;
             }
             if (!DiscordRouting.CanSubmit(activeSession, activeAsHost, session, session != null && session.IsServer()))
             {
                 Logger.LogInfo("[Discord] Local clip retained: changed or ended sessions cannot submit old clips.");
+                FinishMoment(activeDeath, activeSession, false, "Memory kept locally");
                 return;
             }
             if (!Value(discordEnabled)) return;
             if (upload != null)
             {
                 Logger.LogWarning("[Discord] Upload busy; new clip retained locally.");
+                FinishMoment(activeDeath, activeSession, false, "Upload busy - memory kept locally");
                 return;
             }
             // Snapshot config on Unity's thread; perform all HTTP/file work on a worker.
@@ -690,6 +722,8 @@ namespace ValheimMoments
             };
             Logger.LogInfo("[Discord] Starting background upload.");
             uploadSession = session;
+            uploadDeath = activeDeath;
+            Notice("Memory Captured", false, false);
             uploadCancellation = CancellationTokenSource.CreateLinkedTokenSource(shutdown.Token);
             var token = uploadCancellation.Token;
             upload = Task.Run(() => DiscordWebhook.UploadAsync(file, options, token));
@@ -710,6 +744,23 @@ namespace ValheimMoments
             if (kind == "death" && (!Value(deathTrigger) || !Value(deathEnabled))) return false;
             Uri endpoint;
             return RelayProtocol.ValidKind(kind) && DiscordWebhook.TryEndpoint(Destination(kind), out endpoint);
+        }
+        private bool AcceptRelayedEvent(ZRpc peer, string kind, double now)
+        {
+            if (kind != "death") return true;
+            if (!ReferenceEquals(deathOfferSession, ZNet.instance)) { deathOffers.Clear(); deathOfferSession = ZNet.instance; }
+            var live = new HashSet<ZRpc>();
+            foreach (var connection in ZNet.instance.GetPeers()) live.Add(connection.m_rpc);
+            var stale = new List<ZRpc>();
+            foreach (var item in deathOffers) if (!live.Contains(item.Key)) stale.Add(item.Key);
+            foreach (var item in stale) deathOffers.Remove(item);
+            MomentRateLimit quota;
+            if (!deathOffers.TryGetValue(peer, out quota))
+            {
+                if (deathOffers.Count >= 128) return false;
+                deathOffers.Add(peer, quota = new MomentRateLimit());
+            }
+            return quota.TryTake(now, Value(deathCaptureLimit), Value(deathWindowSeconds));
         }
         private void ReceiveRelayedClip(RelayBuffer clip, string recorder, Action<bool> completion)
         {
@@ -785,9 +836,20 @@ namespace ValheimMoments
         private void OnLocalDeath(Player player, string cause)
         {
             if (!Value(deathTrigger) || !Value(deathEnabled)) return;
+            if (!initialized || stopped) return;
+            SynchronizeCaptureSession();
+            if (!captureSession.HasSession) return;
+            deathMoments.Observe();
+            var ticket = deathMoments.Reserve();
+            if (ticket == null) return;
+            if (history.IsBusy || paused || !Value(captureEnabled) || !hostSettings.Ready || captureSettingsDirty ||
+                (!Value(discordEnabled) && !Value(saveLocalCopy)) || !deathMoments.TakeSlot(clock.Elapsed.TotalSeconds, Value(deathCaptureLimit), Value(deathWindowSeconds)))
+            { deathMoments.Complete(ticket, false); return; }
             string message = EventMessages.Death(Value(deathMessage), Value(includePlayerName), Value(playerNameOverride),
-                Value(includePlayerName) ? player.GetPlayerName() : "", Value(includeCause), cause);
-            Trigger("death", message);
+                Value(includePlayerName) ? player.GetPlayerName() : "", Value(includeCause), cause,
+                Value(cheekyDeaths) ? deathFlavor.Next(flavorRandom) : null, ticket.Additional);
+            if (Trigger("death", message)) pendingDeath = ticket;
+            else deathMoments.Complete(ticket, false);
         }
 
         private bool Trigger(string kind, string message, double? postOverride = null)
@@ -799,20 +861,24 @@ namespace ValheimMoments
             if (!history.TryTrigger(clock.Elapsed.TotalSeconds, postOverride))
             {
                 Logger.LogInfo("[Capture] " + kind + " trigger ignored: a clip is collecting or encoding.");
+                if (kind == "manual") Notice("Memory capture busy", false, false);
                 return false;
             }
             pendingBoss = null;
+            pendingDeath = null;
             pendingSession = ZNet.instance;
             pendingAsHost = pendingSession != null && pendingSession.IsServer();
             pendingKind = kind; pendingMessage = message;
             pendingRecorder = Player.m_localPlayer != null ? Player.m_localPlayer.GetPlayerName() : null;
             Logger.LogInfo("[Capture] " + kind + " event triggered; buffered frames: " + history.BufferedFrames);
+            Notice("Recording Memory", true, true);
             return true;
         }
         private void OnDisable() { if (initialized || relay != null) StopCapture(); }
         private void SynchronizeCaptureSession()
         {
             if (!captureSession.Observe(ZNet.instance)) return;
+            deathMoments.Clear(); pendingDeath = null; notifications.Clear();
             waitingForLoot?.Release(); waitingForLoot = null;
             pendingBoss = null;
             lootHighlights.Clear(); acquisitions.Clear();
@@ -820,10 +886,29 @@ namespace ValheimMoments
             consecutiveErrors = 0;
             Logger.LogInfo("[Capture] Session changed; buffered footage and pending capture cleared.");
         }
+        private void CancelPendingDeath() { deathMoments.Complete(pendingDeath, false); pendingDeath = null; }
+        private void FinishMoment(DeathMoments.Ticket ticket, ZNet origin, bool success, string text)
+        {
+            deathMoments.Complete(ticket, success);
+            if (ReferenceEquals(origin, ZNet.instance)) Notice(text, false, success);
+        }
+        private void Notice(string text, bool starting, bool sound)
+        {
+            if (!initialized || stopped || !Value(notificationsEnabled)) return;
+            var mode = Value(notificationSound);
+            bool play = sound && (mode == MomentSoundMode.Both || (starting ? mode == MomentSoundMode.OnCapture : mode == MomentSoundMode.OnCompletion));
+            notifications.Show(text, clock.Elapsed.TotalSeconds, play, (float)Value(notificationVolume));
+        }
+        private void OnGUI()
+        {
+            if (!initialized || stopped || !Value(notificationsEnabled)) return;
+            try { notifications.Draw(clock.Elapsed.TotalSeconds); } catch { }
+        }
         private void StopCapture()
         {
             if (stopped) return;
             stopped = true;
+            notifications.Dispose(); deathMoments.Clear(); deathOffers.Clear();
             hostSettings?.Dispose();
             relay?.Dispose();
             PlayerDeathDetector.OnLocalDeath = null;

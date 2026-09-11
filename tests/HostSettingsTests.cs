@@ -96,6 +96,17 @@ internal static class HostSettingsTests
             Check((int)SettingRanges.For("Capture", "Height", 360).Clamp(10000) == 1080, "Extreme height clamped");
             Check((int)SettingRanges.For("Capture", "WebPQuality", 80).Clamp(500) == 100, "Excessive quality clamped");
             Check((double)SettingRanges.For("Capture", "PreEventSeconds", 5.0).Clamp(double.NaN) == 5, "Nonfinite timing falls back safely");
+            Check(HostConfiguration.IsLocal("Notifications", "SoundMode") && !HostConfiguration.IsLocal("Player Death", "CaptureLimit"), "Notification presentation local; death policy host-owned");
+            Check((int)SettingRanges.For("Player Death", "CaptureLimit", 1).Clamp(int.MaxValue) == 20, "Death quota bounded");
+            Check((double)SettingRanges.For("Player Death", "WindowSeconds", 60.0).Clamp(double.NaN) == 60, "Invalid death window falls back safely");
+            Check((double)SettingRanges.For("Notifications", "Volume", 0.35).Clamp(500.0) == 1, "Notification volume bounded");
+            int changed = 0;
+            using (var notificationPolicy = new HostConfiguration(null, null, () => changed++, s => { }))
+            {
+                var volume = Add(notificationPolicy, clientFile, "Notifications", "Volume", 0.35, out unused);
+                volume.Value = 0.5;
+                Check(changed == 0, "Changing local notification volume does not invalidate capture buffers");
+            }
         }
         finally
         {

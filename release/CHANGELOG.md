@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.13.0
+
+- Brief themed recording, saved, captured and uploaded feedback. Optional original quiet cue with player-owned mode/volume; no audio is added to WebP files.
+- Host-owned death quota defaults to one capture per 60 seconds. Per-player counters preserve intervening/unshared deaths until confirmed delivery or local-only save. Session changes clear counters.
+- Twenty neutral cheeky death lines without immediate repeats. Custom captions opt in with {flavor}; {extra_deaths} places the additional-death count.
+- Structured client relay completion only reports success after final host delivery acknowledgement. Host admission also limits incoming death offers per connection.
+- Notification preferences apply without cancelling the current capture. Existing 0.12.0 settings, migration and sizing changes are included.
+- Matching 0.13.0 host/client settings schema required. Live banner/audio and co-op acceptance remain pending.
+
 ## 0.12.0
 
 - Six aspect-aware size presets plus Custom, preserving aspect under memory fitting and padding mismatched canvases.

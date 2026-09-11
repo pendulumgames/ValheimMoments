@@ -76,14 +76,25 @@ namespace ValheimMoments
             return message.Substring(0, char.IsHighSurrogate(message[1999]) ? 1999 : 2000);
         }
 
-        internal static string Death(string template, bool includeName, string nameOverride, string characterName, bool includeCause = false, string cause = "unknown cause")
+        internal static string Death(string template, bool includeName, string nameOverride, string characterName, bool includeCause = false, string cause = "unknown cause", string flavor = null, long additional = 0)
         {
             string name = includeName ? (string.IsNullOrWhiteSpace(nameOverride) ? characterName : nameOverride) : "A player";
             if (string.IsNullOrWhiteSpace(name)) name = "A player";
             string pattern = string.IsNullOrWhiteSpace(template) ? "\uD83D\uDC80 {player} died!" : template;
             string label = string.IsNullOrWhiteSpace(cause) ? "unknown cause" : cause;
-            string message = pattern.Replace("{cause}", includeCause ? label : "").Replace("{player}", name);
+            bool standard = pattern == "\uD83D\uDC80 {player} died!";
+            string message = pattern.Replace("{cause}", includeCause ? label : "").Replace("{player}", name)
+                .Replace("{flavor}", flavor ?? "").Replace("{extra_deaths}", Math.Max(0, additional).ToString(System.Globalization.CultureInfo.InvariantCulture));
             if (includeCause && !pattern.Contains("{cause}")) message += "\nCause: " + label;
+            if (standard && !string.IsNullOrWhiteSpace(flavor)) message += "\n" + flavor;
+            if (additional > 0 && !pattern.Contains("{extra_deaths}"))
+            {
+                string summary = "\n**Additional deaths since last shared death:** " + additional.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                // Leave 100 characters for the final heading and bounded recorder line.
+                int room = 1900 - summary.Length;
+                if (message.Length > room) message = message.Substring(0, char.IsHighSurrogate(message[room - 1]) ? room - 1 : room);
+                message += summary;
+            }
             if (message.Length <= 2000) return message;
             int length = char.IsHighSurrogate(message[1999]) ? 1999 : 2000;
             return message.Substring(0, length);

@@ -1,6 +1,6 @@
 # Integration and validation notes
 
-This describes 0.12.0, not a guarantee of compatibility with future versions.
+This describes 0.13.0, not a guarantee of compatibility with future versions.
 Observers do not intentionally change damage, kill credit, rolls or saved statistics.
 
 ## Harmony patch inventory
@@ -160,7 +160,7 @@ settings exchange. This governs ordinary clients, not modified-client footage cl
 The in-memory overlay preserves client config files. Configuration Manager metadata
 makes host rules read-only, renders effective values and hides client-private Discord
 settings while connected. The installed manager's Advanced/ReadOnly/CustomDrawer tags
-and BuildSettingList method were inspected directly. In 0.12.0 the tag class uses the required ConfigurationManagerAttributes name; the old differently named object was not recognized. Category/Order place local controls first and custom dimensions below the preset. No manager DLL is bundled or required.
+and BuildSettingList method were inspected directly. In 0.13.0 the tag class uses the required ConfigurationManagerAttributes name; the old differently named object was not recognized. Category/Order place local controls first and custom dimensions below the preset. No manager DLL is bundled or required.
 
 [CaptureLimits](../src/ValheimMoments.Core/CaptureLimits.cs) constrains dimensions,
 FPS, quality and aspect ratio. Six presets derive a pixel budget from screen aspect. Fitting preserves ratio while reducing dimensions, then FPS; extreme minimum-budget cases use a padded 480 x 270 fallback. Padded rendering requires live verification. This fits frame-pool/raw-clip
@@ -217,3 +217,9 @@ packaged Windows x64 support target. Spirit-damage final-blow naming passed the 
 live 0.9.2 boss-kill test; fire/poison still need live verification. Mixed/unknown sources, effects already active before
 tracking, ownership gaps, or unsupported damage paths can leave final blow unavailable.
 No last-direct-hit guess is used.
+
+## Death quota and optional feedback (0.13.0)
+
+DeathMoments keeps a monotonically numbered, session-scoped death ledger and one pending delivery ticket. Success acknowledges only that ticket's snapshot; concurrent later deaths survive. Failure/cancellation releases the ticket without consuming counts. A sliding bounded quota limits capture attempts; the host also bounds accepted death offers per connected peer. The host does not authenticate client-reported death counts from footage.
+
+ClipRelay.Offer accepts a structured completion observer, invoked once after a matching final result or failure/reset. Transferring all bytes alone cannot emit success. Plugin routes feedback only to the recorder's current session. MomentNotifications uses a single expiring IMGUI banner and lazily generated original 160ms PCM cue; it runs only with graphical capture initialized. Its AudioModule/TextRenderingModule references are game-provided, not bundled. Banners can be captured; WebP audio is unchanged (none).

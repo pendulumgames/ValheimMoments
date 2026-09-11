@@ -6,12 +6,12 @@ to qualify during testing; the shipped default is Legendary.
 
 ## Host setup
 
-For 0.12.0, install the matching build on host and recording clients. Older hosts do
+For 0.13.0, install the matching build on host and recording clients. Older hosts do
 not provide policy snapshots; newer clients wait rather than use their own event rules.
 
 Configure Discord.Enabled, WebhookURL and Username on the host. Optional Good Loot,
 Boss Kill and Player Death webhook overrides also belong to the host; disabled
-overrides use the default. Discord.Enabled controls host and client delivery. Capture.SaveLocalCopy is player-owned. Matching 0.12.0 settings protocol is required.
+overrides use the default. Discord.Enabled controls host and client delivery. Capture.SaveLocalCopy is player-owned. Matching 0.13.0 settings protocol is required.
 
 Clients never send a webhook URL or bot name. Their local Discord.Enabled, Username
 and webhook entries do not control relay delivery. The host syncs event,
@@ -52,7 +52,16 @@ Then verify delivery:
 
 No webhook is needed on the joining client. Do not share the host's secret config.
 
-## Final boss-credit check - 0.12.0
+## Notification and death milestone check (when convenient)
+
+1. On F10 acceptance, expect Recording Memory with the optional quiet cue. Encoding completion may briefly say Memory Captured; Memory Uploaded must wait for actual Discord success. A busy F10 must not announce successful recording.
+2. On a joining client, verify the final notification follows host upload success, not just transfer completion. The host should not see another player's personal capture notification.
+3. With host Discord disabled and local Capture.SaveLocalCopy=true, expect Memory Saved and a local file. Test Notifications.SoundMode=Off and a lower Volume independently on each player.
+4. With default death quota, record one death and let delivery finish. A second death within 60 seconds should not create another death clip. Die again after the window: the next death post should report one additional intervening death (more if additional deaths occurred). Another player's quota is independent.
+5. Default captions should include a neutral cheeky line without immediate repeats; custom templates should retain their wording unless they contain {flavor}. Inspect the cause and recorded-by formatting.
+6. Settings/sizing checks from 0.12.0 remain pending if not already completed. Observe banner size/orientation, cue volume and whether the banner in footage is acceptable. No urgent test is needed during the current playing session.
+
+## Final boss-credit check - 0.13.0
 
 1. Both players contribute damage to a boss; keep a third non-attacking player nearby if available.
 2. With PlayerNameMode=Both, each successfully delivered clip should list both credited players, exclude the spectator, identify its own recorder, and show the separate final blow.

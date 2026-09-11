@@ -15,6 +15,8 @@ namespace ValheimMoments
         private readonly Action<RelayBuffer, string, Action<bool>> deliver;
         private readonly Action<string> log;
         private readonly Func<ZRpc, bool> allowPeer;
+        private readonly Func<ZRpc, string, double, bool> acceptEvent;
+        private Action<bool> outgoingCompletion;
         private readonly HashSet<ZRpc> registered = new HashSet<ZRpc>();
         private readonly Dictionary<ZRpc, double> nextOffer = new Dictionary<ZRpc, double>();
         private ZNet session;
@@ -31,8 +33,8 @@ namespace ValheimMoments
         private double now, incomingDeadline, outgoingDeadline, nextSend, nextTick;
         private bool delivering, awaitingOffer, waitingResult, disposed;
 
-        internal ClipRelay(Func<string, bool> allow, Func<int> limit, Action<RelayBuffer, string, Action<bool>> deliver, Action<string> log, Func<ZRpc, bool> allowPeer = null)
-        { this.allow = allow; this.limit = limit; this.deliver = deliver; this.log = log; this.allowPeer = allowPeer ?? (rpc => true); }
+        internal ClipRelay(Func<string, bool> allow, Func<int> limit, Action<RelayBuffer, string, Action<bool>> deliver, Action<string> log, Func<ZRpc, bool> allowPeer = null, Func<ZRpc, string, double, bool> acceptEvent = null)
+        { this.allow = allow; this.limit = limit; this.deliver = deliver; this.log = log; this.allowPeer = allowPeer ?? (rpc => true); this.acceptEvent = acceptEvent ?? ((rpc, kind, now) => true); }
 
         internal void Tick(double time)
         {
@@ -87,7 +89,7 @@ namespace ValheimMoments
             }
         }
 
-        internal bool Offer(ZNet capturedSession, string file, string kind, string message, bool saveLocalCopy = true)
+        internal bool Offer(ZNet capturedSession, string file, string kind, string message, bool saveLocalCopy = true, Action<bool> completed = null)
         {
             if (disposed || session == null || !ReferenceEquals(session, capturedSession) || session.IsServer() || outgoing != null || preparation != null || cleanup != null || target != null) return false;
             var peer = session.GetServerPeer();
@@ -95,6 +97,7 @@ namespace ValheimMoments
             try
             {
                 target = peer.m_rpc; outgoingId = Guid.NewGuid().ToString("N");
+                outgoingCompletion = completed;
                 outgoingFile = file; keepOutgoing = saveLocalCopy;
                 offeredKind = kind; offeredMessage = message;
                 sent = acknowledged = 0; awaitingOffer = true; waitingResult = false; outgoingDeadline = now + 10;
@@ -137,6 +140,7 @@ namespace ValheimMoments
                 string message = RelayProtocol.ReadText(p[4]);
                 try { incoming = new RelayBuffer(p[1], p[2], message, size, limit()); }
                 catch { Send(rpc, "R|" + p[1] + "|0"); return; }
+                if (!acceptEvent(rpc, p[2], now)) { incoming = null; Send(rpc, "R|" + p[1] + "|0"); return; }
                 source = rpc; incomingDeadline = now + 120;
                 Send(rpc, "A|" + p[1] + "|0");
             }
@@ -176,9 +180,9 @@ namespace ValheimMoments
                             try { File.Delete(file); return "Host uploaded clip to Discord; local copy removed."; }
                             catch { return "Host uploaded clip to Discord; local copy could not be removed."; }
                         });
-                        EndOutgoing("Host uploaded clip to Discord; removing local copy.");
+                        EndOutgoing("Host uploaded clip to Discord; removing local copy.", true);
                     }
-                    else EndOutgoing("Host uploaded clip to Discord; local copy retained.");
+                    else EndOutgoing("Host uploaded clip to Discord; local copy retained.", true);
                 }
                 else if (p[2] == "0") EndOutgoing("Host declined or could not deliver clip; local copy retained.");
                 return;
@@ -192,9 +196,11 @@ namespace ValheimMoments
         private static void Send(ZRpc rpc, string packet) { rpc.Invoke(Rpc, new object[] { packet }); }
         internal bool DeliveryPeerConnected { get { return deliveryPeer != null && registered.Contains(deliveryPeer) && deliveryPeer.IsConnected(); } }
         internal void StopSending() { if (target != null) EndOutgoing("Client relay disabled; local clip retained."); }
-        private void EndOutgoing(string reason)
+        private void EndOutgoing(string reason, bool success = false)
         {
+            var completed = outgoingCompletion; outgoingCompletion = null;
             outgoing = null; target = null; outgoingId = null; outgoingFile = null; log(reason);
+            try { completed?.Invoke(success); } catch { log("Clip completion observer unavailable."); }
         }
         private void Reset()
         {

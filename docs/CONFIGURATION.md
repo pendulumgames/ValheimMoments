@@ -1,6 +1,6 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.12.0. Launch once to generate
+Applies to Valheim Moments 0.13.0. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
 Restart after editing the file. Configuration Manager edits apply in game; buffer
 changes wait for active GPU/encoder work. Defaults describe a new installation; upgrades preserve
@@ -10,13 +10,13 @@ existing settings. Never share a config containing webhook URLs.
 
 The host controls every setting except: Capture.Enabled, ManualCaptureKey,
 ToggleCaptureKey, Width, Height, FPS, WebPQuality, MemoryBudgetMiB, FlipVertically;
-Capture.SizePreset and Capture.SaveLocalCopy; and Debug.LogCaptureTiming.
+Capture.SizePreset and Capture.SaveLocalCopy; all Notifications settings; and Debug.LogCaptureTiming.
 These personal controls remain editable on clients. All other settings are read-only
 while connected. Private Discord settings are hidden from joining players' UI.
 
 Host event rules apply in memory without replacing clients' saved settings. Returning
 to single-player restores their own preferences and editing access. Host and clients
-need matching 0.12.0 versions: client capture waits for host settings and
+need matching 0.13.0 versions: client capture waits for host settings and
 pauses if updates stop for ten seconds. No webhook URL or Discord Username is synced.
 
 ## Capture
@@ -73,7 +73,7 @@ With Discord disabled, SaveLocalCopy=true records locally; both false suppress n
 In single-player these settings belong to the local player. In multiplayer, the host
 owns delivery, destinations and the bot name. Joining players' local webhook,
 Enabled and Username cannot override the host. Both sides need the mod and
-matching 0.12.0 settings protocol for client delivery. Discord.Enabled automatically gates relay and upload.
+matching 0.13.0 settings protocol for client delivery. Discord.Enabled automatically gates relay and upload.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -116,15 +116,34 @@ The host also applies these switches and the corresponding event Enabled setting
 incoming clips. Recording clients evaluate the host's synced rarity/event rules.
 The host does not independently verify footage or loot claims from modified clients.
 
+## Notifications
+
+These controls belong to each recording player and appear after their Capture controls.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| Enabled | true | Brief themed on-screen feedback. Off also mutes the cue. |
+| SoundMode | OnCapture | Off, OnCapture, OnCompletion, or Both. Completion sound plays for confirmed upload or local-only save. |
+| Volume | 0.35 | Local cue level, clamped 0-1. The original two-tone cue is deliberately quiet. |
+
+Recording Memory appears only after accepting a capture. Memory Captured means encoding finished; Memory Uploaded requires Discord success or the host's final successful acknowledgement. Local-only captures say Memory Saved. Failures/busy captures use distinct feedback. New feedback replaces the previous banner, expires after 3.5 seconds and clears on session changes. It may appear in the captured footage. WebP output still has no audio. Notification settings do not cancel a capture when edited.
+
 ## Player Death
 
 | Key | Default | Meaning |
 | --- | --- | --- |
 | Enabled | true | Enable this event. |
-| Message | 💀 {player} died! | Supports {player} and {cause}. |
+| CaptureLimit | 1 | Host-owned maximum death capture attempts per player within WindowSeconds, 1-20. |
+| WindowSeconds | 60 | Sliding window in seconds, 1-3600. |
+| CheekyMessages | true | One of 20 neutral lines with no immediate repeat for the default caption. Custom templates opt in with {flavor}. |
+| Message | 💀 {player} died! | Supports {player}, {cause}, {flavor}, and {extra_deaths}. |
 | IncludeCause | true | Include recorded attacker/environmental cause; append if {cause} is absent. |
 | IncludePlayerName | true | Use character name/override for {player}; otherwise “A player”. |
 | PlayerNameOverride | empty | Optional replacement name for the death message. |
+
+Confirmed deaths while the event is enabled are counted even when a clip is suppressed or capture is busy/paused. The next eligible death caption reports additional deaths since the last shared death. Only confirmed upload, or a completed local-only save, consumes that snapshot. Failed delivery preserves the count; new deaths during upload remain for the next post. Only one death clip can await delivery per player. Counts reset on session change; no historical death footage is queued.
+
+The host also limits incoming death offers per connection. Existing general relay throttling still applies, so a high CaptureLimit is not a guaranteed delivery rate. Unknown/modified client death counts are not independently verified. Manual clips do not reset the automatic death quota.
 
 Unresolved causes remain unknown. Periodic damage can lack an attacker even when the
 original weapon belonged to a player.

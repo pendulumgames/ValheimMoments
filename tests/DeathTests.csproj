@@ -10,6 +10,8 @@
     <Reference Include="UnityEngine"><HintPath>$(GamePath)/valheim_Data/Managed/UnityEngine.dll</HintPath><Aliases>RuntimeUnityFacade</Aliases></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(GamePath)/valheim_Data/Managed/UnityEngine.CoreModule.dll</HintPath><Aliases>RuntimeUnity</Aliases></Reference>
     <Compile Include="DeathTests.cs" />
+    <Compile Include="DeathMomentTests.cs" />
+    <Compile Include="../src/ValheimMoments/DeathMoments.cs" Link="DeathMoments.cs" />
     <Compile Include="WorldLootTests.cs" />
     <Compile Include="../src/ValheimMoments/WorldLootDetector.cs" Link="WorldLootDetector.cs" />
     <Compile Include="../src/ValheimMoments/AcquisitionHighlights.cs" Link="AcquisitionHighlights.cs" />

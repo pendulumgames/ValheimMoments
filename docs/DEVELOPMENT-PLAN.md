@@ -4,7 +4,17 @@ Updated: 2026-09-10. Baseline: 0.11.1.
 
 This is the implementation backlog for the user's September feature request. Existing 0.11.1 packages remain unchanged. Items are planned unless listed in the progress section below. Do not describe pending features as available in release READMEs.
 
-## Progress: 0.12.0 configuration and sizing milestone
+## Progress: 0.13.0 notifications and death milestone
+
+User deferred live checks and authorized continued development. This build includes 0.12.0 unchanged in scope plus themed recording/save/upload feedback, optional original quiet cue, local notification settings, host-controlled death rate limits and 20 neutral cheeky captions. A structured relay completion callback ensures upload feedback occurs only after final host acknowledgement. Death counters acknowledge a particular pending snapshot, so later deaths and failed uploads are not lost. Host admission also bounds incoming death offers per connection.
+
+Default quota: one death capture attempt per 60-second sliding window. Counters reset with the session. Custom captions opt into flavor with {flavor}; {extra_deaths} places the additional death count. Default flavor lines were made neutral rather than guessing gravity, food or equipment causes. New notification settings do not invalidate capture buffers.
+
+Live UI/audio, source orientation/padding, local-only save and co-op checks can be batched into a later session. No installation while the user plays. Discovery/special-enemy work is next; director, segmented raid/close-call capture, gallery and Keep remain pending. Bounded failed-file retention and measured size estimates remain outstanding foundation items.
+
+Validation: 1,756 assertions passed (core 1,244; HTTP 43; boss 55; loot 45; filter 31; Epic 19; relay 30; periodic 23; host settings 63; death moments 139; natural loot 43; death/messages 21). Full release checks, 70-key documentation coverage, format/provenance checks and installed Configuration Manager contract passed. Artifact: artifacts/Valheim_Moments-0.13.0.zip, 518,703 bytes, SHA256 B627753ED96CB3B127712EDA3613DCAC4BB7D70C187AC928367A567792B60A75. Built separately, not installed or submitted to Thunderstore.
+
+## Progress: 0.12.0 configuration and sizing milestone (included)
 
 Implemented: Discord.Enabled default true with explicit prior values preserved; host-only Username retained; redundant upload/relay switches retired; host delivery-enabled bit synchronized through settings protocol v2; local SaveLocalCopy migration and local-only recording; boss CaptureMode with equivalent migration of all old combinations and explicit first-kill caption; six size presets plus Custom, aspect-preserving fitting and padded fallback; ordered player controls and recognized, visibly locked host settings tags.
 

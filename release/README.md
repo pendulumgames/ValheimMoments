@@ -6,16 +6,17 @@ Save the moments worth sharing: boss victories, rare drops, unfortunate deaths,
 and anything you catch with a hotkey. Valheim Moments turns recent gameplay into
 animated WebP clips and can send them to Discord.
 
-**Windows x64 beta - 0.12.0.** Manual capture, deaths, boss summaries, Epic Loot,
+**Windows x64 beta - 0.13.0.** Manual capture, deaths, boss summaries, Epic Loot,
 ordinary loot and natural acquisitions have passed user testing. Host and joining-player
 F10 clips have reached Discord, and the WebP clips were confirmed visually.
 
-This release reorganizes host/player settings, adds six aspect-aware capture size presets, moves SaveLocalCopy to Capture, and replaces the boss filter switches with CaptureMode. Discord is enabled by default for new configs and controls relay automatically; the host-only Username still defaults to Valheim Moments. Existing settings migrate. Install **0.12.0 on the host and every recording client**. The new settings UI and padded capture path need live verification; prior feature tests do not establish those new paths.
+This release adds themed capture/save/upload notifications, an optional quiet local cue, configurable death-rate limiting, and 20 cheeky death lines. Suppressed or unshared deaths are summarized on the next eligible death post. Settings/sizing improvements from 0.12.0 are included. Install **0.13.0 on the host and every recording client**. Automated checks cover the new rules and acknowledgements; visual/audio and live co-op acceptance remain pending.
 
 ## Features
 
 * **F10** captures recent gameplay. **F9** pauses/resumes recording.
-* Automatic player-death clips, including the recorded cause when available.
+* Automatic player-death clips with cause, configurable rate limit, intervening-death summary and optional cheeky captions.
+* Brief Recording Memory / Memory Saved / Memory Uploaded feedback, with player-controlled quiet sound.
 * Boss clips with first-kill rules, all credited players, final-blow attribution and loot.
 * Optional Epic Loot rarity, modifiers, sockets and unidentified-item display.
 * Ordinary-enemy loot plus tracked natural chest/world pickups, using a shared minimum rarity.
@@ -136,6 +137,12 @@ Choose Tiny, Small, Medium, Balanced, Large or Ultra for an aspect-aware size, o
 Capture.SaveLocalCopy=true also works with host Discord disabled. With both off, new clip triggers are suppressed. With Discord on and saving off, confirmed uploads are deleted; failed uploads still remain for recovery. The planned gallery, Keep key and bounded failure expiry are not in this milestone.
 
 Discord upload allowance depends on the destination/server boost level. Personal Nitro does not establish the webhook allowance. This release retains its conservative 10 MiB client relay cap; check actual file sizes. Motion and detail make resolution/FPS/quality estimates uncertain.
+
+## Death limits and notifications
+
+Player Death.CaptureLimit defaults to 1 per 60-second WindowSeconds. Further confirmed deaths are counted for the next eligible death post; failed delivery does not erase the count. Each player has a separate quota, and counts reset with the session. Custom death templates opt into cheeky text using {flavor}; {extra_deaths} places the additional-death count.
+
+Notifications are player-owned: Enabled, SoundMode (Off / OnCapture / OnCompletion / Both), and Volume. Memory Uploaded appears only after Discord accepts the clip, including a final host acknowledgement for joining players. Memory Captured means encoding finished. Local-only recording says Memory Saved. The banner may appear in footage; the WebP itself remains silent.
 
 ## Boss and loot settings
 
