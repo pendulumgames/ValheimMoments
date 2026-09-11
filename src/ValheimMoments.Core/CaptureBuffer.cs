@@ -65,6 +65,8 @@ namespace ValheimMoments.Core
         private readonly double postSeconds;
         private readonly double maxPostSeconds;
         private double activePostSeconds;
+        private double activePreSeconds;
+        private bool segment;
         private double lastTime = double.NegativeInfinity;
         private double triggerTime;
         private bool collecting;
@@ -134,7 +136,7 @@ namespace ValheimMoments.Core
             frame.References = 1;
             ring.Enqueue(frame);
             // Includes readbacks submitted before the trigger that complete after it.
-            if (collecting && timestamp >= triggerTime - (timeline == null ? preSeconds : timeline.SlowSourceSeconds) && timestamp < triggerTime + activePostSeconds)
+            if (collecting && timestamp >= triggerTime - (timeline == null ? activePreSeconds : timeline.SlowSourceSeconds) && timestamp < triggerTime + activePostSeconds)
             {
                 if (pending.Count < maxClipFrames && (timeline == null || timestamp < triggerTime || timestamp >= nextSample))
                 {
@@ -159,6 +161,7 @@ namespace ValheimMoments.Core
                 throw new ArgumentOutOfRangeException("timestamp");
             if (busy) return false;
             timeline = null;
+            segment = false; activePreSeconds = preSeconds;
             triggerTime = timestamp;
             activePostSeconds = duration;
             pending.Clear();
@@ -174,6 +177,20 @@ namespace ValheimMoments.Core
             return true;
         }
 
+        // A bounded post-only segment. In-flight readbacks from before the event
+        // remain in history but are excluded from this clip.
+        public bool TryTriggerSegment(double timestamp, double seconds)
+        {
+            CheckThread();
+            if (!Finite(timestamp) || timestamp < lastTime || !Finite(seconds) || seconds <= 0 || seconds > maxPostSeconds)
+                throw new ArgumentOutOfRangeException("seconds");
+            if (busy) return false;
+            timeline = null; segment = true; activePreSeconds = 0;
+            triggerTime = timestamp; activePostSeconds = seconds;
+            pending.Clear(); busy = collecting = true;
+            return true;
+        }
+
         // Uses the existing fixed pool. Admission reserves worst-case selected frames;
         // a 20-second source window does not allocate 20 seconds of full-rate pixels.
         public bool TryTriggerCloseCall(double timestamp, CloseCallTimeline mapping, int captureFps)
@@ -186,7 +203,7 @@ namespace ValheimMoments.Core
             int required = (int)Math.Ceiling(mapping.SlowSourceSeconds * captureFps) +
                 (int)Math.Ceiling(mapping.FollowUpSeconds / interval);
             if (busy || mapping.SlowSourceSeconds > preSeconds || required > maxClipFrames) return false;
-            timeline = mapping; sampleInterval = interval; nextSample = timestamp;
+            timeline = mapping; segment = false; sampleInterval = interval; nextSample = timestamp;
             triggerTime = timestamp; activePostSeconds = mapping.FollowUpSeconds;
             pending.Clear();
             foreach (Frame frame in ring)
@@ -213,6 +230,12 @@ namespace ValheimMoments.Core
                 end = triggerTime + timeline.DurationMilliseconds / 1000.0;
                 // Hold the earliest available image across a missed initial readback.
                 if (playback.Length > 0) playback[0] = triggerTime;
+            }
+            else if (segment && pending.Count > 0)
+            {
+                playback = new double[pending.Count];
+                for (int i = 0; i < pending.Count; i++) playback[i] = pending[i].Time;
+                playback[0] = triggerTime;
             }
             Clip clip = new Clip(this, pending.ToArray(), triggerTime, end, playback);
             pending.Clear();

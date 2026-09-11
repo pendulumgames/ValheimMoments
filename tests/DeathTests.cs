@@ -68,6 +68,7 @@ internal static class DeathTests
         GroupRelayTests.Run();
         LocalDamageTests.Run();
         RaidTests.Run();
+        RaidMediaTests.Run();
         var harmony = new Harmony("valheimmoments.tests");
         int events = 0;
         int errors = 0;

@@ -8,6 +8,35 @@ namespace ValheimMoments
 {
     internal static class EncoderClient
     {
+        internal static string Compose(string exe, string opening, string ending, string output, int quality, CancellationToken cancellation)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var info = new ProcessStartInfo(exe, "--compose \"" + opening + "\" \"" + ending + "\" \"" + output + "\" " + quality)
+            { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden,
+                RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = Path.GetDirectoryName(exe) };
+            using (var process = new Process { StartInfo = info })
+            using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120)))
+            using (var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, timeout.Token))
+            {
+                process.Start();
+                try { process.PriorityClass = ProcessPriorityClass.BelowNormal; } catch { }
+                var stdout = process.StandardOutput.ReadToEndAsync(); var stderr = process.StandardError.ReadToEndAsync();
+                using (linked.Token.Register(() => { try { if (!process.HasExited) process.Kill(); } catch { } }))
+                try
+                {
+                    process.WaitForExit(); linked.Token.ThrowIfCancellationRequested();
+                    string error = stderr.GetAwaiter().GetResult();
+                    if (process.ExitCode != 0 || !File.Exists(output)) throw new IOException("Segment composition failed: " + error.Trim());
+                    return stdout.GetAwaiter().GetResult().Trim();
+                }
+                finally
+                {
+                    try { if (!process.HasExited) process.Kill(); } catch { }
+                    // RaidMedia cleanup must not run while this child still owns files.
+                    process.WaitForExit();
+                }
+            }
+        }
         // This entire method runs on a worker. Only owned managed frame arrays cross
         // the process boundary. Unity state and logging are handled by the caller.
         internal static string Encode(CaptureBuffer.Clip clip, string exe, string output,

@@ -82,6 +82,19 @@ internal static class CloseCallTests
         var small = new CaptureBuffer(1, 1, 15, 1, 1, 4096);
         Check(!small.TryTriggerCloseCall(0, timeline, 15) && !small.IsBusy, "Insufficient fixed capacity rejects without allocation");
         Throws(() => buffer.TryTriggerCloseCall(0, timeline, 30));
+        var segments = new CaptureBuffer(1, 1, 15, 1, 6, 4096);
+        segments.AddFrame(pixel, 0);
+        Check(segments.TryTriggerSegment(1, 4), "Opening segment admitted");
+        segments.AddFrame(pixel, .5); // delayed readback submitted before raid entry
+        segments.AddFrame(pixel, 1.2);
+        Check(segments.TryComplete(4.99) == null, "Opening waits for watermark");
+        var opening = segments.TryComplete(5);
+        Check(opening.Count == 1 && opening.GetTimestamp(0) == 1 && opening.EndTime == 5, "No pre-event frame; missed initial readback holds first frame for exact duration");
+        opening.Release();
+        Check(segments.TryTriggerSegment(6, 6), "Ending can use released capture slot");
+        segments.CancelPending();
+        Check(segments.TryTrigger(7), "Death can replace pending segment");
+        segments.CancelPending(); segments.ClearHistory();
         Console.WriteLine("Close-call policy/timeline: " + checks + " assertions passed.");
     }
 }

@@ -132,6 +132,17 @@ internal static class EncoderSmokeTests
             Check(process.ExitCode == 0 && decoded.Contains("width=16 height=16"), "Sampled decode failed: " + decoded);
         }
         Console.WriteLine("PASS: sampled close-call WebP fully decoded, exact 10000ms RIFF duration");
+        string joinedOutput = output + ".joined.webp";
+        string joined = EncoderClient.Compose(exe, sampledOutput, sampledOutput, joinedOutput, 100, CancellationToken.None);
+        Check(joined.Contains("duration_ms=20000") && File.Exists(joinedOutput), "Composition worker handoff failed");
+        using (var cancelled = new CancellationTokenSource())
+        {
+            cancelled.Cancel(); bool rejected = false;
+            try { EncoderClient.Compose(exe, sampledOutput, sampledOutput, output + ".cancelled-join.webp", 100, cancelled.Token); }
+            catch (OperationCanceledException) { rejected = true; }
+            Check(rejected && !File.Exists(output + ".cancelled-join.webp"), "Cancelled composition created output");
+        }
+        Console.WriteLine("PASS: composition client handoff, exact 20000ms duration and pre-cancelled worker exclusion");
         return 0;
     }
 }

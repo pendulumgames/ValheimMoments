@@ -13,6 +13,8 @@
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(GamePath)/valheim_Data/Managed/UnityEngine.CoreModule.dll</HintPath><Aliases>RuntimeUnity</Aliases></Reference>
     <Compile Include="DeathTests.cs" />
     <Compile Include="RaidTests.cs" />
+    <Compile Include="RaidMediaTests.cs" />
+    <Compile Include="../src/ValheimMoments/RaidMedia.cs" Link="RaidMedia.cs" />
     <Compile Include="../src/ValheimMoments/RaidDetector.cs" Link="RaidDetector.cs" />
     <Compile Include="../src/ValheimMoments.Core/RaidMoment.cs" Link="RaidMoment.cs" />
     <Compile Include="LocalDamageTests.cs" />
