@@ -22,6 +22,10 @@ Initial safe caption: **Raid ended**. The current observer/policy cannot claim a
 
 ## Next integration
 
+The helper now has a bounded `--compose opening ending output quality` path. It preflights both animated WebP containers before decoding (10 MiB each, supported canvas, frame rectangles, cumulative 1,800 frames/60 seconds/256 MiB raw-equivalent limits), requires matching dimensions, then decodes and submits frames sequentially using BGRA. The final frame duration uses the same pinned encoder contract as normal capture. It preserves inputs and existing output files; publication uses a uniquely created partial followed by a move, with owned partial cleanup on normal failure. A hard-killed helper can still leave that partial; parent-owned raid storage and crash cleanup are not implemented yet.
+
+Tests decode a two-segment result and verify colors and irregular frame durations across the join, existing-output/input protection, invalid canvas and truncated input rejection, and normal-failure partial cleanup. Existing normal/close-call encode, decode and cancellation checks pass. This is decode/re-encode composition and can introduce another lossy pass; full raid visual quality and peak memory require live acceptance. No game client calls this helper mode yet.
+
 1. Capture a bounded opening segment and encode it to an owned temporary intermediate. Release its raw pixels and the capture slot while the raid continues.
 2. At a valid observed ending, capture the ending segment; combine bounded intermediates into the proposed four-second opening plus six-second ending animation. Verify actual decoded timing and peak memory.
 3. Reject missing/failed opening segments, preserve death priority, and expire owned intermediate files on cancellation/session exit. No continuous recording during the raid.

@@ -42,7 +42,61 @@ internal static class EncoderFormatTests
                     throw new Exception("RGBA channel mapping or vertical flip incorrect");
             }
             Console.WriteLine("PASS: RGBA colors, vertical flip, 37ms/113ms frame durations and full animation decode.");
+            string composed = output + ".composed.webp";
+            try
+            {
+                if (Compose(args[0], output, output, composed) != 0) throw new Exception("Composition failed");
+                using (var decoder = new AnimDecoder(File.ReadAllBytes(composed)))
+                {
+                    int count = 0, total = 0;
+                    while (decoder.HasMoreFrames())
+                    {
+                        var frame = decoder.GetNextFrame();
+                        int expected = count % 2 == 0 ? 37 : 113;
+                        if (frame.DurationMs != expected) throw new Exception("Segment boundary timing incorrect");
+                        if (count % 2 == 0 ? frame.Pixels[0] < 180 || frame.Pixels[2] > 80 : frame.Pixels[1] < 180)
+                            throw new Exception("Segment boundary colors/BGRA incorrect");
+                        count++; total += frame.DurationMs;
+                    }
+                    if (count != 4 || total != 300) throw new Exception("Combined count/duration incorrect");
+                }
+                byte[] original = File.ReadAllBytes(composed);
+                if (Compose(args[0], output, output, composed) == 0 || !Equal(original, File.ReadAllBytes(composed)))
+                    throw new Exception("Existing output was overwritten");
+                if (Compose(args[0], output, output, output) == 0) throw new Exception("Input overwrite accepted");
+                string bad = output + ".bad"; string rejected = output + ".rejected.webp";
+                try
+                {
+                    byte[] malicious = File.ReadAllBytes(output);
+                    // Encoder's leading VP8X width field: declare a pathological canvas.
+                    malicious[24] = 255; malicious[25] = 255; malicious[26] = 255;
+                    File.WriteAllBytes(bad, malicious);
+                    if (Compose(args[0], bad, output, rejected) == 0 || File.Exists(rejected))
+                        throw new Exception("Oversized canvas accepted");
+                    File.WriteAllBytes(bad, new byte[] { 1, 2, 3 });
+                    if (Compose(args[0], output, bad, rejected) == 0 || File.Exists(rejected))
+                        throw new Exception("Truncated segment accepted");
+                    if (Directory.GetFiles(args[1], "*.partial").Length != 0) throw new Exception("Composition leaked partial output");
+                }
+                finally { if (File.Exists(bad)) File.Delete(bad); }
+                Console.WriteLine("PASS: segment composition timing/colors, full decode, overwrite protection, malformed/canvas rejection and partial cleanup.");
+            }
+            finally { if (File.Exists(composed)) File.Delete(composed); }
         }
         finally { File.Delete(output); }
     }
+    private static int Compose(string helper, string first, string second, string output)
+    {
+        var start = new ProcessStartInfo(helper, "--compose \"" + first + "\" \"" + second + "\" \"" + output + "\" 100")
+        { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden,
+            RedirectStandardOutput = true, RedirectStandardError = true };
+        using (var process = Process.Start(start))
+        {
+            var errors = process.StandardError.ReadToEndAsync();
+            process.StandardOutput.ReadToEnd(); process.WaitForExit(); errors.GetAwaiter().GetResult();
+            return process.ExitCode;
+        }
+    }
+    private static bool Equal(byte[] a, byte[] b)
+    { if (a.Length != b.Length) return false; for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) return false; return true; }
 }

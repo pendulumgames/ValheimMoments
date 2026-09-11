@@ -11,6 +11,11 @@ internal static class Program
         string temporary = null;
         try
         {
+            if (args.Length == 5 && args[0] == "--compose")
+            {
+                SegmentComposer.Compose(args[1], args[2], args[3], int.Parse(args[4], System.Globalization.CultureInfo.InvariantCulture));
+                return 0;
+            }
             if (args.Length == 2 && args[0] == "--verify")
             {
                 using (var decoded = new AnimDecoder(File.ReadAllBytes(args[1])))
