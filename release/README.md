@@ -14,6 +14,39 @@ F10 clips have reached Discord, and the WebP clips were confirmed visually.
 
 Grouped multiplayer highlights: compatible creature-death recordings share one Discord post with up to three labeled perspectives. Discoveries and configurable special-enemy captures from 0.14 are included. Settings, sizing, notifications and death-rate improvements from 0.12/0.13 are included. Install **0.18.1 on the host and every recording client**. Automated checks cover persistence, rules and hook behavior; in-game exploration, visual/audio and live co-op acceptance remain pending.
 
+## See it in action
+
+Animated gameplay examples. Player names are supplied; the remaining caption details below are fictional examples of Discord output, not verified contents of the footage.
+
+### Mec's death
+
+![Mec death clip](https://raw.githubusercontent.com/PendulumGames/ValheimMoments/main/docs/examples/valheim-moment-Death.webp)
+
+> **💀 Mec died!**
+>
+> **Recorded by:** Mec
+>
+> **Cause:** Troll
+
+### Ren's legendary drop
+
+![Ren legendary loot clip](https://raw.githubusercontent.com/PendulumGames/ValheimMoments/main/docs/examples/valheim-moment-Legendary.webp)
+
+> **Great loot from Skeleton!**
+>
+> **Recorded by:** Ren
+>
+> **Kill credit:** Ren
+>
+> **Loot**
+>
+> - **Legendary Iron sword** x1
+>   - +25% physical damage
+>   - +15% attack speed
+> - Bone fragments x6
+> - Coins x42
+
+
 ## Features
 
 * **Personal gallery:** F8 opens history with on-demand thumbnails, recorder, timestamp, upload status, file size, Keep, local animation opening and Discord message links when supplied by the verified receipt. F7 keeps the current/latest memory. Both keys are configurable.

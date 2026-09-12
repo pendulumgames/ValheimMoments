@@ -26,6 +26,39 @@ performance testing remain on the documented acceptance checklists.
 
 See the [development plan](docs/DEVELOPMENT-PLAN.md) for implementation history and acceptance gates.
 
+## See it in action
+
+Animated gameplay examples. Player names are supplied; the remaining caption details below are fictional examples of Discord output, not verified contents of the footage.
+
+### Mec's death
+
+![Mec death clip](docs/examples/valheim-moment-Death.webp)
+
+> **💀 Mec died!**
+>
+> **Recorded by:** Mec
+>
+> **Cause:** Troll
+
+### Ren's legendary drop
+
+![Ren legendary loot clip](docs/examples/valheim-moment-Legendary.webp)
+
+> **Great loot from Skeleton!**
+>
+> **Recorded by:** Ren
+>
+> **Kill credit:** Ren
+>
+> **Loot**
+>
+> - **Legendary Iron sword** x1
+>   - +25% physical damage
+>   - +15% attack speed
+> - Bone fragments x6
+> - Coins x42
+
+
 ## Build from source
 
 Requirements: Windows x64, a .NET SDK capable of building netstandard2.1/net48 (tested
