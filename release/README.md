@@ -1,6 +1,12 @@
 # Valheim Moments
 
-0.23.1 keeps Barely Survived in slow motion through the hit's immediate aftermath, adds independent boss-equivalent controls and experimental cameras for special enemies, and adds biome camera movement choices with cinematic letterboxing. The GitHub and Thunderstore README fixes and animated gameplay examples are included. Existing camera distance, obstruction handling and boss/raid movement options carry forward. Live camera/co-op acceptance remains required.
+## Changes in 0.23.1
+
+- **Discovery restart spam is fixed.** Discoveries are saved per character and world and no longer repeat on server restarts. This covers biomes, enabled sub-biomes, traders and named locations.
+- **Update normally through Thunderstore Mod Manager or r2modman.** You may see discoveries one more time after upgrading if your old history was removed during the update. Once recorded by this version, they stay remembered. No PowerShell commands or manual migration are needed.
+- Named sub-biome announcements are optional and **off by default** (`Discoveries.SubBiomes`).
+
+Includes the 0.23.0 improvements: Barely Survived stays slowed through the hit's immediate aftermath; special enemies have independent boss-equivalent controls and experimental cameras; biome discoveries have experimental camera options and cinematic letterboxing; optional Discord user IDs add mentions beside character names in Recorded by and Kill credit.
 
 [Source code and issue reports](https://github.com/PendulumGames/ValheimMoments)
 
@@ -83,7 +89,7 @@ Animated gameplay examples. Player names are supplied; the remaining caption det
 
 Discoveries default on. Physically entering a new biome, a location with a game discovery label, or a trader's greeting range can capture a moment. Nearby discoveries group briefly into one caption. The host can disable categories and set the cooldown; `Discord.DiscoveryWebhookURL` uses the main webhook when blank.
 
-History lives in `BepInEx/config/ValheimMoments/Discoveries`, separately for each character/world pair, and survives replacement of the plugin folder. Existing plugin-side journals migrate automatically when loaded. Main biomes, distinct named sub-biomes, traders and named locations are each tracked once per character/world. Named sub-biome announcements require the host to enable `Discoveries.SubBiomes` (default off); visits while disabled are remembered silently. hidden sector modifiers no longer produce repeated biome discoveries. Preserve the config history when moving profiles. It remembers observations even while recording is paused, disabled or busy, so those visits are not replayed later. Initial loading/warmup is silent. Valheim's existing character history cannot reliably reconstruct exploration in each world: an older destination can count as a first **tracked** visit after installing this version. Revealed map pins alone do not count. Not every dungeon has a discovery label, and unsupported mod sources are skipped.
+History lives in `BepInEx/config/ValheimMoments/Discoveries`, separately for each character/world pair, and survives replacement of the plugin folder. Existing plugin-side journals migrate automatically when loaded. Main biomes, distinct named sub-biomes, traders and named locations are each tracked once per character/world. Named sub-biome announcements require the host to enable `Discoveries.SubBiomes` (default off); visits while disabled are remembered silently. Hidden sector modifiers no longer produce repeated biome discoveries. Preserve the config history when moving profiles. It remembers observations even while recording is paused, disabled or busy, so those visits are not replayed later. Initial loading/warmup is silent. Valheim's existing character history cannot reliably reconstruct exploration in each world: an older destination can count as a first **tracked** visit after installing this version. Revealed map pins alone do not count. Not every dungeon has a discovery label, and unsupported mod sources are skipped.
 
 Special enemies default to an empty selection. Each player can enable the local Advanced `Special Enemies.LogEnemyKeys` diagnostic, kills a candidate, then copies its exact confirmed stat key from the BepInEx log into `Special Enemies.EnemyKeys`. Use commas or semicolons for multiple keys. These are case-sensitive kill-credit identifiers, not prefab names or translated display names; no wildcards are used. Turn the diagnostic off afterward.
 
@@ -118,19 +124,11 @@ For multiplayer relay, install this version on the host and every recording clie
 The host needs the mod even if it does not record footage. Windows headless servers
 run relay delivery without allocating a graphics capture buffer.
 
-Version 0.9.0 renames the plugin, helper and config identifier. Before upgrading from
-an earlier build, close Valheim and move the previous plugin folder out of the active
-profile. Keep its `Clips` folder and copy the previous mod config to
-`BepInEx/config/local.valheimmoments.cfg` before launching. Do not overwrite an existing
-new config without comparing your settings. Installing both plugin identities can
-cause duplicate recording and uploads. The new plugin folder is `ValheimMoments`.
-
 ## First capture
 
 1. Enter a world and wait at least five seconds.
 2. Press **F10**.
-3. Wait for encoding to finish. Find the result in this mod's `Clips` folder under
-   the profile's `BepInEx/plugins` directory.
+3. Wait for encoding to finish. Press **F8** to open the gallery and **F7** to keep the latest memory.
 
 Defaults are **640×360, 15 FPS, five seconds before the event**, and two seconds after
 manual/death events. Boss and ordinary-loot clips default to four seconds after.
