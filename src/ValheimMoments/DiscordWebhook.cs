@@ -138,7 +138,7 @@ namespace ValheimMoments
                 {
                     timeout.CancelAfter(TimeSpan.FromSeconds(75));
                     client.Timeout = Timeout.InfiniteTimeSpan;
-                    client.DefaultRequestHeaders.UserAgent.ParseAdd("ValheimMoments/0.23.1");
+                    client.DefaultRequestHeaders.UserAgent.ParseAdd("ValheimMoments/0.23.2");
                     for (int attempt = 0; attempt < 3; attempt++)
                     {
                         using (var multipart = new MultipartFormDataContent())

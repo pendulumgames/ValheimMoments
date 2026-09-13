@@ -1,4 +1,4 @@
-# Valheim Moments 0.23.1
+# Valheim Moments 0.23.2
 
 Barely Survived now stays in slow motion through the immediate aftermath of the hit. With default settings, impact lands at playback second two and slow motion continues through second three; the complete clip remains ten seconds.
 
@@ -11,13 +11,13 @@ Barely Survived now stays in slow motion through the immediate aftermath of the 
 - Includes corrected GitHub and Thunderstore READMEs with Mec/Ren animated gameplay examples.
 - Preserves the existing 3x camera distance cap, wider obstruction checks, boss spawn timing and boss/raid movement options.
 
-Install matching **0.23.1** on the host and every recording client. Experimental event switches remain off by default. Enable BiomeDiscovery for biome camera footage; BiomeLetterbox controls its bars independently. Normal player footage remains the fallback when optional cinematic capture cannot complete.
+Install matching **0.23.2** on the host and every recording client. Experimental event switches remain off by default. Enable BiomeDiscovery for biome camera footage; BiomeLetterbox controls its bars independently. Normal player footage remains the fallback when optional cinematic capture cannot complete.
 
 Validation: automated capture/event/relay tests, cinematic presentation tests and encoder/package checks pass. The separate Configuration Manager contract check could not run because that mod is absent from the configured test profile. Live camera framing, modded summon animations and co-op acceptance remain pending.
 
 Release assets:
 
-- Valheim_Moments-0.23.1.zip: Thunderstore-ready package.
-- ValheimMoments-0.23.1-test.zip: manual/test package with configuration and acceptance documentation.
+- Valheim_Moments-0.23.2.zip: Thunderstore-ready package.
+- ValheimMoments-0.23.2-test.zip: manual/test package with configuration and acceptance documentation.
 
 The README example images are included in the source repository.

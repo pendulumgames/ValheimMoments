@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.23.2
+
+- Synchronize the plugin version, GitHub release and Thunderstore package at 0.23.2, including the corrected README and normal mod-manager upgrade instructions.
+- Discoveries may appear once more after upgrading if old history was removed; newly recorded discoveries stay saved across server restarts. No manual migration is required.
+- Install matching 0.23.2 on the host and every recording client.
+
 ## 0.23.1
 
 - Simplify upgrading: update normally through your mod manager. No scripts or execution-policy changes are required; the preservation script is no longer bundled.
