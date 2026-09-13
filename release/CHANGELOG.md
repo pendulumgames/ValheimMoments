@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.23.1
+
+- Simplify upgrading: update normally through your mod manager. No scripts or execution-policy changes are required; the preservation script is no longer bundled.
+- Discoveries may appear one more time after upgrading if old history was removed. Once recorded by the updated mod, discoveries are saved outside the plugin folder and no longer repeat on server restarts. This covers biomes, enabled sub-biomes, traders and named locations per character/world.
+- Install matching 0.23.1 on the host and every recording client.
+
 ## 0.23.0
 
 - Add pre-upgrade discovery preservation tooling; announcements wait for durable journal writes.

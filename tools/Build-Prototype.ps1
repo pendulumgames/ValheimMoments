@@ -25,7 +25,6 @@ try {
     Copy-Item -LiteralPath docs/NATURAL-LOOT-TEST.md -Destination (Join-Path $stage 'NATURAL-LOOT-TEST.md')
     Copy-Item -LiteralPath docs/CONFIGURATION.md -Destination (Join-Path $stage 'CONFIGURATION.md')
     Copy-Item -LiteralPath release/CHANGELOG.md -Destination (Join-Path $stage 'CHANGELOG.md')
-    Copy-Item -LiteralPath tools/Preserve-DiscoveryHistory.ps1 -Destination $stage
     Copy-Item -LiteralPath LICENSE -Destination (Join-Path $stage 'LICENSE')
     Copy-Item -LiteralPath docs/PROTOTYPE-TEST.md -Destination (Join-Path $stage 'CAPTURE-TEST.md')
     Copy-Item -LiteralPath docs/DEPENDENCIES.md -Destination $plugin

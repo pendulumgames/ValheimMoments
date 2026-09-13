@@ -1,6 +1,6 @@
 # Valheim Moments
 
-0.23.0 keeps Barely Survived in slow motion through the hit's immediate aftermath, adds independent boss-equivalent controls and experimental cameras for special enemies, and adds biome camera movement choices with cinematic letterboxing. The GitHub and Thunderstore README fixes and animated gameplay examples are included. Existing camera distance, obstruction handling and boss/raid movement options carry forward. Live camera/co-op acceptance remains required.
+0.23.1 keeps Barely Survived in slow motion through the hit's immediate aftermath, adds independent boss-equivalent controls and experimental cameras for special enemies, and adds biome camera movement choices with cinematic letterboxing. The GitHub and Thunderstore README fixes and animated gameplay examples are included. Existing camera distance, obstruction handling and boss/raid movement options carry forward. Live camera/co-op acceptance remains required.
 
 [Source code and issue reports](https://github.com/PendulumGames/ValheimMoments)
 
@@ -8,21 +8,15 @@ Save the moments worth sharing: boss victories, rare drops, unfortunate deaths,
 and anything you catch with a hotkey. Valheim Moments turns recent gameplay into
 animated WebP clips and can send them to Discord.
 
-**Windows x64 beta - 0.23.0.** Manual capture, deaths, boss summaries, Epic Loot,
+**Windows x64 beta - 0.23.1.** Manual capture, deaths, boss summaries, Epic Loot,
 ordinary loot and natural acquisitions have passed user testing. Host and joining-player
 F10 clips have reached Discord, and the WebP clips were confirmed visually.
 
-Grouped multiplayer highlights: compatible creature-death recordings share one Discord post with up to three labeled perspectives. Discoveries and configurable special-enemy captures from 0.14 are included. Settings, sizing, notifications and death-rate improvements from 0.12/0.13 are included. Install **0.23.0 on the host and every recording client**. Automated checks cover persistence, rules and hook behavior; in-game exploration, visual/audio and live co-op acceptance remain pending.
+Grouped multiplayer highlights: compatible creature-death recordings share one Discord post with up to three labeled perspectives. Discoveries and configurable special-enemy captures from 0.14 are included. Settings, sizing, notifications and death-rate improvements from 0.12/0.13 are included. Install **0.23.1 on the host and every recording client**. Automated checks cover persistence, rules and hook behavior; in-game exploration, visual/audio and live co-op acceptance remain pending.
 
 ## Upgrading from an older version
 
-Before updating through Thunderstore, close Valheim and run the bundled **Preserve-DiscoveryHistory.ps1** with your mod profile path. This preserves existing discoveries before the updater can replace their old folder:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\Preserve-DiscoveryHistory.ps1 -ProfilePath "C:\path\to\your\profile"
-```
-
-Do this on each recording player's computer. The script leaves originals intact and can be run repeatedly. New versions save discovery history under BepInEx/config/ValheimMoments/Discoveries. The manual installer runs preservation automatically. Already-deleted history cannot be recovered by this script.
+Update normally through your mod manager; no scripts or manual history migration are required. After upgrading from an older version, you may see discoveries one more time if the updater removed their old history. The mod now saves discoveries outside the plugin folder, so recorded discoveries will no longer repeat when the server restarts. This applies to biomes, enabled sub-biomes, traders and named locations for each character and world.
 
 ## Personal controls
 
@@ -69,7 +63,7 @@ Animated gameplay examples. Player names are supplied; the remaining caption det
 * **Controlled retries:** at most three deliberate retries with 30/60/120-second backoff, only in the original session/host role. Unknown delivery warns about duplicate posts. Restart/world changes disable old retries; no host webhook secrets are stored in gallery history.
 * **Timeline controls:** hosts can configure raid opening/ending and close-call source/follow-up/playback durations. Defaults retain the 4+6-second raid and 1-to-3 plus 20-to-7 close call. Authenticated host raid IDs allow grouped participant perspectives; unmatched footage stays personal.
 
-* **Raid moments:** four seconds at local raid entry plus six seconds after its observed end, joined into one clip through the default host webhook, with compatible participant perspectives grouped when identity is available. “Raid ended” includes administrative resets and does not claim victory. Leaving, dying, pause or capture reconfiguration abandons it. Busy/missing segments skip the attempt. Live acceptance remains pending; matched 0.23.0 host/clients required.
+* **Raid moments:** four seconds at local raid entry plus six seconds after its observed end, joined into one clip through the default host webhook, with compatible participant perspectives grouped when identity is available. “Raid ended” includes administrative resets and does not claim victory. Leaving, dying, pause or capture reconfiguration abandons it. Busy/missing segments skip the attempt. Live acceptance remains pending; matched 0.23.1 host/clients required.
 
 * **Close calls:** enabled by default. Actual damage crossing 5% health starts a pending memory; survive twenty seconds to finish it. One source second around the hit plays for three seconds, with impact at playback second two and slow aftermath through second three; the rest of the twenty-second survival window compresses into seven seconds. No game slowdown or generated frames. Host controls threshold, recovery and cooldown; the clip uses the main webhook and stays personal. Death cancels it and takes capture priority. Live acceptance is pending.
 

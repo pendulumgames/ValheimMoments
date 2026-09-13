@@ -14,7 +14,6 @@ try {
         Copy-Item -LiteralPath (Join-Path $workspace ('release/' + $name)) -Destination $stage
     }
     if (Test-Path -LiteralPath (Join-Path $workspace 'LICENSE')) { Copy-Item -LiteralPath (Join-Path $workspace 'LICENSE') -Destination $stage }
-    Copy-Item -LiteralPath (Join-Path $workspace 'tools/Preserve-DiscoveryHistory.ps1') -Destination $stage
     Copy-Item -LiteralPath (Join-Path $prototype 'BepInEx') -Destination $stage -Recurse
     $manifest = Get-Content (Join-Path $stage 'manifest.json') -Raw | ConvertFrom-Json
     if ($manifest.name -notmatch '^[A-Za-z0-9_]{1,128}$' -or $manifest.version_number -notmatch '^\d+\.\d+\.\d+$' -or $manifest.description.Length -gt 250) { throw 'Invalid manifest' }
