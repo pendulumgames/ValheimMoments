@@ -42,6 +42,53 @@ internal static class EncoderFormatTests
                     throw new Exception("RGBA channel mapping or vertical flip incorrect");
             }
             Console.WriteLine("PASS: RGBA colors, vertical flip, 37ms/113ms frame durations and full animation decode.");
+            string cinematicSource = output + ".source.webp", cinematic = output + ".cinematic.webp", normalized = output + ".normalized.webp";
+            try
+            {
+                byte[] longer = File.ReadAllBytes(output);
+                for (int p = 12; p + 8 <= longer.Length; )
+                {
+                    int size = BitConverter.ToInt32(longer, p + 4);
+                    if (System.Text.Encoding.ASCII.GetString(longer, p, 4) == "ANMF")
+                    { longer[p + 20] = 232; longer[p + 21] = 3; longer[p + 22] = 0; } // 1000 ms
+                    p += 8 + size + (size & 1);
+                }
+                File.WriteAllBytes(cinematicSource, longer);
+                string title = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Eikthyr\n2 stars | Max health: 4,500"));
+                if (Run(args[0], "--cinematic \"" + cinematicSource + "\" \"" + cinematic + "\" 100 " + title + " 1") != 0) throw new Exception("Cinematic helper failed");
+                using (var decoder = new AnimDecoder(File.ReadAllBytes(cinematic)))
+                {
+                    var first = decoder.GetNextFrame(); var second = decoder.GetNextFrame();
+                    if (first.DurationMs != 1000 || second.DurationMs != 1000 || decoder.HasMoreFrames()) throw new Exception("Cinematic changed timing");
+                    if (first.Pixels[0] < 180 || second.Pixels[0] > 30 || second.Pixels[1] > 30 || second.Pixels[2] > 30) throw new Exception("Cinematic did not transition from full frame to letterbox");
+                }
+                if (Run(args[0], "--normalize \"" + cinematic + "\" \"" + normalized + "\" 100") != 0) throw new Exception("Cinematic transport normalization failed");
+                using (var decoder = new AnimDecoder(File.ReadAllBytes(normalized)))
+                { if (decoder.GetNextFrame().DurationMs != 1000 || decoder.GetNextFrame().DurationMs != 1000 || decoder.HasMoreFrames()) throw new Exception("Normalization changed cinematic timing"); }
+                Console.WriteLine("PASS: cinematic helper letterbox transition, multiline caption, timing and transport normalization.");
+            }
+            finally { foreach (string path in new[] { cinematicSource, cinematic, normalized }) if (File.Exists(path)) File.Delete(path); }
+            string labelled = output + ".labelled.webp";
+            try
+            {
+                var labelStart = new ProcessStartInfo(args[0], "--label \"" + output + "\" \"" + labelled + "\" 100 " + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Ragnar Ægir")))
+                { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true };
+                using (var process = Process.Start(labelStart))
+                {
+                    string error = process.StandardError.ReadToEnd(); process.StandardOutput.ReadToEnd(); process.WaitForExit();
+                    if (process.ExitCode != 0) throw new Exception("Nameplate failed: " + error);
+                }
+                using (var original = new AnimDecoder(File.ReadAllBytes(output)))
+                using (var decoder = new AnimDecoder(File.ReadAllBytes(labelled)))
+                {
+                    var originalFrame = original.GetNextFrame(); var frame = decoder.GetNextFrame();
+                    if (frame.DurationMs != 37 || decoder.GetNextFrame().DurationMs != 113 || decoder.HasMoreFrames()) throw new Exception("Nameplate changed timing");
+                    if (Equal(originalFrame.Pixels, frame.Pixels)) throw new Exception("Nameplate was not embedded");
+                    if (frame.Pixels[0] < 180 || frame.Pixels[2] > 80) throw new Exception("Nameplate changed upper-frame color or orientation");
+                }
+                Console.WriteLine("PASS: director nameplate embedded with Unicode input, preserved timing and upper-frame orientation.");
+            }
+            finally { if (File.Exists(labelled)) File.Delete(labelled); }
             string composed = output + ".composed.webp";
             try
             {
@@ -87,7 +134,11 @@ internal static class EncoderFormatTests
     }
     private static int Compose(string helper, string first, string second, string output)
     {
-        var start = new ProcessStartInfo(helper, "--compose \"" + first + "\" \"" + second + "\" \"" + output + "\" 100")
+        return Run(helper, "--compose \"" + first + "\" \"" + second + "\" \"" + output + "\" 100");
+    }
+    private static int Run(string helper, string arguments)
+    {
+        var start = new ProcessStartInfo(helper, arguments)
         { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden,
             RedirectStandardOutput = true, RedirectStandardError = true };
         using (var process = Process.Start(start))

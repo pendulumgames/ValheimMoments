@@ -7,7 +7,7 @@ namespace ValheimMoments
 {
     internal sealed class BossKill
     {
-        internal string EnemyKey, PlayerName, FinalBlowName, CreditNames, EventId;
+        internal string EnemyKey, PlayerName, FinalBlowName, CreditNames, EventId, CinematicSubject;
         internal int BossNumber;
         internal bool FirstKill;
         internal bool Acquired;
@@ -32,6 +32,7 @@ namespace ValheimMoments
             internal string FinalBlowName;
             internal string CreditNames;
             internal string EventId;
+            internal string Subject;
             internal BossLoot Loot;
         }
 
@@ -70,14 +71,15 @@ namespace ValheimMoments
                 // Consume metadata even when this category is disabled, so it cannot
                 // be attached to a later credit after a configuration change.
                 string eventId = BossAttribution.TakeEvent(sender, enemyName);
+                string subject = BossAttribution.TakeSubject(sender, enemyName);
+                string finalBlow = BossAttribution.Take(sender, enemyName);
+                string credits = BossAttribution.TakeCredits(sender, enemyName);
                 if (bossNumber <= 0 && ObserveOrdinary?.Invoke() != true) return;
-                string finalBlow = bossNumber > 0 ? BossAttribution.Take(sender, enemyName) : null;
-                string credits = bossNumber > 0 ? BossAttribution.TakeCredits(sender, enemyName) : null;
                 BossLoot loot = BossLootDetector.Take(sender, enemyName);
                 var profile = __instance.GetPlayerProfile();
                 float count;
                 if (!TryCount(profile, enemyName, out count)) { ReportError(); return; }
-                __state = new State { Profile = profile, EnemyKey = enemyName, BossNumber = bossNumber, Count = count, FinalBlowName = finalBlow, CreditNames = credits, Loot = loot, EventId = eventId };
+                __state = new State { Profile = profile, EnemyKey = enemyName, BossNumber = bossNumber, Count = count, FinalBlowName = finalBlow, CreditNames = credits, Loot = loot, EventId = eventId, Subject = subject };
             }
             catch { ReportError(); }
         }
@@ -92,7 +94,7 @@ namespace ValheimMoments
                 if (after <= __state.Count) return; // Original skipped / no credit applied.
                 var callback = __state.BossNumber > 0 ? OnKill : OnLootKill;
                 callback?.Invoke(new BossKill { EnemyKey = __state.EnemyKey, BossNumber = __state.BossNumber,
-                    PlayerName = __state.Profile.GetName(), FirstKill = __state.Count == 0, FinalBlowName = __state.FinalBlowName, CreditNames = __state.CreditNames, Loot = __state.Loot, EventId = __state.EventId });
+                    PlayerName = __state.Profile.GetName(), FirstKill = __state.Count == 0, FinalBlowName = __state.FinalBlowName, CreditNames = __state.CreditNames, Loot = __state.Loot, EventId = __state.EventId, CinematicSubject = __state.Subject });
             }
             catch { ReportError(); }
         }

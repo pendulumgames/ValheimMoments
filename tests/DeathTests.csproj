@@ -47,6 +47,8 @@
     <Compile Include="RelayFileTests.cs" />
     <Compile Include="PeriodicTests.cs" />
     <Compile Include="HostSettingsTests.cs" />
+    <Compile Include="DiscordIdentityTests.cs" />
+    <Compile Include="../src/ValheimMoments/DiscordIdentity.cs" Link="DiscordIdentity.cs" />
     <Compile Include="../src/ValheimMoments/HostConfiguration.cs" Link="HostConfiguration.cs" />
     <Compile Include="../src/ValheimMoments/ConfigurationMigration.cs" Link="ConfigurationMigration.cs" />
     <Compile Include="../src/ValheimMoments/SettingRanges.cs" Link="SettingRanges.cs" />

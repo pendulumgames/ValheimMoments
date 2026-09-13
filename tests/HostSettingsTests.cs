@@ -16,10 +16,19 @@ internal static class HostSettingsTests
     internal static void Run()
     {
         Check(!HostConfiguration.IsLocal("Close Calls", "Enabled"), "Close-call policy is host owned");
+        Check((double)SettingRanges.For("Cinematic Camera: Experimental", "DistanceMultiplier", 2.0).Clamp(500.0) == 3, "Camera far limit");
+        Check((double)SettingRanges.For("Cinematic Camera: Experimental", "DistanceMultiplier", 2.0).Clamp(0.0) == 1, "Camera near limit");
+        Check((double)SettingRanges.For("Cinematic Camera: Experimental", "DistanceMultiplier", 2.0).Clamp(double.NaN) == 2, "Camera finite distance fallback");
+        Check((double)SettingRanges.For("Cinematic Camera: Experimental", "PanDegrees", 70.0).Clamp(360.0) == 180, "Camera sweep limit");
+        Check((double)SettingRanges.For("Cinematic Camera: Experimental", "BossSpawnDelaySeconds", 0.0).Clamp(100.0) == 5, "Spawn delay upper bound");
+        Check((double)SettingRanges.For("Cinematic Camera: Experimental", "BossSpawnDelaySeconds", 0.0).Clamp(-1.0) == 0, "Spawn delay lower bound");
+        Check(HostConfiguration.IsLocal("Cinematic Camera: Experimental", "FlipVertically"), "Camera orientation is backend-local");
+        Check(!HostConfiguration.IsLocal("Cinematic Camera: Experimental", "DistanceMultiplier"), "Camera framing remains host policy");
         Check((double)SettingRanges.For("Close Calls", "ThresholdPercent", 5.0).Clamp(500.0) == 15, "Threshold bounded below recovery floor");
         Check((double)SettingRanges.For("Close Calls", "RecoveryPercent", 20.0).Clamp(0.0) == 16, "Recovery exceeds threshold ceiling");
         Check((double)SettingRanges.For("Close Calls", "RecoverySeconds", 10.0).Clamp(double.NaN) == 10, "Recovery duration finite");
         Check(RelayProtocol.ValidKind("closecall"), "Personal close-call relay supported");
+        Check(HostConfiguration.IsLocal("Player Identity", "DiscordUserID") && HostConfiguration.IsLocal("Cinematic Camera: Experimental", "RenderCinematics"), "Identity and cinematic workload are personal preferences");
         string folder = Path.Combine(Path.GetTempPath(), "valheim-settings-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
         var host = new ZNet { Server = true }; var client = new ZNet();
@@ -47,6 +56,8 @@ internal static class HostSettingsTests
         Add(clientPolicy, clientFile, "Discord", "DiscoveryWebhookURL", "LOCAL_DISCOVERY_SECRET", out unused);
         Add(hostPolicy, hostFile, "Discoveries", "Enabled", true, out unused);
         var clientDiscoveries = Add(clientPolicy, clientFile, "Discoveries", "Enabled", false, out unused);
+        Add(hostPolicy, hostFile, "Discoveries", "SubBiomes", false, out unused);
+        var clientSubBiomes = Add(clientPolicy, clientFile, "Discoveries", "SubBiomes", true, out unused);
         Add(hostPolicy, hostFile, "Special Enemies", "EnemyKeys", "$enemy_test", out unused);
         var clientEnemies = Add(clientPolicy, clientFile, "Special Enemies", "EnemyKeys", "local_choice", out unused);
         Add(hostPolicy, hostFile, "Director", "MaxPerspectives", 3, out unused);
@@ -68,10 +79,11 @@ internal static class HostSettingsTests
             Check(hostPolicy.PeerHasPolicy(hostRpc) && !hostPolicy.PeerHasPolicy(new ZRpc()), "Relay eligibility requires a recent settings exchange with the actual peer");
             Check(clientPolicy.Ready && clientPolicy.Get(localRule) && clientPolicy.Get(localPre) == 5, "Connected host policy applied with typed values");
             Check(clientPolicy.Get(clientDiscoveries) && clientPolicy.Get(clientEnemies) == "$enemy_test", "Discovery and enemy rules use host policy");
+            Check(!clientPolicy.Get(clientSubBiomes) && clientSubBiomes.Value && !HostConfiguration.IsLocal("Discoveries", "SubBiomes"), "Host sub-biome opt-out overrides client preference without changing it");
             Check(clientPolicy.Get(clientPerspectives) == 3 && clientPerspectives.Value == 1 && !HostConfiguration.IsLocal("Director", "MaxPerspectives"), "Director selection policy is host-owned and preserves client config");
             Check((int)SettingRanges.For("Director", "MaxPerspectives", 3).Clamp(99) == 3 && (int)SettingRanges.For("Director", "MaxPostMiB", 20).Clamp(1000) == 30, "Director perspective and aggregate limits clamped");
             Check((double)SettingRanges.For("Director", "CollectionSeconds", 10.0).Clamp(double.NaN) == 10, "Director collection window rejects nonfinite values");
-            Check(!HostConfiguration.IsLocal("Special Enemies", "LogEnemyKeys") && !HostConfiguration.IsLocal("Discoveries", "Enabled"), "New category controls and diagnostic remain host-owned");
+            Check(HostConfiguration.IsLocal("Special Enemies", "LogEnemyKeys") && !HostConfiguration.IsLocal("Discoveries", "Enabled"), "Enemy-key diagnostic is local while discovery policy remains host-owned");
             Check(!clientPolicy.Get(clientDiscord) && clientDiscord.Value && clientPolicy.Get(clientSave), "Host delivery off overrides client true; local saving remains independent");
             Check(string.CompareOrdinal(localTags.Category, ruleTags.Category) < 0, "Player category sorts ahead of host settings");
             Check(!localRule.Value && localPre.Value == 2 && clientPolicy.Get(localFPS) == 30, "Overlay preserves client originals and local performance choice");
@@ -158,7 +170,11 @@ internal static class HostSettingsTests
             Check(migration.SaveLocalCopy && migration.CustomSize, "Existing save choice and custom dimensions detected");
             var file = new ConfigFile(path, false);
             var save = file.Bind("Capture", "SaveLocalCopy", migration.SaveLocalCopy);
+            file.Bind("Special Enemies", "FirstKillOnly", true);
+            var captureMode = file.Bind("Special Enemies", "CaptureMode", BossCaptureMode.RarityOnly);
+            file.Bind("Player Death", "PlayerNameOverride", "wrong shared name");
             ConfigurationMigration.Retire(file);
+            Check(captureMode.Value == BossCaptureMode.RarityOnly && !file.ContainsKey(new ConfigDefinition("Special Enemies", "FirstKillOnly")) && !file.ContainsKey(new ConfigDefinition("Player Death", "PlayerNameOverride")), "Forced retirement removes obsolete controls without changing CaptureMode");
             Check(save.Value && !File.ReadAllText(path).Contains("UploadClips") && !File.ReadAllText(path).Contains("EnableClientRelay"), "Retired bindings removed without losing retention choice");
             save.Value = false; file.Save();
             migration = new ConfigurationMigration(path);

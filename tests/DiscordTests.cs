@@ -19,7 +19,7 @@ internal sealed class FakeDiscord : HttpMessageHandler
 internal static class DiscordTests
 {
     private static int checks;
-    private const string Receipt = "{\"id\":\"12345\",\"channel_id\":\"67890\",\"attachments\":[{\"filename\":\"valheim-moment.webp\",\"size\":4}]}";
+    private const string Receipt = "{\"id\":\"12345\",\"channel_id\":\"67890\",\"guild_id\":\"98765\",\"attachments\":[{\"filename\":\"valheim-moment.webp\",\"size\":4}]}";
     private const string Secret = "FAKE_TEST_TOKEN_NEVER_REAL";
     private static void Check(bool value, string name) { if (!value) throw new Exception(name); checks++; }
     private static Task<HttpResponseMessage> Reply(int status, string body)
@@ -63,7 +63,15 @@ internal static class DiscordTests
         }};
         var result = DiscordWebhook.UploadAsync(file, Options(), CancellationToken.None, handler).GetAwaiter().GetResult();
         Check(result.Success && File.Exists(file), "Upload retains local copy");
-        Check(result.MessageId == "12345" && result.ChannelId == "67890" && result.MessageLink == null, "Receipt IDs retained without inventing missing guild");
+        Check(result.MessageId == "12345" && result.ChannelId == "67890" && result.GuildId == "98765", "Receipt IDs retained");
+        var mentioning = Options(); mentioning.Message = "Recorded by: Mec (<@123456789012345678>)";
+        mentioning.MentionUsers = new[] { "123456789012345678" };
+        handler = new FakeDiscord { Respond = async (n, request) => {
+            string body = await request.Content.ReadAsStringAsync();
+            Check(body.Contains("\"parse\":[]") && body.Contains("\"users\":[\"123456789012345678\"]"), "Explicit user allowlist while role/everyone parsing stays off");
+            return await Reply(200, "");
+        }};
+        Check(DiscordWebhook.UploadAsync(file, mentioning, CancellationToken.None, handler).GetAwaiter().GetResult().Success, "Mention payload uses normal confirmed upload path");
         foreach (string badReceipt in new[] { "", "{}", "not-json", Receipt.Replace("12345", "secret/path"), Receipt.Replace("size\":4", "size\":5"), Receipt.Replace("valheim-moment.webp", "other.webp"), new string('x', 65537) })
         {
             var malformed = badReceipt;
@@ -151,6 +159,25 @@ internal static class DiscordTests
             result = DiscordWebhook.UploadAsync(file, Options(), cancel.Token, new FakeDiscord { Respond = (n, req) => Reply(200, "") }).GetAwaiter().GetResult();
             Check(!result.Success && File.Exists(file), "Cancellation retains clip");
         }
+        string noGuild = Receipt.Replace(",\"guild_id\":\"98765\"", "");
+        // Discord fields arrive in arbitrary order, including nested unknown objects,
+        // escaped Unicode, nullable timestamps and non-integer unknown numbers.
+        string rich = "{\"type\":0,\"content\":\"Ragn\\u00e1r \\\"hello\\\"\\n\",\"author\":{\"bot\":true,\"roles\":[],\"extra\":null},\"future\":-1.25e+3," + Receipt.Substring(1);
+        handler = new FakeDiscord { Respond = (n, req) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(rich) }) };
+        result = DiscordWebhook.UploadAsync(file, Options(), CancellationToken.None, handler).GetAwaiter().GetResult();
+        Check(result.Success && result.MessageLink != null, "Realistic extensible Discord message parses without reflection");
+        foreach (string malformed in new[] { Receipt + "x", Receipt.Replace("\"size\":4", "\"size\":4.5"), Receipt.Replace("\"id\":\"12345\"", "\"id\":\"12345\",\"id\":\"999\""), Receipt.Replace("\"size\":4", "\"size\":9223372036854775808"), rich.Replace("true", "trueX") })
+        {
+            handler = new FakeDiscord { Respond = (n, req) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(malformed) }) };
+            result = DiscordWebhook.UploadAsync(file, Options(), CancellationToken.None, handler).GetAwaiter().GetResult();
+            Check(!result.Success && result.DeliveryUnknown && handler.Calls == 1 && result.Message.Contains("receipt parsing"), "Malformed confirmation never retries POST and names safe stage");
+        }
+        handler = new FakeDiscord { Respond = (n, req) => {
+            Check(n == 1 && req.Method == HttpMethod.Post, "Removed link feature performs no metadata GET");
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(noGuild) });
+        } };
+        result = DiscordWebhook.UploadAsync(file, Options(), CancellationToken.None, handler).GetAwaiter().GetResult();
+        Check(result.Success && handler.Calls == 1, "Upload still confirms without a guild ID or link lookup");
         options = Options(); options.SaveLocalCopy = false;
         result = DiscordWebhook.UploadAsync(file, options, CancellationToken.None, new FakeDiscord { Respond = (n, req) => Reply(200, "") }).GetAwaiter().GetResult();
         Check(result.Success && !File.Exists(file), "Delete only after confirmed upload");

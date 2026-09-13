@@ -11,6 +11,24 @@ internal static class Program
         string temporary = null;
         try
         {
+            if (args.Length == 6 && args[0] == "--cinematic")
+            {
+                if (args[5] != "0" && args[5] != "1") throw new ArgumentException("Letterbox flag");
+                string caption = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(args[4]));
+                SegmentComposer.Compose(args[1], null, args[2], int.Parse(args[3], System.Globalization.CultureInfo.InvariantCulture), caption, true, args[5] == "1");
+                return 0;
+            }
+            if (args.Length == 4 && args[0] == "--normalize")
+            {
+                SegmentComposer.Compose(args[1], null, args[2], int.Parse(args[3], System.Globalization.CultureInfo.InvariantCulture));
+                return 0;
+            }
+            if (args.Length == 5 && args[0] == "--label")
+            {
+                string name = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(args[4]));
+                SegmentComposer.Compose(args[1], null, args[2], int.Parse(args[3], System.Globalization.CultureInfo.InvariantCulture), name);
+                return 0;
+            }
             if (args.Length == 5 && args[0] == "--compose")
             {
                 SegmentComposer.Compose(args[1], args[2], args[3], int.Parse(args[4], System.Globalization.CultureInfo.InvariantCulture));

@@ -54,7 +54,7 @@ internal static class DeathMomentTests
         for (int i = 0; i < 100; i++)
         { string current = flavor.Next(random); Check(lines.Contains(current) && current != previous, "No immediate cheeky caption repeat"); previous = current; }
         string text = EventMessages.Death("\uD83D\uDC80 {player} died!", true, "", "Ragnar", true, "poison", "That was almost a plan.", 3);
-        Check(text.Contains("Cause: poison") && text.Contains("That was almost a plan.") && text.EndsWith("**Additional deaths since last shared death:** 3"), "Flavor and suppressed deaths preserve actual cause");
+        Check(text.Contains("**Cause:** poison") && text.Contains("That was almost a plan.") && text.EndsWith("**Additional deaths since last shared death:** 3"), "Flavor and suppressed deaths preserve actual cause");
         text = EventMessages.Death("Farewell {player}", true, "", "Ragnar", flavor: "cheeky");
         Check(text == "Farewell Ragnar", "Existing custom template does not gain unsolicited flavor");
         text = EventMessages.Death("{player}: {flavor} / {extra_deaths}", true, "", "Ragnar", flavor: "cheeky", additional: 2);

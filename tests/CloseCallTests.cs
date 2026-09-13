@@ -8,6 +8,13 @@ internal static class CloseCallTests
     { if (!value) throw new Exception(label); checks++; }
     private static void Throws(Action action)
     { try { action(); } catch (ArgumentException) { checks++; return; } throw new Exception("Expected rejection"); }
+    private static bool EnumerableAftermath(CaptureBuffer.Clip clip)
+    {
+        int frames = 0;
+        for (int i = 0; i < clip.Count; i++)
+            if (clip.GetTimestamp(i) >= 12 && clip.GetTimestamp(i) < 13) frames++;
+        return frames >= 4;
+    }
     public static void Run()
     {
         var call = new CloseCall();
@@ -46,15 +53,17 @@ internal static class CloseCallTests
         Throws(() => new CloseCall(followUpSeconds: double.PositiveInfinity));
 
         var timeline = new CloseCallTimeline();
-        Check(timeline.PlaybackMilliseconds(-1) == 0, "Slow source starts at zero");
-        Check(timeline.PlaybackMilliseconds(-.5) == 1500, "Slowdown mapping");
-        Check(timeline.PlaybackMilliseconds(0) == 3000, "One shared segment boundary");
-        Check(timeline.PlaybackMilliseconds(10) == 6500, "Fast mapping");
+        Check(timeline.PlaybackMilliseconds(-timeline.SlowBeforeSeconds) == 0, "Slow source starts at zero");
+        Check(timeline.PlaybackMilliseconds(-1.0 / 6) == 1500, "Slowdown mapping");
+        Check(timeline.PlaybackMilliseconds(0) == 2000, "Hit leaves one playback second of slow aftermath");
+        Check(timeline.PlaybackMilliseconds(10) == 6441, "Fast mapping");
         Check(timeline.PlaybackMilliseconds(20) == 10000, "Exact ten second endpoint");
-        Check(Math.Abs(timeline.FastSampleInterval(15) - 20.0 / 105) < 1e-10, "Only 105 fast samples at 15 FPS");
+        Check(Math.Abs(timeline.FastSampleInterval(15) - (20.0 - timeline.SlowAfterSeconds) / 105) < 1e-10, "Only 105 fast samples at 15 FPS");
+        Check(timeline.PlaybackMilliseconds(timeline.SlowAfterSeconds) == 3000, "Slow segment ends after impact");
+        Throws(() => new CloseCallTimeline(3, 1));
         int previous = -1;
-        for (int i = 0; i <= 210; i++)
-        { int mapped = timeline.PlaybackMilliseconds(-1 + i / 10.0); Check(mapped >= previous, "Ordered playback mapping"); previous = mapped; }
+        for (int i = 0; i <= 200; i++)
+        { int mapped = timeline.PlaybackMilliseconds(-timeline.SlowBeforeSeconds + i / 10.0); Check(mapped >= previous, "Ordered playback mapping"); previous = mapped; }
         Throws(() => timeline.PlaybackMilliseconds(-1.01));
         Throws(() => timeline.PlaybackMilliseconds(double.NaN));
         Throws(() => timeline.FastSampleInterval(500));
@@ -72,6 +81,7 @@ internal static class CloseCallTests
         Check(buffer.AllocatedPixelBytes == allocation, "No extra pixel allocation");
         for (int i = 1; i < clip.Count; i++)
             Check(clip.GetTimestamp(i) > clip.GetTimestamp(i - 1), "Selected timestamps strictly increase");
+        Check(EnumerableAftermath(clip), "Post-hit frames retain native cadence through slow aftermath");
         clip.Release(); buffer.ClearHistory();
         Check(buffer.FreeFrames == 196, "Sampled references all reclaimed");
         Check(buffer.TryTriggerCloseCall(0, timeline, 15), "Empty history can start");

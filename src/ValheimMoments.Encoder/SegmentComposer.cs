@@ -12,18 +12,19 @@ internal static class SegmentComposer
         internal int Width, Height, Frames, Duration;
     }
     // Worker process only. Decode one frame at a time; never collect raw segments.
-    internal static void Compose(string opening, string ending, string output, int quality)
+    internal static void Compose(string opening, string ending, string output, int quality, string recorder = null, bool cinematic = false, bool letterbox = true)
     {
         if (quality < 1 || quality > 100) throw new ArgumentOutOfRangeException("quality");
         string target = Path.GetFullPath(output);
         if (string.Equals(target, Path.GetFullPath(opening), StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(target, Path.GetFullPath(ending), StringComparison.OrdinalIgnoreCase))
+            (ending != null && string.Equals(target, Path.GetFullPath(ending), StringComparison.OrdinalIgnoreCase)))
             throw new InvalidDataException("Output must differ from inputs");
-        var first = Read(opening); var second = Read(ending);
-        int count = first.Frames + second.Frames;
-        if (first.Width != second.Width || first.Height != second.Height || count > 1800 ||
-            first.Duration + second.Duration > 60000 || (long)first.Width * first.Height * 4 * count > 256L * 1024 * 1024)
+        var first = Read(opening); var second = ending == null ? null : Read(ending);
+        int count = first.Frames + (second?.Frames ?? 0);
+        if ((second != null && (first.Width != second.Width || first.Height != second.Height)) || count > 1800 ||
+            first.Duration + (second?.Duration ?? 0) > 60000 || (long)first.Width * first.Height * 4 * count > 256L * 1024 * 1024)
             throw new InvalidDataException("Incompatible or oversized segments");
+        byte[] plate = recorder == null ? null : cinematic ? CinematicTitle.Create(first.Width, first.Height, recorder) : DirectorNameplate.Create(first.Width, first.Height, recorder);
         var settings = new WebPEncoderConfig().SetQuality(quality).SetMethod(3).SetMultiThreaded(false);
         Directory.CreateDirectory(Path.GetDirectoryName(target));
         string temporary = target + "." + Guid.NewGuid().ToString("N") + ".partial";
@@ -33,7 +34,7 @@ internal static class SegmentComposer
             using (var images = new AnimEncoder(first.Width, first.Height, loopCount: 0))
             {
                 int timestamp = 0, lastDuration = 0;
-                foreach (var segment in new[] { first, second })
+                foreach (var segment in second == null ? new[] { first } : new[] { first, second })
                 using (var decoder = new AnimDecoder(segment.Bytes))
                 {
                     if (decoder.Info.Width != segment.Width || decoder.Info.Height != segment.Height)
@@ -46,6 +47,8 @@ internal static class SegmentComposer
                             frame.Pixels.Length != segment.Width * segment.Height * 4)
                             throw new InvalidDataException("Decoded segment exceeds declared budget");
                         // AnimDecoder returns BGRA, while the capture pipe supplies RGBA.
+                        if (cinematic) CinematicTitle.Apply(frame.Pixels, first.Width, first.Height, plate, timestamp, letterbox);
+                        else if (plate != null) DirectorNameplate.Apply(frame.Pixels, first.Width, first.Height, plate);
                         images.AddFrame(frame.Pixels, first.Width * 4, WebPPixelFormat.Bgra, timestamp, settings);
                         lastDuration = frame.DurationMs; timestamp += lastDuration; elapsed += lastDuration;
                         if (elapsed > segment.Duration) throw new InvalidDataException("Decoded timing exceeds segment");

@@ -2,7 +2,24 @@
 
 ## Final 0.18 acceptance pass
 
-Use matching 0.18.1 builds on host and clients. No installation was performed during development.
+Use matching 0.21.0 builds on host and clients. No installation was performed during development.
+
+## 0.23.0 camera and event acceptance
+
+Use matching 0.23.0 host/clients. Verify Barely Survived impact at second two with slow aftermath through second three. Test independent special-enemy capture modes, loot settings, attribution, routing and arrival/aftermath cameras. Test all BiomeMovement choices and default-on BiomeLetterbox, including independent full-canvas behavior when disabled. Check DistanceMultiplier clamps a saved 8 to 3; try all three boss movement dropdown choices (Orbit, RiseAndReveal, ZoomIn) in a forest. ZoomIn should approach from 2x to 1x with no horizontal sweep or lens change, regardless of DistanceMultiplier/PanDegrees. Repeat ZoomIn for a raid. Verify upright letterboxing/titles and unchanged player view. Summon a boss at its altar: default delay should catch arrival following the native summon delay; try an extra two seconds and confirm existing loaded bosses do not replay intros. Verify optional intro delivery with that same boss kill. Foliage without colliders and modded spawn animations need explicit observation.
+
+## 0.21.0 cinematic and Discord acceptance
+
+Run the [cinematic camera checklist](CINEMATIC-CAMERA.md#live-acceptance). These switches default off. Confirm the Discord-link button is absent. Test host and client POVs with the same boss arrival as a separate first attachment, and repeat with two bosses to verify identity matching.
+
+## Presentation acceptance
+
+- Open/close F8 and click outside. Move the mouse and scroll over cards: no player look or camera zoom; normal input returns after closing. Verify mouse and controller, close/reopen, empty gallery, several pages and deletion/expiry while open.
+- Thumbnails appear automatically on the left, information/actions on the right. Open file location selects the surviving original in Explorer; expired files cannot open. Retry is absent for successful/local-only/working entries and retains cooldown/attempt/session rules for failed, omitted or unknown delivery.
+- Make a fresh upload on host and client. Confirm no Discord-link button or link-unavailable message is shown.
+- Exercise Cinematic, Toast: Minimap and Toast: Top Right, sound modes, moved/hidden minimap, normal and ultrawide display. Verify slide/fade and readable text. Saving Memory starts after ending footage; Sent to Discord follows confirmed receipt, without a third captured notice.
+- Inspect clips while notifications overlap ongoing recording: no notification pixels should appear, including another memory's delivery toast. Check the active graphics backend; this renderer requires live validation.
+- Two-person director boss clip: both files contain the correct bottom-center nameplate; no Perspectives heading. Single-perspective/manual/death clips have no nameplate. Appended Cause label is bold. Verify post sizes remain within configured budgets after label re-encoding.
 
 1. Open F8; verify cursor access, blocked character input, close/reopen, thumbnails, local WebP opening and Configuration Manager ordering. Remap F7/F8; verify local controls remain editable for joining players.
 2. Press F10 then F7 during recording, encoding and uploading. Verify Gallery/Saved preserves the clip. Upload another without Keep: original expires after 30 seconds, thumbnail/history remains. Check SaveLocalCopy with host Discord disabled.
@@ -18,7 +35,7 @@ to qualify during testing; the shipped default is Legendary.
 
 ## Host setup
 
-For 0.18.1, install the matching build on host and recording clients. Older hosts do
+For 0.21.0, install the matching build on host and recording clients. Older hosts do
 not provide policy snapshots; newer clients wait rather than use their own event rules.
 
 Configure Discord.Enabled, WebhookURL and Username on the host. Optional Good Loot,
@@ -222,7 +239,7 @@ Use matching 0.16.0 host and clients when convenient, with the game closed for i
 5. Confirm joining players cannot edit Close Calls policy and their local webhook cannot redirect delivery. Discord disabled plus SaveLocalCopy enabled should retain a local clip.
 6. Check smoothness, effective capture settings and FPS impact at your preferred resolution. Synthetic timing tests do not establish in-game performance.
 
-## Raid milestone (0.18.1)
+## Raid milestone (0.21.0)
 
 Install matching host/clients only with Valheim closed, when convenient.
 

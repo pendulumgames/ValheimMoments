@@ -16,6 +16,9 @@ namespace ValheimMoments
         }
         internal static AcceptableValueBase For(string section, string key, object fallback)
         {
+            if (section == "Cinematic Camera: Experimental" && key == "DistanceMultiplier") return new FiniteRange(1, 3, (double)fallback);
+            if (section == "Cinematic Camera: Experimental" && (key == "BossSpawnDelaySeconds" || key == "SpecialEnemySpawnDelaySeconds")) return new FiniteRange(0, 5, (double)fallback);
+            if (section == "Cinematic Camera: Experimental" && key == "PanDegrees") return new FiniteRange(0, 180, (double)fallback);
             if (section == "Gallery" && key == "RecoveryClips") return new AcceptableValueRange<int>(1, 100);
             if (section == "Gallery" && key == "RecoveryMiB") return new AcceptableValueRange<int>(10, 1024);
             if (section == "Gallery" && key == "RecoveryHours") return new AcceptableValueRange<int>(1, 168);

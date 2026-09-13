@@ -60,6 +60,7 @@ internal static class DeathTests
         RelayFileTests.Run();
         PeriodicTests.Run();
         HostSettingsTests.Run();
+        DiscordIdentityTests.Run();
         DeathMomentTests.Run();
         WorldLootTests.Run();
         DiscoveryTests.Run();
@@ -97,7 +98,7 @@ internal static class DeathTests
         Check(EventMessages.Death("{player} died", true, "Custom", "Ragnar") == "Custom died", "Override");
         Check(EventMessages.Death("{player} died", false, "Custom", "Ragnar") == "A player died", "Name hidden");
         Check(EventMessages.Death(new string('x', 2100), true, "", "").Length == 2000, "Discord length bound");
-        Check(EventMessages.Death("{player} died", true, "", "Ragnar", true, "Greydwarf") == "Ragnar died\nCause: Greydwarf", "Existing templates gain cause");
+        Check(EventMessages.Death("{player} died", true, "", "Ragnar", true, "Greydwarf") == "Ragnar died\n**Cause:** Greydwarf", "Existing templates gain cause");
         Check(EventMessages.Death("{player}: {cause}", true, "", "Ragnar", true, "poison") == "Ragnar: poison", "Cause placeholder");
         Check(EventMessages.Death("{player} died", true, "", "Ragnar", false, "poison") == "Ragnar died", "Cause disabled");
         Check(DeathCause.Label(HitData.HitType.Tree) == "a falling tree", "Tree category");

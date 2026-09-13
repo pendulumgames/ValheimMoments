@@ -1,6 +1,47 @@
 # Configuration reference
 
-Applies to Valheim Moments 0.18.1. Launch once to generate
+## Cinematic Camera: Experimental (host controlled)
+
+| Setting | Default | Behavior |
+| --- | --- | --- |
+| RenderCinematics | true | Personal: render extra camera footage on this computer. Off cancels local cinematic work; normal recording and host event policy continue. |
+| RaidOpening | false | Separate elevated shot toward the raid center, included when the raid ends. |
+| SpecialEnemySpawnIntro | false | Fresh selected special enemy arrival; attached when that exact enemy dies. |
+| SpecialEnemyKillEnding | false | Selected special enemy aftermath camera. |
+| SpecialEnemyMovement | Orbit | Independent Orbit, RiseAndReveal or ZoomIn; shares distance, pan, letterbox and flip controls with bosses. |
+| SpecialEnemySpawnDelaySeconds | 0 | 0-5 seconds after fresh creation; loaded existing enemies do not qualify. |
+| BossSpawnIntro | false | Fresh boss arrival shot, retained up to 30 minutes and attached first when the same boss dies. |
+| BossKillEnding | false | Separate cinematic sweep of the boss death location. |
+| BiomeDiscovery | false | Enable the separate cinematic on eligible first biome discovery; uses BiomeMovement and BiomeLetterbox. |
+| BiomeMovement | RiseAndReveal | RiseAndReveal, Orbit or ZoomIn around the player. Shares DistanceMultiplier and PanDegrees; ZoomIn ignores them and approaches from 2x to 1x over four seconds. |
+| BiomeLetterbox | true | Animated black bars and fading biome title, matching boss presentation. Independent of Letterbox for other events. |
+| DistanceMultiplier | 2 | 1–3 times the original camera distance. Original framing is the closest; obstruction and the 80 m offset cap may shorten it. |
+| PanDegrees | 70 | Total horizontal sweep, 0–180 degrees. |
+| RaidMovement | RiseAndReveal | RiseAndReveal, Orbit, or ZoomIn toward the raid center. ZoomIn approaches from 2x to 1x distance over four seconds. |
+| BossMovement | Orbit | Orbit, RiseAndReveal, or ZoomIn for boss arrivals and aftermath. ZoomIn approaches the boss from 2x to 1x distance over four seconds. |
+| BossSpawnDelaySeconds | 0 | Wait 0-5 seconds after actual boss creation, following the altar summon delay. Scan adds up to 0.5 seconds; eligibility lasts three seconds after the delay. |
+| Letterbox | true | Slide top/bottom bars inward over 0.85 seconds to a 2.39:1 window inside the 16:9 file. Cinematic footage only; biome discoveries use BiomeLetterbox. |
+| FlipVertically | true | Player-owned orientation correction for the extra camera; independent of Capture.FlipVertically. |
+
+ZoomIn is a movement dropdown choice with a fixed 55-degree lens and a straight approach. It ignores DistanceMultiplier and PanDegrees; obstruction checks can shorten the path. The old test-build ZoomIn checkbox is no longer used. Select BossMovement = ZoomIn to enable it for bosses.
+
+Fixed experimental camera budget: four seconds, 640x360, 10 FPS, local WebP quality; one camera/encoder job at a time. Director includes each enabled shot once, within existing upload limits. Requires matching 0.23.0 clients/host. Normal footage remains the fallback. See [camera behavior and live tests](CINEMATIC-CAMERA.md).
+
+Boss arrivals display localized name, actual star count and reported maximum health. Raid openings display their localized event message and up to three configured possible enemy types when available. These are spawn-time snapshots; unavailable details are omitted. Titles fade in after the shot begins. All controls above are host-owned except RenderCinematics and the camera FlipVertically correction.
+
+## Player Identity (personal)
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| DiscordUserID | empty | Your numeric Discord user ID, not username. Adds your character name followed by a user mention in parentheses to Recorded by and Kill credit. Blank opts out. Shared only with the connected host for attribution. |
+
+Discord resolves the displayed account/server name for the mention; no account lookup or OAuth verification is performed. Duplicate character names are left unmentioned. Missing/unregistered/disconnected players retain character-only attribution. Only configured user mentions are allowed; role and everyone pings remain disabled. The character name in titles, gameplay, gallery and video nameplates remains unchanged. PlayerNameOverride and the separate Special Enemies.FirstKillOnly switch are removed on upgrade; CaptureMode remains authoritative and existing explicit choices are preserved.
+
+## Upgrade preservation
+
+Before a mod-manager update can replace the old plugin directory, close Valheim and run the bundled Preserve-DiscoveryHistory.ps1 with -ProfilePath pointing to the profile containing BepInEx. It validates and merges all character/world discovery journals into BepInEx/config/ValheimMoments/Discoveries, backs up originals there in a separate DiscoveryBackups directory, and leaves plugin-side files intact. Repeating it is safe. The manual installer runs this automatically before copying binaries. Run it for each recording player's profile, not just the server. The new plugin cannot recover history that an updater has already deleted.
+
+Applies to Valheim Moments 0.23.0. Launch once to generate
 `BepInEx/config/local.valheimmoments.cfg`, then close Valheim before editing it.
 Restart after editing the file. Configuration Manager edits apply in game; buffer
 changes wait for active GPU/encoder work. Defaults describe a new installation; upgrades preserve
@@ -10,13 +51,13 @@ existing settings. Never share a config containing webhook URLs.
 
 The host controls every setting except: Capture.Enabled, ManualCaptureKey,
 ToggleCaptureKey, Width, Height, FPS, WebPQuality, MemoryBudgetMiB, FlipVertically;
-Capture.SizePreset and Capture.SaveLocalCopy; all Notifications and Gallery settings; and Debug.LogCaptureTiming.
+Capture.SizePreset and Capture.SaveLocalCopy; Cinematic Camera: Experimental.FlipVertically; all Notifications and Gallery settings; and Debug.LogCaptureTiming.
 These personal controls remain editable on clients. All other settings are read-only
 while connected. Private Discord settings are hidden from joining players' UI.
 
 Host event rules apply in memory without replacing clients' saved settings. Returning
 to single-player restores their own preferences and editing access. Host and clients
-need matching 0.18.1 versions: client capture waits for host settings and
+need matching 0.23.0 versions: client capture waits for host settings and
 pauses if updates stop for ten seconds. No webhook URL or Discord Username is synced.
 
 ## Gallery (player controlled)
@@ -32,7 +73,7 @@ Recovery limits also apply during shutdown; flushing never resets them to defaul
 | RecoveryHours | 24 | Temporary expiry, 1-168 hours. |
 | IndexEntries | 200 | History entries, 20-1000; evicting history never deletes a saved original. |
 
-Gallery/Recovery contains temporary originals; Gallery/Saved contains permanent kept originals. Successful unpinned uploads expire after 30 seconds. Failed/omitted/unknown deliveries use recovery quotas. The old Clips folder is preserved; existing historical clips are not automatically imported or deleted. Thumbnails remain with bounded gallery history and load on demand. Open local animation uses your Windows WebP application only while footage exists. Discord message links appear when the verified response supplies a guild/message identity; no expiring attachment links are saved.
+Gallery/Recovery contains temporary originals; Gallery/Saved contains permanent kept originals. Successful unpinned uploads expire after 30 seconds. Failed/omitted/unknown deliveries use recovery quotas. The old Clips folder is preserved; existing historical clips are not automatically imported or deleted. Thumbnails remain with bounded gallery history and load automatically beside each card's information/actions, six entries per page. F8 (or your configured key) toggles the gallery; clicking outside also closes it. Mouse-look and scroll zoom are blocked while browsing. Open file location selects surviving footage in Explorer. Retry appears only for Failed, Omitted or Unknown outcomes and retains session, cooldown, file and attempt limits. The Discord-link button and its optional metadata lookup have been removed. Existing gallery history remains compatible.
 
 Retries are deliberate, never automatic: maximum three, with 30/60/120-second backoff. Unknown delivery requires a duplicate-post confirmation. Original session and host/client role must still match; restarting or switching worlds disables retry for old records. Discord routes and usernames remain host controlled and are never stored in gallery metadata. Correct destination/authentication/size errors before retrying. Keep works while an encoder/upload owns the original; permanent moves wait for completion. Disk failures are shown in the gallery.
 
@@ -49,7 +90,7 @@ Host-owned multiplayer collection is enabled by default. A confirmed creature-de
 
 Offers reserve at most 60 MiB across 16 queued perspectives before remote footage is transferred. At most one client transfer and one grouped upload run at a time. The per-file guard is the lower of Discord.MaxUploadMiB and 10 MiB while the director is enabled, including the host's own clip. Larger clips are omitted and retained; automatic re-encoding/tier detection are not implemented. The queue expires offers after 20 minutes and uses bounded wait heartbeats. Completed-event deduplication covers the latest 256 groups for up to 30 minutes within the same session.
 
-Only successfully included attachments receive Memory Uploaded and qualify for removal according to each player's SaveLocalCopy. Omitted/failed clips remain local. An uncertain confirmation says to check Discord before retrying. Cancellation preserves a host temporary file until any HTTP reader finishes; crash/access-failure orphan cleanup remains pending. Matching 0.18.1 host and client versions are required.
+Selected multi-perspective clips receive a bottom-center recorder nameplate through a second encoding pass. Single-perspective files remain unchanged. Final encoded sizes are checked against the per-file and aggregate budgets; a preparation/size failure retains originals for recovery. Only successfully included attachments receive Sent to Discord and qualify for removal according to each player's SaveLocalCopy. Omitted/failed clips remain local. An uncertain confirmation says to check Discord before retrying. Cancellation preserves a host temporary file until any HTTP reader finishes; crash/access-failure orphan cleanup remains pending. Matching 0.23.0 host and client versions are required.
 
 ## Capture
 
@@ -105,14 +146,16 @@ With Discord disabled, SaveLocalCopy=true records locally; both false suppress n
 In single-player these settings belong to the local player. In multiplayer, the host
 owns delivery, destinations and the bot name. Joining players' local webhook,
 Enabled and Username cannot override the host. Both sides need the mod and
-matching 0.18.1 settings protocol for client delivery. Discord.Enabled automatically gates relay and upload.
+matching 0.23.0 settings protocol for client delivery. Discord.Enabled automatically gates relay and upload.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
 | Enabled | true | Host/solo Discord delivery switch, synchronized to clients without sharing secrets. Existing explicit false is preserved. |
 | WebhookURL | empty | Secret default destination, including manual clips. |
-| Username | Valheim Moments | Host-selected bot display name, 1–80 characters. |
+| Username | Valheim Moments | Host-selected bot display name, 1–30 characters. |
 | MaxUploadMiB | 10 | Local guard, clamped to 1–100 MiB. Relay limit is 10 MiB or the host's lower limit. Discord may reject a smaller file. |
+| UseSpecialEnemyWebhook | false | Route special enemy clips to SpecialEnemyWebhookURL when enabled. |
+| SpecialEnemyWebhookURL | empty | Host-only secret. An invalid enabled override keeps clips locally. |
 | UseBossKillWebhook | false | Enable separate boss destination. |
 | BossKillWebhookURL | empty | Secret boss destination. |
 | UseGoodLootWebhook | false | Enable separate ordinary-loot destination. |
@@ -156,10 +199,11 @@ These controls belong to each recording player and appear after their Capture co
 | Key | Default | Meaning |
 | --- | --- | --- |
 | Enabled | true | Brief themed on-screen feedback. Off also mutes the cue. |
+| Style | ToastMinimap | Cinematic: centered banner; ToastMinimap (Toast: Minimap): below the existing minimap with corner fallback; ToastTopRight (Toast: Top Right): inset corner. All slide and fade. |
 | SoundMode | OnCapture | Off, OnCapture, OnCompletion, or Both. Completion sound plays for confirmed upload or local-only save. |
 | Volume | 0.35 | Local cue level, clamped 0-1. The original two-tone cue is deliberately quiet. |
 
-Recording Memory appears only after accepting a capture. Memory Captured means encoding finished; Memory Uploaded requires Discord success or the host's final successful acknowledgement. Local-only captures say Memory Saved. Failures/busy captures use distinct feedback. New feedback replaces the previous banner, expires after 3.5 seconds and clears on session changes. It may appear in the captured footage. WebP output still has no audio. Notification settings do not cancel a capture when edited.
+Saving Memory appears after the selected ending footage is collected, as encoding begins. Sent to Discord requires Discord success or the host's final successful acknowledgement. Local-only captures say Memory Saved. The intermediate Memory Captured notice is removed. Failures/busy captures use distinct feedback. New feedback replaces the previous notice, expires after 3.5 seconds and clears on session changes. Notifications render after the screenshot copy to exclude them from captured footage; live visual validation is still required. The minimap toast follows the existing small HUD minimap and falls back when unavailable; replacement or camera-space minimap mods need live compatibility testing. WebP output still has no audio. Notification settings do not cancel a capture when edited.
 
 ## Player Death
 
@@ -172,7 +216,6 @@ Recording Memory appears only after accepting a capture. Memory Captured means e
 | Message | 💀 {player} died! | Supports {player}, {cause}, {flavor}, and {extra_deaths}. |
 | IncludeCause | true | Include recorded attacker/environmental cause; append if {cause} is absent. |
 | IncludePlayerName | true | Use character name/override for {player}; otherwise “A player”. |
-| PlayerNameOverride | empty | Optional replacement name for the death message. |
 
 Confirmed deaths while the event is enabled are counted even when a clip is suppressed or capture is busy/paused. The next eligible death caption reports additional deaths since the last shared death. Only confirmed upload, or a completed local-only save, consumes that snapshot. Failed delivery preserves the count; new deaths during upload remain for the next post. Only one death clip can await delivery per player. Counts reset on session change; no historical death footage is queued.
 
@@ -223,7 +266,8 @@ All settings belong to the host. Physical exploration is observed on each record
 | Key | Default | Meaning |
 | --- | --- | --- |
 | Enabled | true | Capture first tracked discoveries per character per world. |
-| Biomes | true | Observe physical biome transitions, including raw alternate-biome identities. |
+| Biomes | true | First tracked physical visit to each main biome per character/world. |
+| SubBiomes | false | Host-controlled: also announce distinct named sub-biomes once. Requires Biomes. Hidden modifiers do not count; visits while disabled are saved silently and do not replay when enabled. |
 | NamedLocations | true | Observe physical entry into a location with a game discovery label. Map-pin reveals do not count. |
 | Traders | true | Observe the local character entering an NPC trader's greeting range, bounded to 1-30 game units. |
 | PostEventSeconds | 3 | Recording time after a discovery group is accepted, 0-30 seconds. |
@@ -232,23 +276,38 @@ All settings belong to the host. Physical exploration is observed on each record
 
 Nearby discoveries group for 1.25 seconds, up to eight names. The ledger marks observations before capture eligibility: loading, warmup, disabled categories, pause, busy capture, cooldown and delivery failure do not replay discoveries. Warmup lasts at least five seconds or PreEventSeconds, whichever is longer. Existing character-wide exploration cannot reconstruct separate world histories; places visited before installation may qualify on their first tracked return outside warmup.
 
-History is stored locally in `ValheimMoments/State/Discoveries`, with numeric character/world filenames and atomic asynchronous saves. Preserve this folder across upgrades/profile moves. It is bounded to 256 discovery identities per context and 128 files; capacity or corrupt/unwritable history skips further affected discoveries instead of resetting them. It does not modify Valheim save data. Abrupt termination before a pending save completes can lose the most recent ledger update. Deleting this history resets tracking. Client histories are not a server anti-cheat mechanism.
+History is stored locally in `BepInEx/config/ValheimMoments/Discoveries`, outside the replaceable plugin folder, with numeric character/world filenames and atomic asynchronous saves. Existing `ValheimMoments/State/Discoveries` journals migrate automatically when the character/world is loaded; legacy files are preserved. Existing variant records are retained and matched as legacy aliases when observed, seeding the new identity silently. Named sub-biomes use stable untranslated naming data; hidden modifiers and display language changes do not create a new identity. Preserve the config history when moving profiles. It is bounded to 256 discovery identities per context and 128 files; capacity or corrupt/unwritable history skips further affected discoveries instead of resetting them. It does not modify Valheim save data. Announcements wait for a successful durable journal write. Failed writes suppress the announcement; a crash before commit may lose the observation but cannot leave an already-posted discovery unrecorded. Deleting this history resets tracking. Client histories are not a server anti-cheat mechanism.
 
 ## Special Enemies
 
-All settings belong to the host. Special events use the default Discord route. No maintained enemy list or assumed miniboss flag is required.
+Event settings belong to the host; LogEnemyKeys is a local diagnostic. Special events use the default Discord route unless UseSpecialEnemyWebhook is enabled. No maintained enemy list or assumed miniboss flag is required.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
 | Enabled | true | Capture explicitly selected ordinary-enemy kill credits; empty EnemyKeys selects none. |
 | EnemyKeys | empty | Exact case-sensitive confirmed kill-credit/stat keys, comma/semicolon/newline separated. At most 64 keys, 128 characters each, 4096 total. No wildcards or prefab-name matching. |
-| FirstKillOnly | false | Require the character's first saved kill of that enemy across all worlds. Independent of the per-world discovery ledger. |
-| PostEventSeconds | 4 | Seconds after the credited kill, 0-30. Uses ordinary-loot display settings and metadata wait. |
+| CaptureMode | AllKills | AllKills, FirstKillOnly, RarityOnly, FirstKillThenRarity, FirstKillWithRarity, using this character's saved enemy history. |
+| PlayerNameMode | Both | KillCredit, FinalBlow or Both; supports {credit} and {killer}. |
+| ShowLoot | true | Include the independently configured special enemy loot summary. |
+| MinimumLootRarity | Legendary | Minimum verified rarity for rarity-based capture modes; None accepts all. |
+| LootWaitSeconds | 12 | 0-25 seconds to wait for completed loot metadata. |
+| MaxLootItemsShown | 5 | 1-20 entries, highest verified rarity first. |
+| LootHeader | Generated loot: | Heading for special enemy loot. |
+| ShowQuantity | true | Item quantities. |
+| ShowRarity | true | Verified rarity names and color emojis. |
+| ShowItemModifiers | true | Identified Epic Loot modifiers. |
+| ShowItemSockets | true | Verified sockets. |
+| ShowUnidentifiedStatus | true | Label unidentified items without exposing hidden modifiers. |
+| PostEventSeconds | 4 | Seconds after the credited kill, 0-30. Uses its own loot display settings and metadata wait. |
 | CooldownSeconds | 60 | Seconds between accepted captures of the same key, 0-3600. Resets on session or selection changes. |
-| Message | ⚔ {enemy} defeated! | Supports {enemy}, {player}, {loot}, {item_count}; confirmed recording-character credit appends. |
-| LogEnemyKeys | false | Advanced diagnostic: log actual confirmed ordinary-enemy keys on recording clients. Copy the logged key into EnemyKeys; disable afterward. |
+| Message | ⚔ {enemy} defeated! | Supports {enemy}, {boss}, {player}, {credit}, {killer}, {loot}, {item_count}; selected attribution appends if omitted. |
+| LogEnemyKeys | false | Local advanced diagnostic: log actual confirmed ordinary-enemy keys on recording clients. Copy the logged key into EnemyKeys; disable afterward. |
 
-Accepted special captures replace the ordinary loot capture for that credited death and bypass ordinary-loot rarity. When a special capture is ineligible, ordinary loot may still qualify normally. Normal bosses remain exclusive to Boss Kill rules. Special captions name the confirmed recording character; they do not claim a full attacker roster or final blow. Clients cannot override the host selection. Unknown identifiers simply do not match.
+To find a key, enable your local Advanced `LogEnemyKeys` setting, kill an ordinary enemy and receive kill credit, then search that recording player's active profile `BepInEx/LogOutput.log` for `[Special] Confirmed enemy key:`. Copy the exact value, including any `$`, into `EnemyKeys`, then disable the diagnostic. Example: `EnemyKeys = $enemy_troll, $enemy_wraith`.
+
+[Jotunn's English localization table](https://valheim-modding.github.io/Jotunn/data/localization/translations/English.html) lists vanilla name keys; search for the enemy's name. It is a localization reference, not a guaranteed list of confirmed kill-credit keys for your installed game and mods. The logged value is authoritative, especially for modded enemies. Spawn-code lists are not equivalent.
+
+Accepted special captures replace the ordinary loot capture for that credited death and bypass ordinary-loot rarity. When a special capture is ineligible, ordinary loot may still qualify normally. Normal bosses remain exclusive to Boss Kill rules. Special captions support the same confirmed-credit roster and final-blow attribution as bosses; missing owner metadata remains explicitly unavailable. Special capture modes apply their own rarity threshold. Clients cannot override the host selection. Unknown identifiers simply do not match.
 
 ## Loot Capture
 
@@ -324,11 +383,11 @@ Event, encoder, upload and attribution diagnostics also use the BepInEx log.
 | RecoverySeconds | 10 | Hold recovery continuously for 1-120 seconds. |
 | CooldownSeconds | 120 | Minimum 0-3600 seconds between attempts; recovery is also required. |
 | FollowUpSeconds | 20 | Must survive 5-60 source seconds after the hit. |
-| SlowSourceSeconds | 1 | 0.5-3 source seconds ending at the hit; history expands if needed. |
+| SlowSourceSeconds | 1 | 0.5-3 source seconds around the hit: two thirds before, one third after. Default slowdown shows the hit at playback second 2, then one second of slow aftermath. |
 | SlowPlaybackSeconds | 3 | 1-5 playback seconds for the slow segment. |
 | PlaybackSeconds | 10 | 6-20 total playback seconds; the remaining time contains the sampled follow-up. |
 
-Defaults stretch one source second to three playback seconds, then sample twenty source seconds into seven playback seconds. The settings above customize this with independent safe ranges: slow playback is always shorter than total playback. Capture history expands for the slow source and memory fitting reserves the selected output frame budget. Death, pause, policy loss, character/world change or reconfiguration cancels pending footage. Recovery plus cooldown is still required after cancellation. No game timescale changes or generated frames.
+Defaults stretch one source second around the hit to three playback seconds (two thirds before impact, one third after), then compress the remaining survival footage into seven playback seconds. Survival still requires twenty seconds after the hit. The settings above customize this with independent safe ranges: slow playback is always shorter than total playback. Capture history expands for the slow source and memory fitting reserves the selected output frame budget. Death, pause, policy loss, character/world change or reconfiguration cancels pending footage. Recovery plus cooldown is still required after cancellation. No game timescale changes or generated frames.
 
 ## Raids (host controlled)
 

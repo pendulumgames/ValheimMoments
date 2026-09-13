@@ -9,6 +9,7 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="System.Drawing" />
     <PackageReference Include="Imazen.WebP" Version="11.0.0" />
     <PackageReference Include="Imazen.WebP.NativeRuntime.win-x64" Version="1.6.0" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />

@@ -14,12 +14,13 @@ namespace UnityEngine
     public partial class Component { public Transform transform = new Transform(); }
     public static class Mathf { public static float Clamp(float value, float min, float max) { return Math.Max(min, Math.Min(max, value)); } }
 }
-public class AltBiome { public string m_name; }
+public class AltBiome { public string m_name, m_nameOverride, m_namePrefix, m_nameSuffix; }
 public class BiomeSector
 {
     public int Biome = 1;
     public List<AltBiome> AltBiomes = new List<AltBiome>();
     public string Display = "Meadows";
+    public static string GetBiomeName(int biome) { return "Meadows"; }
     public string GetName(bool debug) { return Display; }
 }
 public partial class Player
@@ -80,6 +81,23 @@ internal static class DiscoveryTests
             Check(journal.Seen.Count == 256 && !journal.Visit("beyond"), "Ledger cannot grow unbounded");
             File.Delete(path);
 
+            // Construct the pre-fix on-disk format, including duplicate main biomes.
+            var legacy = new DiscoveryJournal();
+            legacy.Seen.Add("biome:1/");
+            legacy.Seen.Add("biome:1/12:Dark Meadows/8:Mushroom");
+            legacy.Seen.Add("biome:4/17:Fortress Mountain");
+            legacy.Seen.Add("trader:test");
+            DiscoveryJournal.Save(path, legacy.Snapshot());
+            var normalized = DiscoveryJournal.Load(path);
+            Check(!normalized.Dirty && normalized.Seen.Count == 4, "Legacy variant evidence retained for migration");
+            Check(!normalized.Visit("biome:1", "biome:1/"), "Known base biome migrates silently");
+            Check(!normalized.Visit("biome:1/name:dark", "biome:1/12:Dark Meadows/8:Mushroom"), "Known named sub-biome migrates silently");
+            Check(normalized.Visit("biome:1/name:other"), "Unseen named sub-biome remains independent of base and known variants");
+            Check(normalized.Visit("biome:2"), "New main biome still qualifies");
+            DiscoveryJournal.Save(path, normalized.Snapshot());
+            Check(!DiscoveryJournal.Load(path).Visit("biome:1/name:dark"), "Named sub-biome history survives a process restart");
+            File.Delete(path);
+
             int errors = 0;
             var history = new DiscoveryHistory(folder, _ => errors++);
             Check(!history.Use(0, 1) && !history.Visit("invalid"), "No identity means no discoveries");
@@ -103,6 +121,38 @@ internal static class DiscoveryTests
             var reopened = new DiscoveryHistory(folder, _ => errors++);
             reopened.Use(1, 10); Ready(reopened);
             Check(!reopened.Visit("new"), "Restart deduplication");
+            string oldIdentity;
+            var sectorIdentity = new BiomeSector();
+            string mainBiome = "biome:" + DiscoveryDetector.BiomeIdentity(sectorIdentity, out oldIdentity);
+            sectorIdentity.AltBiomes.Add(new AltBiome { m_name = "Dark Meadows", m_namePrefix = "$dark" });
+            string namedBiome = "biome:" + DiscoveryDetector.BiomeIdentity(sectorIdentity, out oldIdentity);
+            Check(namedBiome != mainBiome, "Named sub-biome is distinct from main biome");
+            sectorIdentity.AltBiomes.Add(new AltBiome { m_name = "Mushroom" });
+            Check("biome:" + DiscoveryDetector.BiomeIdentity(sectorIdentity, out oldIdentity) == namedBiome, "Hidden modifier does not change named sub-biome identity");
+            sectorIdentity.Display = "Localized name";
+            Check("biome:" + DiscoveryDetector.BiomeIdentity(sectorIdentity, out oldIdentity) == namedBiome, "Translation cannot rediscover named sub-biome");
+            sectorIdentity.AltBiomes[0].m_namePrefix = "$misty";
+            string anotherBiome = "biome:" + DiscoveryDetector.BiomeIdentity(sectorIdentity, out oldIdentity);
+            Check(anotherBiome != namedBiome, "Different named sub-biome remains discoverable");
+            var allDiscoveries = new[] { mainBiome, namedBiome, anotherBiome, "trader:$npc_hildir", "trader:$npc_haldor", "location:$dungeon" };
+            foreach (string discovery in allDiscoveries) Check(reopened.Visit(discovery), "Each discovery initially qualifies: " + discovery);
+            reopened.Flush().GetAwaiter().GetResult(); reopened.Tick();
+            reopened.Use(0, 0); reopened.Tick(); reopened.Use(1, 10); Ready(reopened);
+            foreach (string discovery in allDiscoveries) Check(!reopened.Visit(discovery), "Reconnect with game open retains: " + discovery);
+            var relaunched = new DiscoveryHistory(folder, _ => errors++);
+            relaunched.Use(1, 10); Ready(relaunched);
+            foreach (string discovery in allDiscoveries) Check(!relaunched.Visit(discovery), "Game restart retains: " + discovery);
+            string persistentFolder = Path.Combine(folder, "persistent");
+            var migrated = new DiscoveryHistory(persistentFolder, _ => errors++, folder);
+            migrated.Use(1, 10); Ready(migrated);
+            Check(!migrated.Visit("new"), "Upgrade migrates install-folder history before accepting discoveries");
+            migrated.Flush().GetAwaiter().GetResult(); migrated.Tick();
+            var afterRestart = new DiscoveryHistory(persistentFolder, _ => errors++, Path.Combine(folder, "removed-plugin"));
+            afterRestart.Use(1, 10); Ready(afterRestart);
+            Check(!afterRestart.Visit("new"), "Restart after plugin replacement retains migrated history");
+            Check(afterRestart.Visit("genuinely-new"), "Migration does not suppress unseen discoveries");
+            afterRestart.Flush().GetAwaiter().GetResult(); afterRestart.Tick();
+            Check(!DiscoveryJournal.Load(Path.Combine(folder, 1L.ToString("X16") + "-" + 10L.ToString("X16") + ".bin")).Seen.Contains("genuinely-new"), "Legacy journal remains untouched");
             string broken = Path.Combine(folder, 9L.ToString("X16") + "-" + 10L.ToString("X16") + ".bin");
             File.WriteAllText(broken, "broken");
             history.Use(9, 10);
@@ -111,12 +161,22 @@ internal static class DiscoveryTests
             Check(errors == 1 && !history.Ready && !history.Visit("no-replay"), "Corruption fails closed");
             history.Flush().GetAwaiter().GetResult();
             Check(File.ReadAllText(broken) == "broken", "Corrupt history is not overwritten");
+            string blockedFolder = Path.Combine(folder, "blocked-folder");
+            File.WriteAllText(blockedFolder, "not a directory");
+            var unwritable = new DiscoveryHistory(blockedFolder, _ => { });
+            unwritable.Use(1, 10); Ready(unwritable);
+            Check(unwritable.Visit("cannot-commit"), "Visit is staged before disk commit");
+            var commit = unwritable.Flush();
+            bool commitFailed = false;
+            try { commit.GetAwaiter().GetResult(); } catch (IOException) { commitFailed = true; }
+            unwritable.Tick();
+            Check(commitFailed && commit.IsFaulted && !unwritable.Ready, "Failed durable commit cannot authorize an announcement or further visits");
             for (int i = Directory.GetFiles(folder).Length; i < 128; i++) File.WriteAllText(Path.Combine(folder, "capacity-" + i), "");
             bool full = false;
             try { DiscoveryJournal.Load(Path.Combine(folder, "new-context.bin")); } catch (IOException) { full = true; }
             Check(full, "Context-file capacity fails closed without evicting old history");
         }
-        finally { foreach (string file in Directory.EnumerateFiles(folder)) File.Delete(file); Directory.Delete(folder); }
+        finally { Directory.Delete(folder, true); }
 
         var selector = new SpecialEnemies();
         var kill = new BossKill { EnemyKey = "$enemy_troll", FirstKill = true, Special = true };
@@ -147,7 +207,7 @@ internal static class DiscoveryTests
     {
         var harmony = new Harmony("valheimmoments.discovery.tests");
         var observations = new List<string>(); var identities = new List<string>(); int errors = 0;
-        DiscoveryDetector.OnObserved = (kind, key, name) => { observations.Add(kind); identities.Add(key); };
+        DiscoveryDetector.OnObserved = (kind, key, name, legacy) => { observations.Add(kind); identities.Add(key); };
         DiscoveryDetector.OnError = () => errors++;
         DiscoveryDetector.Install(harmony);
         try
@@ -162,7 +222,7 @@ internal static class DiscoveryTests
             string original = identities[0]; sector.Display = "Prairies"; local.UpdateBiome(1);
             Check(identities[4] == original, "Display localization cannot reset identity");
             sector.AltBiomes.Add(new AltBiome { m_name = "variant" }); local.UpdateBiome(1);
-            Check(identities[6] != original, "Raw alternate biome identity distinguished");
+            Check(identities[6] == original, "Sector modifiers cannot rediscover the same main biome");
             var remote = new Player(); remote.BiomeAction = () => remote.AddKnownBiome(sector); remote.UpdateBiome(1);
             Check(observations.Count == 8, "Remote player excluded");
             local.BiomeAction = () => { throw new InvalidOperationException(); };
@@ -173,7 +233,11 @@ internal static class DiscoveryTests
             DiscoveryDetector.Clear(); trader.transform.position = new UnityEngine.Vector3 { x = 5 }; trader.Update(); trader.Update();
             Check(observations.Count == 9 && observations[8] == "trader", "Local trader entry only once while near");
             Check(errors == 0, "Hook observations produce no errors");
-            DiscoveryDetector.OnObserved = (kind, key, name) => { throw new Exception(); };
+            sector.AltBiomes[0].m_namePrefix = "$dark";
+            local.BiomeAction = () => local.AddKnownBiome(sector);
+            local.UpdateBiome(1);
+            Check(observations.Count == 11 && observations[9] == "biome" && observations[10] == "subbiome", "Named areas report main biome independently of optional sub-biome");
+            DiscoveryDetector.OnObserved = (kind, key, name, legacy) => { throw new Exception(); };
             local.BiomeAction = () => local.AddKnownBiome(sector); local.UpdateBiome(1);
             Check(errors == 1, "Optional discovery callback failure cannot break game exploration");
         }

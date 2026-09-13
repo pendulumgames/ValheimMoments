@@ -136,14 +136,14 @@ namespace ValheimMoments.Core
             frame.References = 1;
             ring.Enqueue(frame);
             // Includes readbacks submitted before the trigger that complete after it.
-            if (collecting && timestamp >= triggerTime - (timeline == null ? activePreSeconds : timeline.SlowSourceSeconds) && timestamp < triggerTime + activePostSeconds)
+            if (collecting && timestamp >= triggerTime - (timeline == null ? activePreSeconds : timeline.SlowBeforeSeconds) && timestamp < triggerTime + activePostSeconds)
             {
-                if (pending.Count < maxClipFrames && (timeline == null || timestamp < triggerTime || timestamp >= nextSample))
+                if (pending.Count < maxClipFrames && (timeline == null || timestamp < triggerTime + timeline.SlowAfterSeconds || timestamp >= nextSample))
                 {
                     frame.References++;
                     pending.Add(frame);
-                    if (timeline != null && timestamp >= triggerTime)
-                        nextSample = triggerTime + (Math.Floor((timestamp - triggerTime) / sampleInterval) + 1) * sampleInterval;
+                    if (timeline != null && timestamp >= triggerTime + timeline.SlowAfterSeconds)
+                        nextSample = triggerTime + timeline.SlowAfterSeconds + (Math.Floor((timestamp - triggerTime - timeline.SlowAfterSeconds) / sampleInterval) + 1) * sampleInterval;
                 }
             }
             return true;
@@ -201,13 +201,13 @@ namespace ValheimMoments.Core
             double interval = mapping.FastSampleInterval(captureFps);
             if (!Finite(timestamp) || timestamp < lastTime) throw new ArgumentOutOfRangeException("timestamp");
             int required = (int)Math.Ceiling(mapping.SlowSourceSeconds * captureFps) +
-                (int)Math.Ceiling(mapping.FollowUpSeconds / interval);
+                (int)Math.Ceiling((mapping.FollowUpSeconds - mapping.SlowAfterSeconds) / interval);
             if (busy || mapping.SlowSourceSeconds > preSeconds || required > maxClipFrames) return false;
-            timeline = mapping; segment = false; sampleInterval = interval; nextSample = timestamp;
+            timeline = mapping; segment = false; sampleInterval = interval; nextSample = timestamp + mapping.SlowAfterSeconds;
             triggerTime = timestamp; activePostSeconds = mapping.FollowUpSeconds;
             pending.Clear();
             foreach (Frame frame in ring)
-                if (frame.Time >= timestamp - mapping.SlowSourceSeconds && frame.Time < timestamp)
+                if (frame.Time >= timestamp - mapping.SlowBeforeSeconds && frame.Time < timestamp)
                 { frame.References++; pending.Add(frame); }
             busy = collecting = true;
             return true;
@@ -226,7 +226,7 @@ namespace ValheimMoments.Core
             {
                 playback = new double[pending.Count];
                 for (int i = 0; i < pending.Count; i++)
-                    playback[i] = triggerTime + timeline.PlaybackMilliseconds(pending[i].Time - triggerTime) / 1000.0;
+                    playback[i] = triggerTime + timeline.PlaybackMilliseconds(Math.Max(-timeline.SlowBeforeSeconds, pending[i].Time - triggerTime)) / 1000.0;
                 end = triggerTime + timeline.DurationMilliseconds / 1000.0;
                 // Hold the earliest available image across a missed initial readback.
                 if (playback.Length > 0) playback[0] = triggerTime;

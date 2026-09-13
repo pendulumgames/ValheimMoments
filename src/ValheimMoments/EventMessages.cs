@@ -91,7 +91,7 @@ namespace ValheimMoments
             bool standard = pattern == "\uD83D\uDC80 {player} died!";
             string message = pattern.Replace("{cause}", includeCause ? label : "").Replace("{player}", name)
                 .Replace("{flavor}", flavor ?? "").Replace("{extra_deaths}", Math.Max(0, additional).ToString(System.Globalization.CultureInfo.InvariantCulture));
-            if (includeCause && !pattern.Contains("{cause}")) message += "\nCause: " + label;
+            if (includeCause && !pattern.Contains("{cause}")) message += "\n**Cause:** " + label;
             if (standard && !string.IsNullOrWhiteSpace(flavor)) message += "\n" + flavor;
             if (additional > 0 && !pattern.Contains("{extra_deaths}"))
             {

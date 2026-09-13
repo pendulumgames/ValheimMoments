@@ -50,13 +50,15 @@ namespace ValheimMoments
             try
             {
                 foreach (string key in new[] { "Discord/SaveLocalCopy", "Discord/UploadClips", "Discord/EnableClientRelay",
-                    "Boss Kill/FirstKillOnly", "Boss Kill/OnlyCaptureIfLootMeetsRarity", "Boss Kill/FirstKillBypassesRarity" })
+                    "Boss Kill/FirstKillOnly", "Boss Kill/OnlyCaptureIfLootMeetsRarity", "Boss Kill/FirstKillBypassesRarity", "Special Enemies/FirstKillOnly" })
                 {
                     string[] parts = key.Split('/');
                     // Binding consumes the orphan value, then Remove retires the entry.
                     file.Bind(parts[0], parts[1], false, "Retired setting");
                     file.Remove(new ConfigDefinition(parts[0], parts[1]));
                 }
+                file.Bind("Player Death", "PlayerNameOverride", "", "Retired setting");
+                file.Remove(new ConfigDefinition("Player Death", "PlayerNameOverride"));
                 file.Save();
             }
             finally { file.SaveOnConfigSet = save; }

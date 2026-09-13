@@ -15,6 +15,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $profile 'BepInEx/core/BepInEx.dll')
 $source = Join-Path $stage 'BepInEx/plugins/ValheimMoments'
 $destination = Join-Path $profile 'BepInEx/plugins/ValheimMoments'
 $configPath = Join-Path $profile 'BepInEx/config/local.valheimmoments.cfg'
+& (Join-Path $PSScriptRoot 'Preserve-DiscoveryHistory.ps1') -ProfilePath $profile
 $migration = $null
 if ($PreviousPluginDirectory -or $PreviousConfigPath) {
     $pluginRoot = [IO.Path]::GetFullPath((Join-Path $profile 'BepInEx/plugins')) + '\'

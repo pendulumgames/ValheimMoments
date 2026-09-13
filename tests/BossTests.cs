@@ -168,6 +168,18 @@ internal static class BossTests
             Check(recorded.PlayerName == "Astrid" && recorded.CreditNames == "Astrid, Ragnar" && recorded.FinalBlowName == "Astrid", "Other recorder receives both credited players with independent final blow");
             string caption = EventMessages.RecordedPost(EventMessages.Boss("Boss", "boss", BossAttribution.CreditLabel(recorded.CreditNames, recorded.PlayerName), BossNameMode.Both, recorded.FinalBlowName), recorded.PlayerName);
             Check(caption == "# Boss\n**Recorded by:** Astrid\n**Kill credit:** Astrid, Ragnar\n**Final blow:** Astrid", "Discord post keeps roster, recorder and final blow distinct");
+            victim.Boss = false;
+            BossAttribution.CinematicSubject = c => "special-instance-42";
+            BossKillDetector.ObserveOrdinary = () => true;
+            BossKill specialRecorded = null;
+            BossKillDetector.OnLootKill = k => specialRecorded = k;
+            var bossAction = victim.DeathAction;
+            victim.DeathAction = () => { remoteGame.RegisterKill(99, "boss", 0, KillModifiers.None, 2, false); remoteGame.RPC_RegisterKill(42, "boss", 0, 0, 2, false); };
+            victim.OnDeath();
+            Check(specialRecorded != null && specialRecorded.BossNumber == 0 && specialRecorded.FinalBlowName == "Astrid" && specialRecorded.CreditNames == "Astrid, Ragnar", "Ordinary kill receives boss-equivalent remote attribution");
+            Check(specialRecorded.CinematicSubject == "special-instance-42", "Special camera identity survives owner-to-recorder credit");
+            BossKillDetector.ObserveOrdinary = null; BossKillDetector.OnLootKill = null; BossAttribution.CinematicSubject = null;
+            victim.Boss = true; victim.DeathAction = bossAction;
             remoteGame.Skip = true; recorded = null; victim.OnDeath();
             Check(recorded == null, "Roster metadata cannot create a clip when vanilla denies local credit");
             remoteGame.Skip = false;

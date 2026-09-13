@@ -48,6 +48,8 @@ namespace ValheimMoments
 
         internal static bool IsLocal(string section, string key)
         {
+            if (section == "Cinematic Camera: Experimental" && (key == "FlipVertically" || key == "RenderCinematics")) return true;
+            if (section == "Player Identity" || (section == "Special Enemies" && key == "LogEnemyKeys")) return true;
             if (section == "Debug") return true;
             if (section == "Notifications") return true;
             if (section == "Gallery") return true;
@@ -164,7 +166,7 @@ namespace ValheimMoments
                 session = current; remote = null; server = null; lastPayload = null;
                 registered.Clear(); nextReply.Clear(); nextRequest = 0;
                 UpdateManager(true); changed?.Invoke();
-                if (session != null && !session.IsServer()) log("Waiting for host settings; host and clients need matching 0.17.0 settings schema.");
+                if (session != null && !session.IsServer()) log("Waiting for host settings; host and clients need matching mod versions and settings schema.");
             }
             UpdateManager(false);
             if (session == null) return;

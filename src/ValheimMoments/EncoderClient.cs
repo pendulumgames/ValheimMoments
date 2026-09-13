@@ -8,10 +8,15 @@ namespace ValheimMoments
 {
     internal static class EncoderClient
     {
-        internal static string Compose(string exe, string opening, string ending, string output, int quality, CancellationToken cancellation)
+        internal static string Compose(string exe, string opening, string ending, string output, int quality, CancellationToken cancellation, string recorder = null, bool cinematic = false, bool letterbox = true)
         {
             cancellation.ThrowIfCancellationRequested();
-            var info = new ProcessStartInfo(exe, "--compose \"" + opening + "\" \"" + ending + "\" \"" + output + "\" " + quality)
+            string arguments = recorder == null ? "--compose \"" + opening + "\" \"" + ending + "\" \"" + output + "\" " + quality :
+                "--label \"" + opening + "\" \"" + output + "\" " + quality + " " + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(recorder));
+            if (cinematic) arguments = "--cinematic \"" + opening + "\" \"" + output + "\" " + quality + " " +
+                Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(recorder ?? "")) + " " + (letterbox ? "1" : "0");
+            else if (recorder == null && ending == null) arguments = "--normalize \"" + opening + "\" \"" + output + "\" " + quality;
+            var info = new ProcessStartInfo(exe, arguments)
             { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden,
                 RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = Path.GetDirectoryName(exe) };
             using (var process = new Process { StartInfo = info })

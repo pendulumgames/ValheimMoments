@@ -17,7 +17,10 @@ namespace ValheimMoments
         private const string EventRpcName = "ValheimMoments_KillEvent_v1";
         private static readonly FieldInfo LastHit = typeof(Character).GetField("m_lastHit", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly FieldInfo NetworkView = AccessTools.Field(typeof(Character), "m_nview");
-        private sealed class Context { internal string Enemy, Name, Credits, EventId; }
+        private sealed class Context { internal string Enemy, Name, Credits, EventId, Subject; }
+        private const string SubjectRpcName = "ValheimMoments_CinematicSubject_v1";
+        private static readonly AttributionInbox subjectInbox = new AttributionInbox(80);
+        internal static Func<Character, string> CinematicSubject;
         [ThreadStatic] private static Context current;
         private static ZRoutedRpc registered;
         private static readonly AttributionInbox inbox = new AttributionInbox();
@@ -105,11 +108,12 @@ namespace ValheimMoments
                 if (router == null || ReferenceEquals(registered, router)) return;
                 router.Register<string, string>(RpcName, Receive);
                 router.Register<string, string>(CreditRpcName, (sender, enemy, names) => creditInbox.Add(sender, enemy, names, clock.Elapsed.TotalSeconds));
+                router.Register<string, string>(SubjectRpcName, (sender, enemy, id) => subjectInbox.Add(sender, enemy, id, clock.Elapsed.TotalSeconds));
                 router.Register<string, string>(EventRpcName, (sender, enemy, id) => {
                     if (HighlightDirector.ValidId(id)) eventInbox.Add(sender, enemy, id, clock.Elapsed.TotalSeconds);
                 });
                 registered = router;
-                inbox.Clear(); creditInbox.Clear(); eventInbox.Clear();
+                inbox.Clear(); creditInbox.Clear(); eventInbox.Clear(); subjectInbox.Clear();
             }
             catch { } // A missing channel yields unavailable attribution, not lost gameplay.
         }
@@ -127,7 +131,7 @@ namespace ValheimMoments
             {
                 if (!__instance.IsOwner() || __instance is Player) return;
                 current = new Context { Enemy = __instance.m_name, EventId = Guid.NewGuid().ToString("N") };
-                if (!__instance.IsBoss()) return;
+                current.Subject = CinematicSubject?.Invoke(__instance);
                 var hit = LastHit?.GetValue(__instance) as HitData;
                 string reason;
                 string name = Resolve(hit, out reason);
@@ -148,7 +152,7 @@ namespace ValheimMoments
                 // credit, over the same ordered routed-RPC connection.
                 try { ZRoutedRpc.instance.InvokeRoutedRPC(playerPeerID, EventRpcName, new object[] { enemyName, current.EventId }); }
                 catch { } // Optional director metadata must not suppress existing attribution.
-                if (bossNumber <= 0) return;
+                if (current.Subject != null) ZRoutedRpc.instance.InvokeRoutedRPC(playerPeerID, SubjectRpcName, new object[] { enemyName, current.Subject });
                 ZRoutedRpc.instance.InvokeRoutedRPC(playerPeerID, RpcName, new object[] { enemyName, current.Name ?? "" });
                 ZRoutedRpc.instance.InvokeRoutedRPC(playerPeerID, CreditRpcName, new object[] { enemyName, current.Credits ?? "" });
             }
@@ -175,7 +179,10 @@ namespace ValheimMoments
             return eventInbox.Take(sender, enemy, clock.Elapsed.TotalSeconds);
         }
 
-        internal static void Clear() { current = null; inbox.Clear(); creditInbox.Clear(); eventInbox.Clear(); OnDiagnostic = null; }
+        internal static string TakeSubject(long sender, string enemy)
+        { return sender == 0 && current != null && current.Enemy == enemy ? current.Subject : subjectInbox.Take(sender, enemy, clock.Elapsed.TotalSeconds); }
+
+        internal static void Clear() { current = null; inbox.Clear(); creditInbox.Clear(); eventInbox.Clear(); subjectInbox.Clear(); OnDiagnostic = null; CinematicSubject = null; }
     }
 
     // Bounded, short-lived and sender-scoped: never reuse another participant's

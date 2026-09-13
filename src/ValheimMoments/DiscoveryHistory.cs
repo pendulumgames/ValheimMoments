@@ -11,10 +11,17 @@ namespace ValheimMoments
         internal const int Maximum = 256;
         internal readonly HashSet<string> Seen = new HashSet<string>(StringComparer.Ordinal);
         internal bool Dirty;
-        internal bool Visit(string key)
+        internal bool Visit(string key, string legacyKey = null)
         {
-            if (string.IsNullOrWhiteSpace(key) || key.Length > 192 || Seen.Count >= Maximum || !Seen.Add(key)) return false;
-            Dirty = true; return true;
+            if (string.IsNullOrWhiteSpace(key) || key.Length > 192 || Seen.Count >= Maximum) return false;
+            bool previouslySeen = legacyKey != null && Seen.Contains(legacyKey);
+            // Any previously recorded variant also proves the main biome was visited.
+            if (key.StartsWith("biome:", StringComparison.Ordinal) && key.IndexOf('/') < 0)
+                foreach (string old in Seen)
+                    if (old.StartsWith(key + "/", StringComparison.Ordinal)) { previouslySeen = true; break; }
+            if (!Seen.Add(key)) return false;
+            Dirty = true;
+            return !previouslySeen;
         }
         internal static DiscoveryJournal Load(string path)
         {
@@ -78,6 +85,7 @@ namespace ValheimMoments
     internal sealed class DiscoveryHistory
     {
         private readonly string folder;
+        private readonly string legacyFolder;
         private readonly Action<string> log;
         private string desired, current, failed;
         private DiscoveryJournal journal;
@@ -85,7 +93,8 @@ namespace ValheimMoments
         private Task<DiscoveryJournal> loading;
         private string loadingKey;
         private Task saving;
-        internal DiscoveryHistory(string folder, Action<string> log) { this.folder = folder; this.log = log; }
+        internal DiscoveryHistory(string folder, Action<string> log, string legacyFolder = null)
+        { this.folder = folder; this.log = log; this.legacyFolder = legacyFolder; }
         internal bool Ready { get { return loading == null && desired != null && current == desired && journal != null && failed != desired; } }
         internal bool Use(long player, long world)
         {
@@ -93,11 +102,11 @@ namespace ValheimMoments
             if (key == desired) return false;
             desired = key; duringLoad.Clear(); return true;
         }
-        internal bool Visit(string key)
+        internal bool Visit(string key, string legacyKey = null)
         {
             if (desired == null || string.IsNullOrWhiteSpace(key) || key.Length > 192) return false;
             if (!Ready) { if (duringLoad.Count < DiscoveryJournal.Maximum) duringLoad.Add(key); return false; }
-            return journal.Visit(key);
+            return journal.Visit(key, legacyKey);
         }
         internal void Tick()
         {
@@ -131,7 +140,17 @@ namespace ValheimMoments
             {
                 loadingKey = desired;
                 string path = Path.Combine(folder, desired + ".bin");
-                loading = Task.Run(() => DiscoveryJournal.Load(path));
+                string legacyPath = legacyFolder == null ? null : Path.Combine(legacyFolder, desired + ".bin");
+                loading = Task.Run(() => {
+                    // Keep player state outside the replaceable plugin installation.
+                    // A corrupt current journal must fail closed, never fall back to older data.
+                    bool exists = File.Exists(path);
+                    var loaded = DiscoveryJournal.Load(path); // Also enforces destination capacity before migration.
+                    if (exists || legacyPath == null || !File.Exists(legacyPath)) return loaded;
+                    var migrated = DiscoveryJournal.Load(legacyPath);
+                    migrated.Dirty = true;
+                    return migrated;
+                });
             }
         }
         internal Task Flush()

@@ -1,6 +1,6 @@
 # Valheim Moments
 
-0.18.1 improves gallery file protection: shutdown respects your recovery limits, older retried clips retain their Keep grace, and an unreadable history index preserves existing files with a visible error.
+0.23.0 keeps Barely Survived in slow motion through the hit's immediate aftermath, adds independent boss-equivalent controls and experimental cameras for special enemies, and adds biome camera movement choices with cinematic letterboxing. The GitHub and Thunderstore README fixes and animated gameplay examples are included. Existing camera distance, obstruction handling and boss/raid movement options carry forward. Live camera/co-op acceptance remains required.
 
 [Source code and issue reports](https://github.com/PendulumGames/ValheimMoments)
 
@@ -8,26 +8,74 @@ Save the moments worth sharing: boss victories, rare drops, unfortunate deaths,
 and anything you catch with a hotkey. Valheim Moments turns recent gameplay into
 animated WebP clips and can send them to Discord.
 
-**Windows x64 beta - 0.18.1.** Manual capture, deaths, boss summaries, Epic Loot,
+**Windows x64 beta - 0.23.0.** Manual capture, deaths, boss summaries, Epic Loot,
 ordinary loot and natural acquisitions have passed user testing. Host and joining-player
 F10 clips have reached Discord, and the WebP clips were confirmed visually.
 
-Grouped multiplayer highlights: compatible creature-death recordings share one Discord post with up to three labeled perspectives. Discoveries and configurable special-enemy captures from 0.14 are included. Settings, sizing, notifications and death-rate improvements from 0.12/0.13 are included. Install **0.18.1 on the host and every recording client**. Automated checks cover persistence, rules and hook behavior; in-game exploration, visual/audio and live co-op acceptance remain pending.
+Grouped multiplayer highlights: compatible creature-death recordings share one Discord post with up to three labeled perspectives. Discoveries and configurable special-enemy captures from 0.14 are included. Settings, sizing, notifications and death-rate improvements from 0.12/0.13 are included. Install **0.23.0 on the host and every recording client**. Automated checks cover persistence, rules and hook behavior; in-game exploration, visual/audio and live co-op acceptance remain pending.
+
+## Upgrading from an older version
+
+Before updating through Thunderstore, close Valheim and run the bundled **Preserve-DiscoveryHistory.ps1** with your mod profile path. This preserves existing discoveries before the updater can replace their old folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Preserve-DiscoveryHistory.ps1 -ProfilePath "C:\path\to\your\profile"
+```
+
+Do this on each recording player's computer. The script leaves originals intact and can be run repeatedly. New versions save discovery history under BepInEx/config/ValheimMoments/Discoveries. The manual installer runs preservation automatically. Already-deleted history cannot be recovered by this script.
+
+## Personal controls
+
+Set **Player Identity.DiscordUserID** to your numeric Discord user ID to show `Mec (@your Discord account)` in Recorded by and Kill credit. Your character name stays unchanged; Discord resolves the account name and handles notification preferences. Leave it blank to opt out. The ID is sent to the connected host; it is self-configured, not an account verification flow.
+
+Set **Cinematic Camera: Experimental.RenderCinematics = false** to disable the extra rendering workload on your computer while retaining normal recording. LogEnemyKeys is also personal. The separate special-enemy FirstKillOnly and death PlayerNameOverride controls are removed; use CaptureMode for capture rules.
+
+## See it in action
+
+Animated gameplay examples. Player names are supplied; the remaining caption details below are fictional examples of Discord output, not verified contents of the footage.
+
+### Mec's death
+
+![Mec death clip](https://raw.githubusercontent.com/PendulumGames/ValheimMoments/main/docs/examples/valheim-moment-Death.webp)
+
+> **💀 Mec died!**
+>
+> **Recorded by:** Mec
+>
+> **Cause:** Troll
+
+### Ren's legendary drop
+
+![Ren legendary loot clip](https://raw.githubusercontent.com/PendulumGames/ValheimMoments/main/docs/examples/valheim-moment-Legendary.webp)
+
+> **Great loot from Skeleton!**
+>
+> **Recorded by:** Ren
+>
+> **Kill credit:** Ren
+>
+> **Loot**
+>
+> - **Legendary Iron sword** x1
+>   - +25% physical damage
+>   - +15% attack speed
+> - Bone fragments x6
+> - Coins x42
 
 ## Features
 
-* **Personal gallery:** F8 opens history with on-demand thumbnails, recorder, timestamp, upload status, file size, Keep, local animation opening and Discord message links when supplied by the verified receipt. F7 keeps the current/latest memory. Both keys are configurable.
+* **Personal gallery:** F8 opens/closes history; clicking outside also closes it. Each card automatically shows its thumbnail on the left and recorder, time, status and actions on the right. Six memories per page keep thumbnail memory bounded. Open file location selects surviving footage in Explorer. The Discord-link button has been removed. Retry appears only for failed, omitted or unconfirmed delivery, with existing eligibility limits. F7 keeps the current/latest memory. Both keys are configurable.
 * **Bounded storage:** new originals use Gallery/Recovery; kept originals move to Gallery/Saved. Successful unpinned uploads expire after a 30-second Keep window. Recovery defaults to 20 clips, 250 MiB and 24 hours; history defaults to 200 entries. Existing Clips files are preserved. Saved originals are never quota-deleted.
 * **Controlled retries:** at most three deliberate retries with 30/60/120-second backoff, only in the original session/host role. Unknown delivery warns about duplicate posts. Restart/world changes disable old retries; no host webhook secrets are stored in gallery history.
 * **Timeline controls:** hosts can configure raid opening/ending and close-call source/follow-up/playback durations. Defaults retain the 4+6-second raid and 1-to-3 plus 20-to-7 close call. Authenticated host raid IDs allow grouped participant perspectives; unmatched footage stays personal.
 
-* **Raid moments:** four seconds at local raid entry plus six seconds after its observed end, joined into one clip through the default host webhook, with compatible participant perspectives grouped when identity is available. “Raid ended” includes administrative resets and does not claim victory. Leaving, dying, pause or capture reconfiguration abandons it. Busy/missing segments skip the attempt. Live acceptance remains pending; matched 0.18.1 host/clients required.
+* **Raid moments:** four seconds at local raid entry plus six seconds after its observed end, joined into one clip through the default host webhook, with compatible participant perspectives grouped when identity is available. “Raid ended” includes administrative resets and does not claim victory. Leaving, dying, pause or capture reconfiguration abandons it. Busy/missing segments skip the attempt. Live acceptance remains pending; matched 0.23.0 host/clients required.
 
-* **Close calls:** enabled by default. Actual damage crossing 5% health starts a pending memory; survive twenty seconds to finish it. One source second plays for three seconds, followed by twenty source seconds compressed to seven. No game slowdown or generated frames. Host controls threshold, recovery and cooldown; the clip uses the main webhook and stays personal. Death cancels it and takes capture priority. Live acceptance is pending.
+* **Close calls:** enabled by default. Actual damage crossing 5% health starts a pending memory; survive twenty seconds to finish it. One source second around the hit plays for three seconds, with impact at playback second two and slow aftermath through second three; the rest of the twenty-second survival window compresses into seven seconds. No game slowdown or generated frames. Host controls threshold, recovery and cooldown; the clip uses the main webhook and stays personal. Death cancels it and takes capture priority. Live acceptance is pending.
 
 * **F10** captures recent gameplay. **F9** pauses/resumes recording.
 * Automatic player-death clips with cause, configurable rate limit, intervening-death summary and optional cheeky captions.
-* Brief Recording Memory / Memory Saved / Memory Uploaded feedback, with player-controlled quiet sound.
+* Sliding Saving Memory / Memory Saved / Sent to Discord feedback, with player-controlled placement and quiet sound.
 * Boss clips with first-kill rules, all credited players, final-blow attribution and loot.
 * First tracked biome, labeled-location and trader discoveries per character per world.
 * Host-configured special-enemy clips with exact kill-credit keys and per-enemy cooldowns.
@@ -41,11 +89,11 @@ Grouped multiplayer highlights: compatible creature-death recordings share one D
 
 Discoveries default on. Physically entering a new biome, a location with a game discovery label, or a trader's greeting range can capture a moment. Nearby discoveries group briefly into one caption. The host can disable categories and set the cooldown; `Discord.DiscoveryWebhookURL` uses the main webhook when blank.
 
-History lives in `ValheimMoments/State/Discoveries` beside the plugin, separately for each character/world pair. Keep this folder when updating. It remembers observations even while recording is paused, disabled or busy, so those visits are not replayed later. Initial loading/warmup is silent. Valheim's existing character history cannot reliably reconstruct exploration in each world: an older destination can count as a first **tracked** visit after installing this version. Revealed map pins alone do not count. Not every dungeon has a discovery label, and unsupported mod sources are skipped.
+History lives in `BepInEx/config/ValheimMoments/Discoveries`, separately for each character/world pair, and survives replacement of the plugin folder. Existing plugin-side journals migrate automatically when loaded. Main biomes, distinct named sub-biomes, traders and named locations are each tracked once per character/world. Named sub-biome announcements require the host to enable `Discoveries.SubBiomes` (default off); visits while disabled are remembered silently. hidden sector modifiers no longer produce repeated biome discoveries. Preserve the config history when moving profiles. It remembers observations even while recording is paused, disabled or busy, so those visits are not replayed later. Initial loading/warmup is silent. Valheim's existing character history cannot reliably reconstruct exploration in each world: an older destination can count as a first **tracked** visit after installing this version. Revealed map pins alone do not count. Not every dungeon has a discovery label, and unsupported mod sources are skipped.
 
-Special enemies default to an empty selection. The host enables the Advanced `Special Enemies.LogEnemyKeys` diagnostic, kills a candidate, then copies its exact confirmed stat key from the BepInEx log into `Special Enemies.EnemyKeys`. Use commas or semicolons for multiple keys. These are case-sensitive kill-credit identifiers, not prefab names or translated display names; no wildcards are used. Turn the diagnostic off afterward.
+Special enemies default to an empty selection. Each player can enable the local Advanced `Special Enemies.LogEnemyKeys` diagnostic, kills a candidate, then copies its exact confirmed stat key from the BepInEx log into `Special Enemies.EnemyKeys`. Use commas or semicolons for multiple keys. These are case-sensitive kill-credit identifiers, not prefab names or translated display names; no wildcards are used. Turn the diagnostic off afterward.
 
-Special captures use the main Discord route, do not require rare loot, and show the recording character's confirmed kill credit plus observed loot. Their `FirstKillOnly` option uses existing character-wide kill statistics across worlds. Normal bosses always use Boss Kill rules; an accepted special capture replaces the ordinary loot capture for that credited death. Matching shared death IDs allow these perspectives to join the multiplayer director.
+Special captures have independent capture mode, rarity, loot display, attribution and optional Discord-route settings. Their CaptureMode uses existing character-wide kill statistics across worlds; the obsolete separate FirstKillOnly setting is removed. Normal bosses always use Boss Kill rules; an accepted special capture replaces the ordinary loot capture for that credited death. Matching shared death IDs allow these perspectives to join the multiplayer director.
 
 ## Natural treasure highlights
 
@@ -165,7 +213,7 @@ Discord upload allowance depends on the destination/server boost level. Personal
 
 Player Death.CaptureLimit defaults to 1 per 60-second WindowSeconds. Further confirmed deaths are counted for the next eligible death post; failed delivery does not erase the count. Each player has a separate quota, and counts reset with the session. Custom death templates opt into cheeky text using {flavor}; {extra_deaths} places the additional-death count.
 
-Notifications are player-owned: Enabled, SoundMode (Off / OnCapture / OnCompletion / Both), and Volume. Memory Uploaded appears only after Discord accepts the clip, including a final host acknowledgement for joining players. Memory Captured means encoding finished. Local-only recording says Memory Saved. The banner may appear in footage; the WebP itself remains silent.
+Notifications are player-owned: Enabled, Style (Cinematic / Toast: Minimap / Toast: Top Right), SoundMode (Off / OnCapture / OnCompletion / Both), and Volume. Saving Memory waits for the ending footage. Sent to Discord requires confirmed delivery, including the host acknowledgement for joining players. Local-only recording says Memory Saved. Notices slide/fade and draw after the capture copy to exclude them from footage; live renderer verification remains required. The minimap toast follows the existing small map and falls back to the corner when unavailable. WebP remains silent.
 
 ## Boss and loot settings
 

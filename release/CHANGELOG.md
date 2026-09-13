@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.23.0
+
+- Add pre-upgrade discovery preservation tooling; announcements wait for durable journal writes.
+- Add personal RenderCinematics and local LogEnemyKeys controls. Retire special-enemy FirstKillOnly and death PlayerNameOverride; preserve explicit CaptureMode values. Correct obsolete setting descriptions.
+- Add optional personal DiscordUserID with host-side recorder/kill-credit mentions, preserving character names and disabling general mention parsing.
+
+- Remember each main biome and distinct named sub-biome once per character/world. Sub-biome announcements have a host-controlled SubBiomes toggle, default off; disabled visits remain remembered. Ignore hidden sector modifier changes and preserve legacy variant records for silent migration when matched. Move discovery history outside the replaceable plugin folder, with automatic migration of existing journals.
+
+- Barely Survived keeps slow motion through the immediate aftermath: impact lands at second two of the default three-second slow segment.
+- Special enemies gain independent boss-equivalent capture modes, loot filtering/display, player attribution, Discord routing, and experimental arrival/aftermath cameras. CaptureMode is the sole special-enemy capture rule.
+- Biome discovery gains RiseAndReveal, Orbit and ZoomIn movement choices and an independent BiomeLetterbox toggle, enabled by default for animated black bars and a fading title.
+- Include the GitHub and Thunderstore README fixes and Mec/Ren animated gameplay examples carried forward from the 0.22.0 working copy.
+- Retain the existing camera distance cap, obstruction checks, boss spawn timing and boss/raid movement choices. Use matching 0.23.0 host and recording clients.
+
+## 0.22.0
+
+- Cap cinematic distance at 3x; existing higher settings clamp to the new maximum.
+- Add Orbit, RiseAndReveal and ZoomIn movement dropdown choices for bosses. ZoomIn approaches from 2x distance to 1x over four seconds with a fixed lens; also available for raids. Replaces the test-build zoom checkbox.
+- Try elevated viewpoints and wider obstruction checks to reduce trees blocking shots.
+- Catch fresh boss arrival after the altar summon delay, with configurable 0-5 second extra delay.
+- Add animated Mec death and Ren legendary-loot examples with illustrative Discord captions to both READMEs.
+- Live camera and multiplayer acceptance still required.
+
+## 0.21.0
+
+- Correct upside-down experimental camera footage by default, with a separate player-owned orientation switch.
+- Default cinematic distance to twice the original; add host distance (1–8x), sweep (0–180 degrees), raid movement and letterbox controls.
+- Raid shots default to rising reveals aimed at the raid center, with Orbit available.
+- Add animated top/bottom widescreen bars and fading titles. Boss arrivals show localized name, stars and maximum health; raids show their event text and available configured foe types.
+- Preserve burned-in cinematic details through Director validation without adding a second generic Boss Arrival label.
+- Remove the gallery Discord-link button, unavailable-link text and optional webhook metadata lookup. Existing gallery history and upload receipt validation remain compatible.
+
+## 0.20.0
+
+- Add opt-in host-controlled Cinematic Camera: Experimental options for raid opening, boss arrival, boss aftermath and biome discovery, using a separate offscreen camera.
+- Cache boss arrivals by exact network identity, then attach once and first in the boss-kill post. Director selects one cinematic per enabled role alongside normal POV attachments.
+- Bound cinematic rendering, cached footage, relay packets and final upload sizes. Unsupported, obstructed or unavailable shots fall back to ordinary footage. Camera visuals and multiplayer acceptance need live testing.
+- Replace reflection-based Discord receipt/metadata deserialization with a bounded response reader; include safe failure-stage diagnostics. Fix intended for Unknown uploads and disabled gallery links; live confirmation remains required. Existing Unknown history is not automatically repaired.
+- Preserve all 0.19.0 gallery, notification and recorder-nameplate improvements. Install matching 0.20.0 on host and clients.
+
+## 0.19.0
+
+- Gallery cards show thumbnails automatically, with details/actions alongside, six entries per page, F8 toggle and outside-click dismissal. Block gameplay mouse-look and scroll zoom while browsing.
+- Replace local animation opening with Open file location. Show retries only for failed, omitted or unconfirmed delivery; retain bounded/session-authorized retry rules.
+- Recover new Discord message links from verified webhook metadata when the message receipt lacks a guild ID. Metadata failure does not invalidate a successful upload.
+- Add Cinematic, Toast: Minimap and Toast: Top Right notification styles with slide/fade. Saving Memory waits for ending footage; remove Memory Captured and rename delivery feedback Sent to Discord. Draw notifications after capture to exclude them from footage (live verification required).
+- Multi-perspective director clips receive bottom-center recorder nameplates; single-perspective clips remain untouched. Remove Perspectives heading and bold appended death Cause labels.
+- Document exact EnemyKeys discovery and the Jotunn localization reference. Use matching 0.19.0 host/clients; live UI, renderer and co-op validation remains required.
+
 ## 0.18.1
 
 - Shutdown gallery flushing preserves the player's configured recovery limits and queues a final pass after any active storage worker.

@@ -20,6 +20,7 @@ namespace ValheimMoments
                 keys.Add(key);
             }
         }
+        internal bool Contains(string key) { return key != null && keys.Contains(key); }
         internal bool Eligible(BossKill kill, bool firstOnly, double now)
         {
             if (kill == null || kill.BossNumber > 0 || !keys.Contains(kill.EnemyKey) || (firstOnly && !kill.FirstKill)) return false;

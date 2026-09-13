@@ -12,8 +12,10 @@ try {
             if ($LASTEXITCODE -ne 0) { throw "Restore failed: $project" }
         }
     }
+    & (Join-Path $PSScriptRoot 'Test-DiscoveryUpgrade.ps1')
     & (Join-Path $PSScriptRoot 'Test-Core.ps1')
     & (Join-Path $PSScriptRoot 'Test-Discord.ps1')
+    & (Join-Path $PSScriptRoot 'Test-Cinematics.ps1')
     & dotnet build tests/DeathTests.csproj -c Release --no-restore
     if ($LASTEXITCODE -ne 0) { throw 'Event test build failed' }
     & (Join-Path $workspace 'tests/bin/Release/net48/DeathTests.exe')
@@ -22,6 +24,7 @@ try {
 
     # Verify documentation against actual binding keys, without reading any user config.
     $source = [IO.File]::ReadAllText((Join-Path $workspace 'src/ValheimMoments/Plugin.cs'))
+    $source += [IO.File]::ReadAllText((Join-Path $workspace 'src/ValheimMoments/Plugin.Cinematics.cs'))
     $reference = [IO.File]::ReadAllText((Join-Path $workspace 'docs/CONFIGURATION.md'))
     $keys = @([regex]::Matches($source, '(?:Config\.)?Bind\("[^"]+", "([^"]+)"') | ForEach-Object { $_.Groups[1].Value }) +
         @([regex]::Matches($source, 'Setting\("([^"]+)"') | ForEach-Object { $_.Groups[1].Value })

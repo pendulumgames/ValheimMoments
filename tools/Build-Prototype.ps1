@@ -25,6 +25,7 @@ try {
     Copy-Item -LiteralPath docs/NATURAL-LOOT-TEST.md -Destination (Join-Path $stage 'NATURAL-LOOT-TEST.md')
     Copy-Item -LiteralPath docs/CONFIGURATION.md -Destination (Join-Path $stage 'CONFIGURATION.md')
     Copy-Item -LiteralPath release/CHANGELOG.md -Destination (Join-Path $stage 'CHANGELOG.md')
+    Copy-Item -LiteralPath tools/Preserve-DiscoveryHistory.ps1 -Destination $stage
     Copy-Item -LiteralPath LICENSE -Destination (Join-Path $stage 'LICENSE')
     Copy-Item -LiteralPath docs/PROTOTYPE-TEST.md -Destination (Join-Path $stage 'CAPTURE-TEST.md')
     Copy-Item -LiteralPath docs/DEPENDENCIES.md -Destination $plugin
@@ -34,7 +35,8 @@ try {
         '{0}  {1}' -f (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash, $file.FullName.Substring($stage.Length + 1)
     }
     $hashes | Set-Content -LiteralPath (Join-Path $stage 'SHA256SUMS.txt')
-    $zip = Join-Path $workspace 'artifacts/ValheimMoments-0.18.1-test.zip'
+    $packageVersion = [Reflection.AssemblyName]::GetAssemblyName((Join-Path $plugin 'ValheimMoments.dll')).Version.ToString(3)
+    $zip = Join-Path $workspace ('artifacts/ValheimMoments-' + $packageVersion + '-test.zip')
     Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
     $stage | Set-Content -LiteralPath (Join-Path $workspace 'artifacts/latest-package-path.txt')
     Write-Output "Package: $zip"

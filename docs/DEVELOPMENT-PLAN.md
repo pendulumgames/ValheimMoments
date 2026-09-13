@@ -1,9 +1,46 @@
 # Valheim Moments development plan
 
-Updated: 2026-09-11. Baseline: 0.11.1.
+Updated: 2026-09-12. Baseline: 0.11.1.
 
 This is the implementation backlog for the user's September feature request. Existing 0.11.1 packages remain unchanged. Items are planned unless listed in the progress section below. Do not describe pending features as available in release READMEs.
 
+## Progress: 0.23.0 release continuation
+
+0.22.0 is already released, as confirmed by the user. The current working changes and GitHub/Thunderstore README fixes carry forward into 0.23.0 without rollback. This adds post-hit close-call slow motion, independent special-enemy capture/loot/attribution/routing and camera options, and biome movement/letterbox controls. Current metadata and packages target 0.23.0; earlier progress notes below are historical. Live acceptance remains pending; the configured profile lacks Configuration Manager for its separate contract check.
+
+## Progress: 0.22.0 camera refinement
+
+Distance is capped at 3x; boss and raid movement dropdowns support Orbit/RiseAndReveal/ZoomIn. ZoomIn approaches from 2x to 1x distance over four seconds with a fixed lens, independent of DistanceMultiplier/PanDegrees. The old boolean zoom setting is unused. Wider obstruction checks try elevated viewpoints before shortening the shot. BossSpawnDelaySeconds defaults to zero after fresh creation (the installed OfferingBowl already schedules DelayedSpawnBoss); optional extra delay is bounded to five seconds. Live forest framing, zoom, summon-animation coverage and multiplayer acceptance remain pending.
+
+Both README examples reference copied animated WebPs with illustrative Mec/Ren Discord captions. Files were copied and SHA-256 compared only, never opened or previewed. Thunderstore image URLs require the source examples to be pushed to main before publishing.
+
+Release suite and Configuration Manager contract passed; production/helper builds had zero warnings/errors and all 119 settings are documented. The earlier 0.22.0 test build was installed into Test; this final dropdown revision is prepared for release and has not been installed or published.
+
+## Progress: 0.21.0 cinematic presentation
+
+User confirmed the extra camera worked but was upside down and too close. Implemented independent default-on camera flip, default 2x distance with 1–8x limits, 0–180-degree pan, rising raid reveal/orbit selector, animated 2.39:1 letterboxing and fading metadata titles. Boss arrivals show name/stars/max health, raid openings show event text and configured possible foes. Director preserves the finished titles without its former generic cinematic nameplate. The Discord-link button and metadata GET were removed at the user's request; the existing index format remains readable.
+
+Full release checks passed: 117 documented settings, 80 Discord assertions, 93 packet assertions, presentation/letterbox checks, real encoder cinematic timing/normalization, existing capture/event/relay/gallery suites, package/provenance and Configuration Manager contracts. Production/helper builds have zero warnings/errors. The title preview was visually inspected. Both 0.21.0 archives are ready; live camera/co-op acceptance remains. Test installation is unchanged during development.
+
+## Progress: 0.20.0 experimental camera and Discord receipts
+
+Implemented four disabled-by-default host switches; separate offscreen camera; exact boss subject matching and arrival retention; bounded extra-footage transport; one selected cinematic per role ahead of Director POVs. New packet regression checks cover corruption, bounds and nested data. Discord response reading no longer uses reflection-based contracts, and errors identify the failed stage without including response bodies or secrets.
+
+The previous live log confirmed Unknown delivery but did not expose the exception. A read-only lookup successfully retrieved the user's Discord message. The new parser and diagnostics need a fresh in-game upload before claiming the live issue resolved. Camera visuals, orientation, raid framing and two-client delivery also need live acceptance. See [CINEMATIC-CAMERA.md](CINEMATIC-CAMERA.md). Test profile has not been updated during this development batch.
+
+Validation: full release suite passed, including 93 cinematic packet checks, 96 Discord checks, capture/event/relay/gallery suites, animation decode/timing/nameplates, 112 documented settings, package/provenance validation and Configuration Manager attributes. Production/helper builds have zero warnings/errors. Both 0.20.0 archives are prepared; no installation or publication was performed.
+
+## Progress: 0.19.0 gallery and presentation refresh
+
+Implemented the accepted notification, gallery and director presentation batch. Gallery cards automatically load thumbnails on the left with details/actions on the right, six entries per page and bounded asynchronous thumbnail loading. F8 toggles it; outside clicks close it. PlayerController.TakeInput joins the existing player/cursor hooks; game scroll zoom is suppressed while browsing. Open file location replaces animation launching. Retry only appears for failed/omitted/unknown outcomes and retains existing authorization/backoff limits.
+
+Saving Memory begins at encoding after ending footage; raid feedback waits for its ending segment. Removed intermediate captured notices, renamed successful delivery Sent to Discord, and bolded appended Cause. Local notification style choices are Cinematic, Toast: Minimap and Toast: Top Right, with slide/fade and a minimap fallback. Rendering now runs at end of frame after the screenshot copy, using its own font and panel; actual GPU/backend, minimap-mod and visual behavior still requires in-game acceptance.
+
+Director selection with multiple POVs invokes the bounded helper to embed authenticated recorder names at bottom center; single POVs retain their original pixels. Original gallery/relay files remain intact, temporary labelled copies are cleaned after upload/cancellation, and final sizes must pass unchanged upload budgets. Removed the Perspectives heading. Nameplate encode/decode tests preserve timing and orientation. Discord link recovery uses a bounded metadata GET only when a confirmed receipt lacks guild ID; malformed/mismatched metadata cannot invalidate successful delivery. Existing gallery records without links cannot be repaired retroactively.
+
+EnemyKeys remains exact stat-key matching; spawn-code support was withdrawn. Config comments and reference documentation include the logging procedure and Jotunn localization table.
+
+Validation passed: full capture/event/relay/gallery/Discord/encoder suites, 108 documented configuration entries, 19-entry archive checks, pinned binary provenance and the installed Configuration Manager contract. Production/helper builds have zero warnings/errors. Director nameplate rendering was also inspected at 960x540; in-game notification/gallery visuals remain unverified. Matched 0.19.0 test and Thunderstore-format archives are prepared. Nothing installed or published. The live checklist is in docs/RELAY-TEST.md.
 ## Progress: 0.18.1 gallery retention corrections
 
 Review found that Flush called Tick with defaults, potentially expiring recovery files earlier than the player's configured policy on shutdown. Flush now queues behind any current worker and applies the most recently configured limits under the storage lock. Age expiry also respects the 30-second post-completion grace, including old retried clips. An unreadable index now stays intact with a persistent error and suppresses orphan cleanup/index replacement, preserving unknown pin ownership. New regression scenarios cover all three cases. 0.18.0 archives remain unchanged; 0.18.1 is the next matched host/client test package. Live acceptance remains in docs/RELAY-TEST.md.

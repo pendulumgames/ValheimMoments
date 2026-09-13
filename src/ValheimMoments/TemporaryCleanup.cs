@@ -29,6 +29,8 @@ namespace ValheimMoments
                         foreach (var path in Directory.EnumerateFiles(directory))
                         {
                             string name = Path.GetFileName(path);
+                            Guid cameraFile;
+                            if (Path.GetExtension(name) == ".webp" && Guid.TryParseExact(Path.GetFileNameWithoutExtension(name), "N", out cameraFile)) DeleteOld(path, cutoff);
                             foreach (string prefix in new[] { "opening.webp", "ending.webp", "combined.webp" })
                             {
                                 bool owned = name == prefix || name == prefix + ".partial";
